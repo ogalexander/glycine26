@@ -1,0 +1,192 @@
+================================================================================
+                  glycine2026 ANALYSIS CODE - USER MANUAL
+================================================================================
+Time-resolved x-ray experiment analysis (FLASH / DESY, beamtime 11022188).
+This manual covers day-to-day use. For data-source paths and the full API
+reference, see CLAUDE.md.
+
+
+1. WHAT THIS CODE DOES
+--------------------------------------------------------------------------------
+The pipeline turns combined HDF5 files (one row per accelerator train) into
+diagnostics, spectra, covariance maps, and ghost-imaging reconstructions.
+
+Two experiment configurations are supported and must always be stated
+explicitly - the code never guesses:
+  * config 1 - electron TOF + ion TOF spectrometers.
+  * config 2 - VLS x-ray spectrometer (Gotthard) + liquid-jet electron TOF.
+
+
+2. REQUIREMENTS & SETUP
+--------------------------------------------------------------------------------
+Python 3.10+, with: numpy, scipy, h5py, matplotlib, jupyter.
+
+No installation step. Scripts live in analysis/scripts/; notebooks add that
+folder to sys.path themselves. All file paths are resolved through
+analysis/scripts/config.py - this is the ONLY place hardcoded paths live.
+
+Switching between local and remote (FLASH cluster) data:
+  * Default is the local profile.
+  * Set the environment variable FLASH_ENV=remote to use remote paths.
+    PowerShell:  $env:FLASH_ENV = "remote"
+  * Remote paths are still placeholders; fill them into config.py once the
+    production location is confirmed.
+
+
+3. DIRECTORY LAYOUT
+--------------------------------------------------------------------------------
+  analysis/scripts/    Python modules (loading, processing, aggregates, ADMM).
+  analysis/configs/    Python-module config files for compute_aggregates.py.
+  analysis/notebooks/  Jupyter notebooks for inspection and analysis.
+  11022188/            Data root (raw HDF5, local DAQ, processed/combined H5).
+
+
+4. TYPICAL WORKFLOW
+--------------------------------------------------------------------------------
+  Step 1  Build a combined H5 file (already done for the test data):
+            write_h5_test_config1.py  ->  test_config1.h5
+            write_h5_test_config2.py  ->  test_config2.h5
+  Step 2  Inspect interactively in a notebook (Sections 5-6).
+  Step 3  Compute binned aggregates with compute_aggregates.py (Section 7).
+  Step 4  Form covariances and run ADMM ghost imaging (Section 8).
+
+
+5. LOADING DATA IN A NOTEBOOK
+--------------------------------------------------------------------------------
+  import config
+  from data_loading import load_data
+
+  data = load_data(config.COMBINED_DIR / "test_config1.h5",
+                   config=1, trim_start=2, trim_end=2)
+
+load_data removes bad trains (between_tdc_files == True) and trims the first
+and last few. Use downsample_N=10 to load 1 train in 10 for quick tests.
+
+The result is an ExperimentData object. Useful properties:
+  data.n_trains, data.n_bunches, data.mpe_broadcast
+  data.vls_pixels          (config 2 - pixel axis for plotting)
+  data.valid_shots         (boolean mask, True = shot kept)
+  data.n_valid_shots       (correct denominator after filtering)
+
+
+6. TRANSFORMING DATA
+--------------------------------------------------------------------------------
+Every transform returns a NEW ExperimentData; the original is untouched, so
+transforms can be chained safely:
+
+  clean = (data.filter_trains(data.mpe, lo=240, hi=260)
+               .filter_shots(data.gmd, lo=0.05)
+               .trim_bunches(20, 380))
+
+Available transforms:
+  crop_vls(roi_min, roi_max)            Crop VLS to a pixel ROI (config 2).
+  subtract_background(spectrum)         Subtract a 1D background.
+  auto_subtract_background(bunch_roi)   Subtract the mean spectrum over a
+                                        signal-free bunch range.
+  compute_vls_moments()                 Fill vls_sums / vls_coms / vls_widths.
+  filter_shots(values, lo, hi, inside)  Mask shots in place; records a
+                                        cumulative shot_mask so later averages
+                                        use the right denominator.
+  filter_trains(values, lo, hi, inside) Drop whole trains (n_trains shrinks).
+  trim_bunches(bunch_start, bunch_end)  Keep a half-open bunch range.
+
+filter_*: pass an array shaped (n_trains,) or (n_trains, n_bunches); lo/hi
+are bounds; inside=True keeps values in [lo, hi], inside=False keeps values
+outside. NaNs are always dropped.
+
+Persist computed VLS moments back to the H5 file with:
+  from data_loading import save_vls_moments
+  save_vls_moments(data, filepath, overwrite=True)
+load_data restores them automatically next time.
+
+
+7. INSPECTION NOTEBOOKS
+--------------------------------------------------------------------------------
+Open these in analysis/notebooks/. Each has a Parameters cell near the top -
+edit the file name, config number, and ROIs there, then Run All.
+
+  diagnostics.ipynb        GMD, beam position, per-train health checks.
+  tof_inspect.ipynb        TOF spectra (average, vs bunch, vs train);
+                           GMD vs electron-count correlation; TOF spectrum
+                           per GMD bin. Uses memory-efficient histogramming.
+  vls_inspect.ipynb        VLS crop/background/moments; spectra; average
+                           spectrum per GMD bin and per centre-of-mass bin.
+
+
+8. COMPUTING AGGREGATES (compute_aggregates.py)
+--------------------------------------------------------------------------------
+Covariance and ADMM need binned matrix aggregates. compute_aggregates.py
+streams the H5 in chunks, so the large per-shot matrices never fill memory.
+
+Run it from the project root:
+  python analysis/scripts/compute_aggregates.py CONFIG.py INPUT.h5 [-o OUT.h5]
+
+CONFIG.py is a plain Python module of constants. Copy and edit an example
+from analysis/configs/:
+  aggregates_example.py       config 2, spectral mode.
+  aggregates_example_cfg1.py  config 1, spectral mode.
+  aggregates_example_tr.py    config 2, time-resolved mode.
+
+Key constants: GMD_EDGES, CONFIG, MODE, TOF_EDGES (and ION_TOF_EDGES for
+config 1), CROP_ROI and BACKGROUND (config 2), Z_EDGES and TOF_ROI
+(time-resolved mode).
+
+Modes:
+  spectral        Bin by GMD only. Full spectra kept.
+  time_resolved   Bin by GMD x stage position z; the eTOF is reduced to a
+                  scalar count inside TOF_ROI. (config 2 only.)
+
+Output: <input>_aggregates.h5 (spectral) or <input>_aggregates_tr.h5
+(time-resolved). All matrices stored are per-bin means; empty bins are NaN.
+
+
+9. COVARIANCE & ADMM GHOST IMAGING
+--------------------------------------------------------------------------------
+Load aggregates and form covariances:
+  from compute_aggregates import load_aggregates
+  agg = load_aggregates("..._aggregates.h5")
+  cov_AA = agg.AtA - agg.A[..., :, None] * agg.A[..., None, :]
+  cov_AD = agg.AtD - agg.A[..., :, None] * agg.D[..., None, :]
+
+Notebooks that do this for you:
+  covariance_inspect.ipynb       config 2: photon-photon & photon-electron.
+  covariance_inspect_cfg1.ipynb  config 1: electron-ion covariance plus the
+                                 partial covariance controlling for GMD.
+  admm_solve.ipynb               Spectral-domain ghost imaging by ADMM.
+  admm_solve_tr.ipynb            Time-resolved ADMM; result vs stage position.
+
+ADMM (admm_ghost.solve_admm) solves Cov(A,A) x = Cov(A,D) with smoothness
+and sparsity regularisation. The weights LAMBDA_SMOOTH_PIXEL,
+LAMBDA_SMOOTH_TOF, LAMBDA_SPARSE and RHO are set in the notebook; the
+defaults are tuned to the synthetic test data and must be re-calibrated on
+real data.
+
+
+10. KEY CONVENTIONS & GOTCHAS
+--------------------------------------------------------------------------------
+  * Zero-padded TOF arrays: a hit is any non-zero value; zeros are padding.
+    Always exclude zeros before histogramming or counting.
+  * Energy-normalised averages use sum(x)/sum(y) per bin, NOT mean(x/y).
+  * Always pass an explicit bunch range; the "good" range is dataset-specific
+    and read off the diagnostic plots.
+  * config is always passed explicitly (1 or 2) and never inferred.
+  * Units: GMD in microjoules, TOF in ns, photon energy in eV.
+  * All plot functions return (fig, axes) for further customisation.
+  * Never hardcode paths anywhere except config.py.
+
+
+11. TROUBLESHOOTING
+--------------------------------------------------------------------------------
+  ModuleNotFoundError       Run notebooks from analysis/notebooks/ so the
+                            sys.path insertion finds analysis/scripts/.
+  Wrong / missing datasets  compute_aggregates.py verifies the H5 matches
+                            CONFIG; check the CONFIG value in your config.py.
+  MemoryError on TOF        Use the indexed-hit histogramming in
+                            tof_inspect.ipynb, not full per-shot spectra.
+  Empty aggregate bins      Bin had no shots -> NaN; widen GMD_EDGES or
+                            check filtering.
+  Averages look wrong after
+  filtering                 Use data.valid_shots / data.n_valid_shots as the
+                            denominator, not n_trains * n_bunches.
+
+================================================================================

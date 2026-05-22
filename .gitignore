@@ -1,0 +1,17 @@
+# Ignore claude files
+.claude/
+
+# Ignore the experiment folder (where all data is stored)
+11022188/
+
+# Ignor jupyter cache
+__pycache__/
+analysis/.ipynb_checkpoints/
+analysis/configs/__pycache__/
+analysis/notebooks/.ipynb_checkpoints/
+
+# python cache
+analysis/scripts/__pycache__/
+
+# Ignore some test files
+analysis/notebooks/prep_for_June2026.ipynb
