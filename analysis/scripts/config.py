@@ -61,10 +61,10 @@ _PROFILES: dict[str, dict[str, Path]] = {
     # and fill in the four paths below. Until then `FLASH_ENV=remote` will
     # raise.
     "remote": {
-        "DATA_ROOT":     Path("/asap3/flash/gpfs/PLACEHOLDER/11022188"),
-        "RAW_H5_DIR":    Path("/asap3/flash/gpfs/PLACEHOLDER/11022188/raw/hdf5/online-0/fl2user1"),
-        "LOCAL_DAQ_DIR": Path("/asap3/flash/gpfs/PLACEHOLDER/11022188/processed/local_DAQ"),
-        "COMBINED_DIR":  Path("/asap3/flash/gpfs/PLACEHOLDER/11022188/processed/combined"),
+        "DATA_ROOT":     Path("/asap3/flash/gpfs/fl24/2026/data/11022188"),
+        "RAW_H5_DIR":    Path("/asap3/flash/gpfs/fl24/2026/data/11022188/raw/hdf5/online-0/fl2user1"),
+        "LOCAL_DAQ_DIR": Path("/asap3/flash/gpfs/fl24/2026/data/11022188/processed/local_DAQ"),
+        "COMBINED_DIR":  Path("/asap3/flash/gpfs/fl24/2026/data/11022188/processed/combined"),
     },
 }
 
