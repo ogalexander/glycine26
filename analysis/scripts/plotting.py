@@ -201,15 +201,19 @@ def plot_linearity(
     i_tof_range: Optional[Tuple[float, float]] = None,
 ) -> Tuple[plt.Figure, np.ndarray]:
     """
-    Investigate the linearity between pulse energy and hit counts.
+    Investigate the linearity between pulse energy and a per-shot observable.
 
-    Panels
-    ------
-    1. Mean electron counts vs mean GMD per bin (linearity check).
-    2. Mean ion counts vs mean GMD per bin (config 1 only).
-    3. False-colour: bunch index vs mean electron counts per GMD bin
-       (checks bunch-index independence of the linear relationship).
-    4. False-colour: bunch index vs mean ion counts per GMD bin (config 1).
+    Panels (2 × 2 grid for both configs)
+    ------------------------------------
+    Row 0 — electron detector (electron TOF for config 1, liquid-jet eTOF
+    for config 2):
+        (0, 0) Mean electron hits vs mean GMD per bin, with linear fit.
+        (0, 1) False-colour bunch index vs mean electron hits per GMD bin.
+    Row 1 — secondary detector:
+        config 1: ion TOF hit counts.
+        config 2: integrated VLS intensity per shot (full pixel axis).
+        (1, 0) Mean secondary vs mean GMD per bin, with linear fit.
+        (1, 1) False-colour bunch index vs mean secondary per GMD bin.
 
     Parameters
     ----------
@@ -221,7 +225,7 @@ def plot_linearity(
     e_tof_range : (float, float), optional
         TOF range (ns) for counting electron hits.
     i_tof_range : (float, float), optional
-        TOF range (ns) for counting ion hits.
+        TOF range (ns) for counting ion hits. Ignored for config 2.
 
     Returns
     -------
@@ -236,18 +240,26 @@ def plot_linearity(
                           *(e_tof_range or (None, None)))  # (n, m)
 
     if config == 1:
-        i_counts = count_hits(data.tofs_i,
-                              *(i_tof_range or (None, None)))  # (n, m)
+        secondary = count_hits(data.tofs_i,
+                               *(i_tof_range or (None, None)))  # (n, m)
+        secondary_name = "ion hits"
+        secondary_short = "ions"
+        secondary_color = "tomato"
+        secondary_fit_color = "darkred"
+    else:
+        secondary = np.nansum(data.vls, axis=-1)  # (n, m)
+        secondary_name = "integrated VLS (arb.)"
+        secondary_short = "integrated VLS"
+        secondary_color = "mediumseagreen"
+        secondary_fit_color = "darkgreen"
 
     gmd = data.gmd  # (n, m)
 
     # --- Flatten to shots ------------------------------------------------
-    gmd_flat     = gmd.reshape(-1)
-    e_counts_flat = e_counts.reshape(-1)
-    bunch_idx    = np.tile(np.arange(data.n_bunches), data.n_trains)
-
-    if config == 1:
-        i_counts_flat = i_counts.reshape(-1)
+    gmd_flat       = gmd.reshape(-1)
+    e_counts_flat  = e_counts.reshape(-1)
+    secondary_flat = secondary.reshape(-1)
+    bunch_idx      = np.tile(np.arange(data.n_bunches), data.n_trains)
 
     # --- Build GMD bin edges ---------------------------------------------
     if gmd_edges is None:
@@ -256,92 +268,68 @@ def plot_linearity(
 
     gmd_cents, bool_ar = arb_bool_ar(gmd_edges, gmd_flat)
 
-    # --- Bin counts vs GMD -----------------------------------------------
+    # --- Bin observables vs GMD -----------------------------------------
     e_binned, e_std, e_n = bin_and_average(bool_ar, e_counts_flat)
-    gmd_binned, gmd_std, _ = bin_and_average(bool_ar, gmd_flat)
-
-    if config == 1:
-        i_binned, i_std, _ = bin_and_average(bool_ar, i_counts_flat)
+    s_binned, s_std, _   = bin_and_average(bool_ar, secondary_flat)
+    gmd_binned, _, _     = bin_and_average(bool_ar, gmd_flat)
 
     # --- Bunch-index dependence ------------------------------------------
     # For each bunch index b, bin the shots at that bunch index by GMD
     n_b = data.n_bunches
     e_by_bunch = np.full((n_b, len(gmd_cents)), np.nan)
-    if config == 1:
-        i_by_bunch = np.full((n_b, len(gmd_cents)), np.nan)
+    s_by_bunch = np.full((n_b, len(gmd_cents)), np.nan)
 
     for b in range(n_b):
         b_mask = bunch_idx == b
         sub_gmd   = gmd_flat[b_mask]
-        sub_e     = e_counts_flat[b_mask]
         _, b_bool = arb_bool_ar(gmd_edges, sub_gmd)
-        e_avg, _, _ = bin_and_average(b_bool, sub_e)
+        e_avg, _, _ = bin_and_average(b_bool, e_counts_flat[b_mask])
+        s_avg, _, _ = bin_and_average(b_bool, secondary_flat[b_mask])
         e_by_bunch[b] = e_avg
-        if config == 1:
-            sub_i = i_counts_flat[b_mask]
-            i_avg, _, _ = bin_and_average(b_bool, sub_i)
-            i_by_bunch[b] = i_avg
+        s_by_bunch[b] = s_avg
 
     # --- Plotting --------------------------------------------------------
-    ncols = 2
-    nrows = 2 if config == 1 else 1
-    fig, axes = plt.subplots(nrows, ncols, figsize=(13, 5 * nrows))
-    if nrows == 1:
-        axes = axes[np.newaxis, :]
+    fig, axes = plt.subplots(2, 2, figsize=(13, 10))
 
-    # Panel (0,0): electron counts vs GMD
-    ax = axes[0, 0]
-    ax.errorbar(gmd_binned, e_binned, yerr=e_std, fmt="o-",
-                color="steelblue", capsize=3, label="Mean ± std")
-    # Overlay linear fit
-    finite = np.isfinite(gmd_binned) & np.isfinite(e_binned)
-    if finite.sum() > 1:
-        coeffs = np.polyfit(gmd_binned[finite], e_binned[finite], 1)
-        fit_x = np.linspace(gmd_binned[finite].min(), gmd_binned[finite].max(), 200)
-        ax.plot(fit_x, np.polyval(coeffs, fit_x), "--", color="navy",
-                label=f"Linear fit (slope={coeffs[0]:.3f})")
-    ax.set_xlabel("Pulse energy (µJ)")
-    ax.set_ylabel("Mean electron hits")
-    ax.set_title("Linearity: GMD vs electrons")
-    ax.legend()
-
-    # Panel (0,1): false-colour bunch index vs electron counts per GMD bin
-    ax = axes[0, 1]
-    im = ax.pcolormesh(
-        gmd_cents, np.arange(n_b), e_by_bunch,
-        cmap="viridis", shading="auto",
-    )
-    fig.colorbar(im, ax=ax, label="Mean electron hits")
-    ax.set_xlabel("Pulse energy bin centre (µJ)")
-    ax.set_ylabel("Bunch index")
-    ax.set_title("Bunch-index independence (electrons)")
-
-    if config == 1:
-        # Panel (1,0): ion counts vs GMD
-        ax = axes[1, 0]
-        ax.errorbar(gmd_binned, i_binned, yerr=i_std, fmt="o-",
-                    color="tomato", capsize=3, label="Mean ± std")
-        finite_i = np.isfinite(gmd_binned) & np.isfinite(i_binned)
-        if finite_i.sum() > 1:
-            coeffs_i = np.polyfit(gmd_binned[finite_i], i_binned[finite_i], 1)
-            fit_x = np.linspace(gmd_binned[finite_i].min(), gmd_binned[finite_i].max(), 200)
-            ax.plot(fit_x, np.polyval(coeffs_i, fit_x), "--", color="darkred",
-                    label=f"Linear fit (slope={coeffs_i[0]:.3f})")
+    def _linearity_panel(ax, y_binned, y_std, ylabel, title, color, fit_color):
+        ax.errorbar(gmd_binned, y_binned, yerr=y_std, fmt="o-",
+                    color=color, capsize=3, label="Mean ± std")
+        finite = np.isfinite(gmd_binned) & np.isfinite(y_binned)
+        if finite.sum() > 1:
+            coeffs = np.polyfit(gmd_binned[finite], y_binned[finite], 1)
+            fit_x = np.linspace(gmd_binned[finite].min(),
+                                gmd_binned[finite].max(), 200)
+            ax.plot(fit_x, np.polyval(coeffs, fit_x), "--", color=fit_color,
+                    label=f"Linear fit (slope={coeffs[0]:.3g})")
         ax.set_xlabel("Pulse energy (µJ)")
-        ax.set_ylabel("Mean ion hits")
-        ax.set_title("Linearity: GMD vs ions")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
         ax.legend()
 
-        # Panel (1,1): false-colour bunch index vs ion counts per GMD bin
-        ax = axes[1, 1]
+    def _bunch_panel(ax, by_bunch, cbar_label, title):
         im = ax.pcolormesh(
-            gmd_cents, np.arange(n_b), i_by_bunch,
+            gmd_cents, np.arange(n_b), by_bunch,
             cmap="viridis", shading="auto",
         )
-        fig.colorbar(im, ax=ax, label="Mean ion hits")
+        fig.colorbar(im, ax=ax, label=cbar_label)
         ax.set_xlabel("Pulse energy bin centre (µJ)")
         ax.set_ylabel("Bunch index")
-        ax.set_title("Bunch-index independence (ions)")
+        ax.set_title(title)
+
+    _linearity_panel(axes[0, 0], e_binned, e_std,
+                     "Mean electron hits",
+                     "Linearity: GMD vs electrons",
+                     "steelblue", "navy")
+    _bunch_panel(axes[0, 1], e_by_bunch,
+                 "Mean electron hits",
+                 "Bunch-index independence (electrons)")
+    _linearity_panel(axes[1, 0], s_binned, s_std,
+                     f"Mean {secondary_name}",
+                     f"Linearity: GMD vs {secondary_short}",
+                     secondary_color, secondary_fit_color)
+    _bunch_panel(axes[1, 1], s_by_bunch,
+                 f"Mean {secondary_name}",
+                 f"Bunch-index independence ({secondary_short})")
 
     fig.suptitle(f"Linearity — Config {config}", fontsize=14, fontweight="bold")
     fig.tight_layout()
