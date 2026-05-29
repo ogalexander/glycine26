@@ -199,7 +199,9 @@ with `M = Cov(A)`, `B = Cov(A, D)`.
   (`primal`, `dual`, `objective` arrays).
 
 ### Notebooks (`analysis/notebooks/`)
-- `diagnostics.ipynb` — GMD / beam-position / per-train diagnostics.
+- `diagnostics.ipynb` — GMD / beam-position / per-train diagnostics
+  plus `plot_linearity` (GMD vs electrons and, for config 2, GMD vs
+  integrated VLS).
 - `tof_inspect.ipynb` — memory-efficient TOF histogramming (indexed-hit
   flattening); average / per-bunch / per-train spectra; GMD vs electron
   count correlation; average TOF spectrum per GMD bin.
@@ -300,8 +302,10 @@ collapses to 1 (scalar eTOF count inside `tof_roi`), and `z_edges`
 - [x] Notebooks: `diagnostics`, `tof_inspect`, `vls_inspect`,
       `covariance_inspect`, `covariance_inspect_cfg1`, `admm_solve`,
       `admm_solve_tr`.
-- [ ] Remaining plotting notebooks (linearity, energy maps, delay
-      dependence) to be written.
+- [x] `plot_linearity` integrated into `diagnostics.ipynb`; extended so
+      config 2 shows integrated VLS as the secondary observable.
+- [ ] Remaining plotting notebooks (energy maps, delay dependence) to be
+      written.
 - [ ] Remote profile paths in `config.py` to be filled in once the
       production location on the FLASH cluster is known.
 
@@ -318,7 +322,7 @@ collapses to 1 (scalar eTOF count inside `tof_roi`), and `z_edges`
 - Confirm the max-hits dimension for real `liq_tofs_e` once a real
   config 2 acquisition is available (currently inherits the test
   `tofs_e` last-dim = 50).
-- Write notebooks for `plot_linearity`, `plot_energy_binned_maps`, and
+- Write notebooks for `plot_energy_binned_maps` and
   `plot_delay_dependence`.
 - Re-calibrate the ADMM regularisation weights (`LAMBDA_SMOOTH_PIXEL`,
   `LAMBDA_SMOOTH_TOF`, `LAMBDA_SPARSE`, `RHO`) on real config 2 data —
