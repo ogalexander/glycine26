@@ -15,3 +15,6 @@ analysis/scripts/__pycache__/
 
 # Ignore some test files
 analysis/notebooks/prep_for_June2026.ipynb
+
+# ignore personal files
+kaiyu/
