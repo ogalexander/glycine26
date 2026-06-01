@@ -18,3 +18,7 @@ analysis/notebooks/prep_for_June2026.ipynb
 
 # ignore personal files
 kaiyu/
+
+# ignore for now 
+dashboard/
+db/
