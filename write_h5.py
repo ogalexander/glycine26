@@ -2,7 +2,8 @@ from typing import Tuple
 import os
 import sys
 # sys.path.append('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/analysis_tools/decoding_script/beamtime_scripts_2021')
-sys.path.append('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/analysis_tools/decoding_script')
+#sys.path.append('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/analysis_tools/decoding_script')
+sys.path.append('/asap3/flash/gpfs/fl24/2026/data/11022188/processed/analysis_tools/decoding_script')
 import re
 import glob
 
