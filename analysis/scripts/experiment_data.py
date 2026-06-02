@@ -233,30 +233,40 @@ class ExperimentData:
 
     def subtract_background(self, background: np.ndarray) -> "ExperimentData":
         """
-        Return a copy with a 1D background subtracted from every VLS shot.
+        Return a copy with a background subtracted from every VLS shot.
+
+        The background can be a single 1D spectrum (broadcast over both
+        the train and bunch axes) or a 2D per-bunch background of shape
+        ``(n_bunches, n_pixels)`` (broadcast over the train axis only).
+        The 2D form is useful when the background spectrum depends on
+        bunch position within the train.
 
         Parameters
         ----------
         background : np.ndarray
-            1D background spectrum, shape ``(n_pixels,)`` matching the
-            current VLS pixel axis (i.e. the *cropped* pixel axis if
-            ``crop_vls`` has already been applied).
+            Either ``(n_pixels,)`` (one spectrum for every shot) or
+            ``(n_bunches, n_pixels)`` (one spectrum per bunch). The
+            pixel axis must match the current VLS pixel axis — i.e. the
+            *cropped* axis if ``crop_vls`` has already been applied.
 
         Returns
         -------
         ExperimentData
             New dataset with ``vls`` equal to ``self.vls - background``
-            broadcast over the train and bunch axes.
+            broadcast over the leading axes.
         """
         if self.vls is None:
             raise AttributeError("This dataset has no VLS data (config != 2).")
 
         background = np.asarray(background)
-        n_pixels = self.vls.shape[-1]
-        if background.shape != (n_pixels,):
+        n_bunches = self.vls.shape[1]
+        n_pixels  = self.vls.shape[2]
+        valid_shapes = ((n_pixels,), (n_bunches, n_pixels))
+        if background.shape not in valid_shapes:
             raise ValueError(
-                f"background shape {background.shape} does not match VLS "
-                f"pixel axis ({n_pixels},)."
+                f"background shape {background.shape} must be "
+                f"({n_pixels},) for a per-pixel background or "
+                f"({n_bunches}, {n_pixels}) for a per-bunch background."
             )
 
         return replace(
