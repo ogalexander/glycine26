@@ -43,12 +43,54 @@ Switching between local and remote (FLASH cluster) data:
 
 4. TYPICAL WORKFLOW
 --------------------------------------------------------------------------------
-  Step 1  Build a combined H5 file (already done for the test data):
-            write_h5_test_config1.py  ->  test_config1.h5
-            write_h5_test_config2.py  ->  test_config2.h5
+  Step 1  Build a combined H5 file:
+            * Production data - use write_h5.py:
+                python write_h5.py <measurement> <config> <run_no> [-o OUT.h5]
+              <config> is 1 (e + i TOF) or 2 (liq eTOF + VLS); paths come
+              from analysis/scripts/config.py. Output defaults to
+              COMBINED_DIR/<measurement>.h5. See Section 4a for details.
+            * Bundled test data (already produced):
+                write_h5_test_config1.py  ->  test_config1.h5
+                write_h5_test_config2.py  ->  test_config2.h5
   Step 2  Inspect interactively in a notebook (Sections 5-6).
   Step 3  Compute binned aggregates with compute_aggregates.py (Section 7).
   Step 4  Form covariances and run ADMM ghost imaging (Section 8).
+
+
+4a. BUILDING A COMBINED H5 (write_h5.py)
+--------------------------------------------------------------------------------
+write_h5.py aligns three data streams by train ID and writes the combined
+H5 in the schema described in CLAUDE.md:
+  * raw FLASH H5     - GMD, MPE, beam position (+ VLS for config 2),
+  * local-DAQ SDU    - z, z_std (delay stage),
+  * local-DAQ TDC    - per-bunch TOF hits.
+
+Positional arguments:
+  measurement_name   Basename for the SDU .txt and TDC .lst files under
+                     LOCAL_DAQ_DIR/<measurement_name>/.
+  config             1 = electron + ion TOF (TDC channels 1, 2).
+                     2 = liquid-jet eTOF (TDC channel 3) + Gotthard VLS
+                         (read from the same raw H5 files).
+  run_no             FLASH run number used to glob raw H5 files.
+
+Useful options:
+  -o, --output           Override the output path.
+  --train-length N       Bunches per train (default 400 / 100).
+  --chunk-size N         Rows per chunked write (default 1000 / 200).
+  --max-ecounts N        Per-bunch electron-TOF zero-padding limit.
+  --max-icounts N        Per-bunch ion-TOF zero-padding limit (cfg 1).
+  --n-vls-pixels N       Width of the Gotthard VLS pixel axis (cfg 2).
+  --folding-parameter F  TOF range (ns) for per-bunch event splitting.
+
+Examples:
+  python write_h5.py delay_scan3 1 48346
+  python write_h5.py glycine_scan1 2 54609 -o glycine_scan1.h5
+
+Notes:
+  * extract_data_from_single_file always decodes all three TDC channels;
+    unused channels return empty arrays (no error).
+  * TDCIterator(fpaths, config=...) defaults to config=1 for backwards
+    compatibility with the test writers.
 
 
 5. LOADING DATA IN A NOTEBOOK

@@ -43,10 +43,11 @@ Default is `local`. `config.py` is the **only** place hardcoded paths live.
 ---
 
 ## H5 File Schema
-Combined H5 files written by `write_h5_test_config1.py` and
-`write_h5_test_config2.py` share this schema. The first index is always
-the train index. Config 1 has `m = 400` bunches/train; the config 2 test
-file is truncated to `m = 100` (the Gotthard VLS bunch count).
+Combined H5 files written by `write_h5.py` (production CLI) and the
+test-data builders `write_h5_test_config1.py` / `write_h5_test_config2.py`
+share this schema. The first index is always the train index. Config 1
+has `m = 400` bunches/train; the config 2 test file is truncated to
+`m = 100` (the Gotthard VLS bunch count).
 
 | Key                  | Shape        | Units  | Description                                |
 |----------------------|--------------|--------|--------------------------------------------|
@@ -99,6 +100,42 @@ to a combined H5 file holding per-shot VLS spectral moments:
 Trains absent from the saved subset are NaN-filled. Group attrs
 `crop_roi` and `background_roi` record the preprocessing applied before
 the moments were computed. `load_data` restores this group when present.
+
+---
+
+## Combined H5 writers
+
+### `write_h5.py` — production CLI
+Aligns three streams by train ID — raw FLASH H5 (GMD, MPE, beam
+position; +VLS for config 2), local-DAQ SDU `.txt` (z, z_std), local-DAQ
+TDC `.lst` (TOFs) — and writes a combined H5 in the schema above. All
+paths resolve through `config.py`.
+
+```
+python write_h5.py <measurement_name> <config> <run_no> [-o OUT.h5]
+                   [--train-length N] [--chunk-size N]
+                   [--max-ecounts N] [--max-icounts N]
+                   [--n-vls-pixels N] [--folding-parameter F]
+```
+
+- `config=1`: TDC ch 1 → `tofs_e`, ch 2 → `tofs_i`.
+- `config=2`: TDC ch 3 → `liq_tofs_e`; VLS read from
+  `/FL2/Support Infrastructure/Gotthard/images/value` (paired with
+  `.../index`) in the same raw H5 files.
+- `extract_data_from_single_file` always decodes all three TDC channels;
+  unused channels come back empty and never raise.
+- `TDCIterator(fpaths, config=...)` defaults to `config=1` (back-compat
+  with the test scripts).
+- Defaults: `train_length` 400 (cfg 1) / 100 (cfg 2),
+  `chunk_size` 1000 / 200, `max_ecounts` 50, `max_icounts` 120,
+  `n_vls_pixels` 1280, `folding_parameter` 9969.225 ns.
+- Output defaults to `COMBINED_DIR / "<measurement>.h5"`.
+
+### `write_h5_test_config1.py`, `write_h5_test_config2.py`
+Test-data builders for the bundled `test_config1.h5` and `test_config2.h5`.
+The config 2 test file is synthetic — its VLS comes from a different run
+and is index-aligned (not train-ID-aligned) with the config 1 streams.
+Use `write_h5.py` for real measurements.
 
 ---
 
@@ -283,9 +320,10 @@ collapses to 1 (scalar eTOF count inside `tof_roi`), and `z_edges`
       processing, plotting)
 - [x] Config 1 test data available
 - [x] VLS test data available (misaligned — combiner script written)
-- [x] `write_h5.py` — inspected; legacy reference only (hardcoded to a
-      2023 beamtime). Helper classes (`DataChunk`, `TDCIterator`,
-      `SDUIterator`, `h5Iterator`) are imported by the new writers.
+- [x] `write_h5.py` — production CLI; argparse-driven, takes
+      `measurement_name`, `config` (1 or 2), `run_no`. Dispatches on
+      `config` to write config-1 (e + i TOF) or config-2 (liq eTOF +
+      VLS) combined H5 files. All paths via `config.py`.
 - [x] `write_h5_test_config1.py` — written; runs end-to-end and produces
       `test_config1.h5` (73 634 trains × 400 bunches).
 - [x] `write_h5_test_config2.py` — written; produces `test_config2.h5`

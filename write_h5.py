@@ -1,9 +1,19 @@
 from typing import Tuple
+import argparse
 import os
 import sys
-# sys.path.append('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/analysis_tools/decoding_script/beamtime_scripts_2021')
-#sys.path.append('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/analysis_tools/decoding_script')
+from pathlib import Path
+
+# Make the legacy beamtime decoder importable on both the local workstation
+# (current repo layout) and the FLASH cluster (2026 beamtime path).
+_REPO_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(_REPO_ROOT / "analysis" / "scripts"))
+sys.path.insert(
+    0,
+    str(_REPO_ROOT / "11022188" / "processed" / "analysis_tools" / "decoding_script"),
+)
 sys.path.append('/asap3/flash/gpfs/fl24/2026/data/11022188/processed/analysis_tools/decoding_script')
+
 import re
 import glob
 
@@ -12,14 +22,12 @@ import numpy as np
 import pandas as pd
 
 from beamtime_scripts_2021.util import write_pos_data_to_file
-# from util import write_pos_data_to_file
-
-from pathlib import Path
-
 from beamtime_scripts_2021.MCS6A_decoding import decoding, metadata_decoding
 from beamtime_scripts_2021.util import write_tof_data_to_file
 
-import h5py as h5 
+import h5py as h5
+
+import config  # path resolution; the only place hardcoded paths live
 class DataChunk():
     def __init__(self, chunk_size, train_length, max_ecounts=50, max_icounts=120):
         self.chunk_size = chunk_size
@@ -117,48 +125,155 @@ class DataChunk():
         data_flag_dset[roi]         = self.is_datas
         between_tdc_files_dset[roi] = self.between_tdc_filess
 
-        (dset.resize((self.count*self.chunk_size) + self.idx-1, axis=0) for dset in 
+        (dset.resize((self.count*self.chunk_size) + self.idx-1, axis=0) for dset in
             [tID_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset, between_tdc_files_dset]) # 4 missing from here
 
+
+class DataChunkConfig2():
+    """
+    Chunked accumulator for config 2 combined-H5 writes.
+
+    Mirrors :class:`DataChunk` but swaps the electron/ion TOF buffers for
+    a liquid-jet electron TOF buffer (``liq_tofs_e``, TDC channel 3) and a
+    Gotthard VLS spectrum buffer (``vls``). ``dump``/``finish`` take a
+    dict keyed by dataset name so the larger field set stays readable.
+    """
+
+    def __init__(self, chunk_size, train_length, max_ecounts=50, n_vls_pixels=1280):
+        self.chunk_size = chunk_size
+        self.train_length = train_length
+        self.max_ecounts = max_ecounts
+        self.n_vls_pixels = n_vls_pixels
+        self.reset()
+        self.count = 0
+
+    def add_row(self, is_data, tID, gmd, mpe, hor_pos, ver_pos, z, z_std,
+                liq_tofs_e, vls, between_tdc_files):
+        self.is_datas[self.idx]            = is_data
+        self.tIDs[self.idx]                = tID
+        self.gmds[self.idx]                = gmd
+        self.mpes[self.idx]                = mpe
+        self.hor_poss[self.idx]            = hor_pos
+        self.ver_poss[self.idx]            = ver_pos
+        self.zs[self.idx]                  = z
+        self.z_stds[self.idx]              = z_std
+        self.between_tdc_filess[self.idx]  = between_tdc_files
+
+        if liq_tofs_e is not None:
+            for b_idx, bunch in enumerate(liq_tofs_e):
+                self.liq_tofs_es[self.idx, b_idx, :len(bunch)] = bunch
+        if vls is not None:
+            self.vls[self.idx] = vls
+
+        self.idx += 1
+        if self.idx == self.chunk_size:
+            print('full!')
+            return True
+        return False
+
+    def dump(self, dsets):
+        roi = np.s_[self.count*self.chunk_size:(self.count+1)*self.chunk_size]
+        dsets['tID'][roi]                = self.tIDs
+        dsets['local_DAQ_running'][roi]  = self.is_datas
+        dsets['z'][roi]                  = self.zs
+        dsets['z_std'][roi]              = self.z_stds
+        dsets['gmd'][roi]                = self.gmds
+        dsets['mpe'][roi]                = self.mpes
+        dsets['hor_pos'][roi]            = self.hor_poss
+        dsets['ver_pos'][roi]            = self.ver_poss
+        dsets['liq_tofs_e'][roi]         = self.liq_tofs_es
+        dsets['vls'][roi]                = self.vls
+        dsets['between_tdc_files'][roi]  = self.between_tdc_filess
+        self.count += 1
+
+    def reset(self):
+        self.is_datas            = np.zeros((self.chunk_size,), dtype='bool')
+        self.tIDs                = np.zeros((self.chunk_size,), dtype='double')
+        self.gmds                = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
+        self.mpes                = np.full((self.chunk_size,), np.nan, dtype=np.float32)
+        self.hor_poss            = np.full((self.chunk_size,), np.nan, dtype=np.float32)
+        self.ver_poss            = np.full((self.chunk_size,), np.nan, dtype=np.float32)
+        self.zs                  = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
+        self.z_stds              = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
+        self.liq_tofs_es         = np.zeros((self.chunk_size, self.train_length, self.max_ecounts), dtype=np.uint32)
+        self.vls                 = np.full((self.chunk_size, self.train_length, self.n_vls_pixels), np.nan, dtype=np.float32)
+        self.between_tdc_filess  = np.zeros((self.chunk_size,), dtype='bool')
+        self.idx = 0
+        print('reset.')
+
+    def finish(self, dsets):
+        # Mirror DataChunk.finish: trim to idx-1 (drops the last partial row).
+        # This off-by-one is replicated for parity with the existing config 1 writer.
+        self.is_datas            = self.is_datas[:self.idx-1]
+        self.tIDs                = self.tIDs[:self.idx-1]
+        self.gmds                = self.gmds[:self.idx-1]
+        self.mpes                = self.mpes[:self.idx-1]
+        self.hor_poss            = self.hor_poss[:self.idx-1]
+        self.ver_poss            = self.ver_poss[:self.idx-1]
+        self.zs                  = self.zs[:self.idx-1]
+        self.z_stds              = self.z_stds[:self.idx-1]
+        self.liq_tofs_es         = self.liq_tofs_es[:self.idx-1]
+        self.vls                 = self.vls[:self.idx-1]
+        self.between_tdc_filess  = self.between_tdc_filess[:self.idx-1]
+
+        roi = np.s_[self.count*self.chunk_size:(self.count*self.chunk_size) + self.idx-1]
+        dsets['tID'][roi]                = self.tIDs
+        dsets['local_DAQ_running'][roi]  = self.is_datas
+        dsets['z'][roi]                  = self.zs
+        dsets['z_std'][roi]              = self.z_stds
+        dsets['gmd'][roi]                = self.gmds
+        dsets['mpe'][roi]                = self.mpes
+        dsets['hor_pos'][roi]            = self.hor_poss
+        dsets['ver_pos'][roi]            = self.ver_poss
+        dsets['liq_tofs_e'][roi]         = self.liq_tofs_es
+        dsets['vls'][roi]                = self.vls
+        dsets['between_tdc_files'][roi]  = self.between_tdc_filess
+
+
 class TDCIterator:
-    def __init__(self, measurement_fpaths):
+    """
+    Walks the per-train TDC events file-by-file.
+
+    All three TDC channels (1 = electron, 2 = ion, 3 = liquid-jet electron)
+    are decoded from every file regardless of the active config. The
+    ``config`` argument only changes what ``__next__`` returns, so callers
+    for the unused config still see legitimate (empty) data instead of an
+    AttributeError or an extra unwrap step.
+
+    Yields per train:
+        - config == 1:  (tID, eventcounts_e,  tofs_e_bunch,
+                              eventcounts_i,  tofs_i_bunch)
+        - config == 2:  (tID, eventcounts_le, tofs_le_bunch)
+    """
+
+    def __init__(self, measurement_fpaths, config: int = 1):
         self._measurement_fpaths = measurement_fpaths
+        self.config = int(config)
+        if self.config not in (1, 2):
+            raise ValueError(f"TDCIterator config must be 1 or 2, got {config!r}")
 
         # Initialize Decoder object and specify the data that should be decoded
         self.decoder = decoding.Decoder(wanted_data=['channel', 'timedata', 'sweep', 'tagbits'])
-        
+
         # Get number of sweeps/trainIDs per file specified by the sweep preset
         self.sweeps_per_file = metadata_decoding.from_file(self._measurement_fpaths[0], keywords='swpreset=', paragraph_kw='MPA4A')[0]
 
-        self.trainIDs_tdc, self.eventcounts_e, self.tofs_e, self.eventcounts_i, self.tofs_i = extract_data_from_single_file(self._measurement_fpaths[0], self.decoder, self.sweeps_per_file)
+        (self.trainIDs_tdc,
+         self.eventcounts_e,  self.tofs_e,
+         self.eventcounts_i,  self.tofs_i,
+         self.eventcounts_le, self.tofs_le) = extract_data_from_single_file(
+            self._measurement_fpaths[0], self.decoder, self.sweeps_per_file)
         print('!!!!!!!!!')
-        print(self.trainIDs_tdc.shape, self.eventcounts_e.shape, self.tofs_e.shape, self.eventcounts_i.shape, self.tofs_i.shape)
+        print(self.trainIDs_tdc.shape,
+              self.eventcounts_e.shape,  self.tofs_e.shape,
+              self.eventcounts_i.shape,  self.tofs_i.shape,
+              self.eventcounts_le.shape, self.tofs_le.shape)
 
-        self._index = 0 
-        self._file_index = 1 
+        self._index = 0
+        self._file_index = 1
 
     def __iter__(self):
         return self
-
-    # def __next__(self):
-    #     if self._index < len(self.trainIDs_tdc):
-    #         tofs_e_bunch, self.tofs_e = np.split(self.tofs_e, [self.eventcounts_e[self._index]])
-    #         tofs_i_bunch, self.tofs_i = np.split(self.tofs_i, [self.eventcounts_i[self._index]])
-    #         self._index += 1
-    #         return self.trainIDs_tdc[self._index-1], self.eventcounts_e[self._index-1], tofs_e_bunch, self.eventcounts_i[self._index-1], tofs_i_bunch
-    #         # return self.trainIDs_tdc[self._index-1], self.eventcounts_e[self._index-1], self.tofs_e[self._index-1], self.eventcounts_i[self._index-1], self.tofs_i[self._index-1]
-
-    #     elif self._file_index < len(self._measurement_fpaths):
-    #         print('Finished TDC file {} of {}.'.format(self._file_index, len(self._measurement_fpaths)))
-    #         self.trainIDs_tdc, self.eventcounts_e, self.tofs_e, self.eventcounts_i, self.tofs_i = extract_data_from_single_file(self._measurement_fpaths[self._file_index], self.decoder, self.sweeps_per_file)
-    #         # print(self.trainIDs_tdc.shape, self.eventcounts_e.shape, self.tofs_e.shape, self.eventcounts_i.shape, self.tofs_i.shape)
-    #         self._file_index += 1
-    #         self._index = 1
-    #         return self.trainIDs_tdc[0], self.eventcounts_e[0], self.tofs_e[0], self.eventcounts_i[0], self.tofs_i[0]
-            
-    #     else:
-    #         print('Finished TDC file {} of {}.'.format(self._file_index, len(self._measurement_fpaths)))
-    #         raise StopIteration
 
     def __next__(self):
         self.between_files = False
@@ -166,7 +281,11 @@ class TDCIterator:
 
             if self._file_index < len(self._measurement_fpaths):
                 print('Finished TDC file {} of {}.'.format(self._file_index, len(self._measurement_fpaths)))
-                self.trainIDs_tdc, self.eventcounts_e, self.tofs_e, self.eventcounts_i, self.tofs_i = extract_data_from_single_file(self._measurement_fpaths[self._file_index], self.decoder, self.sweeps_per_file)
+                (self.trainIDs_tdc,
+                 self.eventcounts_e,  self.tofs_e,
+                 self.eventcounts_i,  self.tofs_i,
+                 self.eventcounts_le, self.tofs_le) = extract_data_from_single_file(
+                    self._measurement_fpaths[self._file_index], self.decoder, self.sweeps_per_file)
                 self._file_index += 1
                 self._index = 0
                 self.between_files = True
@@ -175,12 +294,22 @@ class TDCIterator:
                 print('Finished TDC file {} of {}.'.format(self._file_index, len(self._measurement_fpaths)))
                 raise StopIteration
 
-        tofs_e_bunch, self.tofs_e = np.split(self.tofs_e, [self.eventcounts_e[self._index]])
-        tofs_i_bunch, self.tofs_i = np.split(self.tofs_i, [self.eventcounts_i[self._index]])
+        # Split each channel's running tofs buffer at the current train boundary.
+        # Both configs pay this cost so the unused channels still consume their
+        # share of the flat tof stream and stay aligned for later trains.
+        tofs_e_bunch,  self.tofs_e  = np.split(self.tofs_e,  [self.eventcounts_e[self._index]])
+        tofs_i_bunch,  self.tofs_i  = np.split(self.tofs_i,  [self.eventcounts_i[self._index]])
+        tofs_le_bunch, self.tofs_le = np.split(self.tofs_le, [self.eventcounts_le[self._index]])
 
         self._index += 1
-        return self.trainIDs_tdc[self._index-1], self.eventcounts_e[self._index-1], tofs_e_bunch, self.eventcounts_i[self._index-1], tofs_i_bunch
-        # return self.trainIDs_tdc[self._index-1], self.eventcounts_e[self._index-1], self.tofs_e[self._index-1], self.eventcounts_i[self._index-1], self.tofs_i[self._index-1]
+        i = self._index - 1
+        if self.config == 1:
+            return (self.trainIDs_tdc[i],
+                    self.eventcounts_e[i],  tofs_e_bunch,
+                    self.eventcounts_i[i],  tofs_i_bunch)
+        else:
+            return (self.trainIDs_tdc[i],
+                    self.eventcounts_le[i], tofs_le_bunch)
 
     def is_between_files(self):
         return self.between_files
@@ -297,9 +426,12 @@ def decode_tdc_data(tdc_data_folder: str, measurement_name: str, decoded_data_fo
     # Iterate over every .lst TDC file of the run
     for fpath in tqdm(measurement_fpaths):
 
-        # Decode and process the binary data from one .lst-file
-        trainIDs, eventcounts_e, tofs_e, eventcounts_i, tofs_i = extract_data_from_single_file(fpath, decoder, sweeps_per_file)
-        
+        # Decode and process the binary data from one .lst-file.
+        # The function now also returns channel-3 (liq electron) counts/tofs; this
+        # legacy writer only stores the e/i channels, so the chan-3 outputs are dropped.
+        (trainIDs, eventcounts_e, tofs_e, eventcounts_i, tofs_i,
+         _eventcounts_le, _tofs_le) = extract_data_from_single_file(fpath, decoder, sweeps_per_file)
+
         # Save the decoded and processed data
         write_tof_data_to_file(f_electron, trainIDs, eventcounts_e, tofs_e)
         write_tof_data_to_file(f_ion, trainIDs, eventcounts_i, tofs_i)
@@ -310,15 +442,21 @@ def decode_tdc_data(tdc_data_folder: str, measurement_name: str, decoded_data_fo
 
 
 def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_per_file: int) -> \
-        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Decodes a single TDC-generated .lst-file, preprocessed the data and returns it as Numpy arrays.
 
     First, the binary .lst-file is decoded by the user-written MCS6A_decoding.Decoder object to yield all recorded
     events of that acquisition. Any inconsistencies in the 16bit trainID recorded via the tagbits of the TDC are then
-    corrected. After this, the 32bit trainID is reconstructed from the 16bit trainID. The data is separated into events
-    from the electron and the ion channel and the number of events on each channel corresponding to each trainID is
-    calculated. Finally, five Numpy arrays with the trainIDs and eventcounts and tofs for both channels are returned.
+    corrected. After this, the 32bit trainID is reconstructed from the 16bit trainID. The data is separated by TDC
+    channel into:
+
+        - channel 1 -> electron tofs (config 1, ``tofs_e``)
+        - channel 2 -> ion      tofs (config 1, ``tofs_i``)
+        - channel 3 -> liquid-jet electron tofs (config 2, ``liq_tofs_e``)
+
+    Channels that record no events in this file simply return empty arrays; the
+    function never raises when a channel is unused by the active configuration.
 
     Note: 17.12.2020: Added LARGEST_ALLOWED_TOF parameter to stop the tof from overflowing 3 bytes in the custom-
                       format .dat-file.
@@ -326,12 +464,14 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
     :param fpath: absolute filepath of one TDC-generated .lst-file
     :param decoder: user-written decoder object that is used for decoding the raw TDC data
     :param sweeps_per_file: number of sweeps and thus trainIDs the file should contain
-    :return: tuple of 5 Numpy arrays:
-            1. trainIDs: all trainIDs contained in the file (length: sweeps_per_file)
-            2. eventcounts_e: number of events on the electron channel (corresponding to the trainID at the same index)
-            3. tofs_e: all tof events on the electron channel (for all trainIDs, length: sum(eventcounts_e))
-            4. eventcounts_i: number of events on the ion channel (corresponding to the trainID at the same index)
-            5. tofs_i: all tof events on the ion channel (for all trainIDs, length: sum(eventcounts_i))
+    :return: tuple of 7 Numpy arrays:
+            1. trainIDs:        all trainIDs contained in the file (length: sweeps_per_file)
+            2. eventcounts_e:   #events on channel 1 (electron, config 1) per trainID
+            3. tofs_e:          all tof events on channel 1 (length: sum(eventcounts_e))
+            4. eventcounts_i:   #events on channel 2 (ion, config 1) per trainID
+            5. tofs_i:          all tof events on channel 2 (length: sum(eventcounts_i))
+            6. eventcounts_le:  #events on channel 3 (liq electron, config 2) per trainID
+            7. tofs_le:         all tof events on channel 3 (length: sum(eventcounts_le))
     """
     # Maximum value that can be stored in an unsigned 3-byte integer; Larger tofs are removed to prevent overflows
     # largest_allowed_tof = 2**24-1
@@ -373,34 +513,39 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
             print('Longer bunchIDs intervall in file than sweeps. Lost shots or fast trigger?')
     print('Sweeps:',sweeps_per_file)
 
-    # Create separate DataFrame for electron and ion events
+    # Split events by TDC channel:
+    #   channel 1 -> electron (config 1, tofs_e)
+    #   channel 2 -> ion      (config 1, tofs_i)
+    #   channel 3 -> liquid-jet electron (config 2, liq_tofs_e)
+    # Channels with no events for the active config remain empty; this is fine.
     electron_events = df[df['channel'] == 1]
-    ion_events = df[df['channel'] == 2]
-    
+    ion_events      = df[df['channel'] == 2]
+    liq_e_events    = df[df['channel'] == 3]
+
     # Calculate array of all trainIDs that should be present in the .lst-file
     if len(df) > 0:
         trainIDs=np.arange(sweeps_per_file)+df.iloc[0,3]-df.iloc[0,2]+1
     else:
         # Added this after files with no real data made the script throw an exception
-        # Problem: Because not a single event is listed in the file, one can not know the exact offset between the 
+        # Problem: Because not a single event is listed in the file, one can not know the exact offset between the
         # sweep and the trainID; Consequently one has to estimate the offset with the help of the file name
-        # From reconstruct_32bit_trainID(): "Usually the first trainID recorded by the TDC is around 4-8 integers 
+        # From reconstruct_32bit_trainID(): "Usually the first trainID recorded by the TDC is around 4-8 integers
         # higher than the trainID in the respective filename."
         # trainID_offset = trainID_at_start_32bit + 5
         trainIDs = np.arange(sweeps_per_file) + trainID_at_start_32bit + 6
-    
-    # Get the number of tof electron events corresponding to each trainID (same for ions)
-    eventcounts_e = calc_eventcount_per_trainID(electron_events, trainIDs)
-    eventcounts_i = calc_eventcount_per_trainID(ion_events, trainIDs)
 
-    # Get all tofs as Numpy arrays sorted by their sweep and thus trainID and timedata
-    #tofs_e = electron_events[['timedata', 'sweep']].sort_values(by=['sweep', 'timedata'])['timedata'].to_numpy()
-    #tofs_i = ion_events[['timedata', 'sweep']].sort_values(by=['sweep', 'timedata'])['timedata'].to_numpy()
-    #NEW: sorted already above
-    tofs_e = electron_events['timedata'].to_numpy()
-    tofs_i = ion_events['timedata'].to_numpy()
+    # Per-trainID event counts for each channel.
+    eventcounts_e  = calc_eventcount_per_trainID(electron_events, trainIDs)
+    eventcounts_i  = calc_eventcount_per_trainID(ion_events,      trainIDs)
+    eventcounts_le = calc_eventcount_per_trainID(liq_e_events,    trainIDs)
 
-    return trainIDs, eventcounts_e, tofs_e, eventcounts_i, tofs_i
+    # Get all tofs as Numpy arrays sorted by their sweep and thus trainID and timedata.
+    # Sorting was applied to the parent df above, so per-channel sub-frames are already sorted.
+    tofs_e  = electron_events['timedata'].to_numpy()
+    tofs_i  = ion_events['timedata'].to_numpy()
+    tofs_le = liq_e_events['timedata'].to_numpy()
+
+    return trainIDs, eventcounts_e, tofs_e, eventcounts_i, tofs_i, eventcounts_le, tofs_le
 
 
 def calc_eventcount_per_trainID(df: pd.DataFrame, all_trainIDs: np.ndarray) -> np.ndarray:
@@ -770,204 +915,254 @@ def check_and_correct_trainIDs_sdu(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-if __name__ == '__main__':
+# ---------------------------------------------------------------------------
+# Raw-H5 dataset paths
+# ---------------------------------------------------------------------------
 
-    base_path = '/asap3/flash/gpfs/fl24/2023/data/11015651'
-    # data_folder = os.path.join(base_path, 'processed', 'local_DAQ', 'delay_scan3')
-    data_folder = os.path.join(base_path, 'processed', 'local_DAQ', 'short_scans')
+_GMD_INDEX = "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/index"
+_GMD_VALUE = "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/value"
+_MPE_INDEX = "/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/index"
+_MPE_VALUE = "/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/value"
+_HOR_INDEX = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/index"
+_HOR_VALUE = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/value"
+_VER_INDEX = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/index"
+_VER_VALUE = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/value"
+_VLS_INDEX = "/FL2/Support Infrastructure/Gotthard/images/index"
+_VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 
-    # measurement_name = r'delay_scan3'
-    # run_no = 48346
-
-    # measurement_name = r'short_scan_275.5eV'
-    # run_no = 48413
-    # fname_out_h5 = 'short_scan_275pt5eV.h5'
-
-
-    # measurement_name = r'short_scan_277.5eV'
-    # run_no = 48415
-    # fname_out_h5 = 'short_scan_277pt5eV.h5'
-
-    # measurement_name = r'short_scan_279.5eV'
-    # run_no = 48417
-    # fname_out_h5 = 'short_scan_279pt5eV.h5'
-
-    # measurement_name = r'short_scan_281.5eV'
-    # run_no = 48419
-    # fname_out_h5 = 'short_scan_281pt5eV.h5'
-
-    # measurement_name = r'short_scan_270.5eV'
-    # run_no = 48424
-    # fname_out_h5 = 'short_scan_270pt5eV.h5'
-
-    measurement_name = r'short_scan_268.0eV'
-    run_no = 48425
-    fname_out_h5 = 'short_scan_268eV.h5'
+_DEFAULT_TRAIN_LENGTH = {1: 400, 2: 100}
+_DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
 
 
-    decoded_data_folder = os.path.join('home/ogalex', 'glycine', 'hdf5', 'short_scans')
-    # decoded_data_folder = os.path.join('home/ogalex', 'glycine', 'hdf5', 'delay_scan3')
-    folding_parameter = 9969.225
-    train_lenth = 400
-    max_electrons_bunch = 50
-    max_ions_bunch = 120
+def _advance_to(it, target_tID, label):
+    """
+    Pull rows from an ``h5Iterator`` until tID >= target_tID and return that row.
 
-    # Look for data files
+    Parameters
+    ----------
+    it : h5Iterator
+        Iterator yielding ``(tID, value)`` pairs from a raw-H5 dataset.
+    target_tID : int
+        Train ID to advance to. The first row with ``tID >= target_tID``
+        is returned.
+    label : str
+        Human-readable name used for progress prints.
+
+    Returns
+    -------
+    tuple
+        ``(tID, value)`` for the first row at or above ``target_tID``.
+    """
+    for t, v in it:
+        if t >= target_tID:
+            print(f"  {label} reached tID {t} (target {target_tID}).")
+            return t, v
+    raise RuntimeError(f"{label} iterator exhausted before reaching {target_tID}")
+
+
+def main(config_no, measurement_name, run_no, output_path=None,
+         train_length=None, chunk_size=None,
+         max_ecounts=50, max_icounts=120, n_vls_pixels=1280,
+         folding_parameter=9969.225):
+    """
+    Decode and align the local-DAQ + raw-H5 streams for one measurement.
+
+    Both configurations follow the same train-ID alignment pattern; only
+    the detector layout differs:
+
+    - config 1: TDC channels 1 (electron, ``tofs_e``) and 2 (ion, ``tofs_i``).
+    - config 2: TDC channel 3 (liquid-jet electron, ``liq_tofs_e``) plus
+      Gotthard VLS spectra read from the raw H5.
+
+    Parameters
+    ----------
+    config_no : int
+        1 or 2. Selects the detector layout (and therefore the output schema).
+    measurement_name : str
+        Basename used to locate the SDU ``.txt`` and TDC ``.lst`` files
+        under ``config.LOCAL_DAQ_DIR / measurement_name``.
+    run_no : int
+        FLASH run number used to glob the raw H5 files under
+        ``config.RAW_H5_DIR``.
+    output_path : pathlib.Path, optional
+        Output H5 path. Defaults to ``COMBINED_DIR / f"{measurement_name}.h5"``.
+    train_length : int, optional
+        Bunches per train. Defaults to 400 for config 1 and 100 for config 2.
+    chunk_size : int, optional
+        Rows per chunked H5 write. Defaults to 1000 for config 1 and
+        200 for config 2 (config 2 buffers are larger because of VLS).
+    max_ecounts, max_icounts : int
+        Zero-padding limits for the per-bunch TDC tof arrays.
+    n_vls_pixels : int
+        Width of the Gotthard VLS pixel axis (config 2 only).
+    folding_parameter : float
+        TOF range (ns) used to split each sweep's flat tof stream into
+        per-bunch lists.
+    """
+    config_no = int(config_no)
+    if config_no not in (1, 2):
+        raise ValueError(f"config must be 1 or 2, got {config_no!r}")
+    if train_length is None:
+        train_length = _DEFAULT_TRAIN_LENGTH[config_no]
+    if chunk_size is None:
+        chunk_size = _DEFAULT_CHUNK_SIZE[config_no]
+
+    data_folder = str(config.LOCAL_DAQ_DIR / measurement_name)
+    h5_folder   = str(config.RAW_H5_DIR)
+    if output_path is None:
+        output_path = config.COMBINED_DIR / f"{measurement_name}.h5"
+    output_path = Path(output_path)
+
+    print(f"Measurement   : {measurement_name}  (run {run_no})")
+    print(f"Config        : {config_no}")
+    print(f"Local DAQ dir : {data_folder}")
+    print(f"Raw H5 dir    : {h5_folder}")
+    print(f"Output        : {output_path}")
+    print(f"train_length  : {train_length}")
+    print(f"chunk_size    : {chunk_size}")
+    print()
+
+    if not Path(data_folder).is_dir():
+        raise FileNotFoundError(f"Local DAQ folder not found: {data_folder}")
+    if not Path(h5_folder).is_dir():
+        raise FileNotFoundError(f"Raw H5 folder not found: {h5_folder}")
+
+    # --- Locate SDU .txt files -----------------------------------------
     files_in_folder = os.listdir(data_folder)
+    sdu_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.txt").match, files_in_folder))
+    sdu_fpaths = [data_folder + "/" + n for n in sdu_names]
+    if not sdu_fpaths:
+        raise ValueError(f"No SDU .txt files for measurement '{measurement_name}' in {data_folder}")
+    print(f"Found {len(sdu_fpaths)} SDU .txt files.")
 
-    ## first the stu files
-    measurement_names = list(sorted(filter(re.compile(measurement_name + r'_\d{10}.txt').match, files_in_folder)))
-    measurement_fpaths = [data_folder + '/' + measurement_name for measurement_name in measurement_names]
-    
-    # print(measurement_fpaths)
+    # --- Locate TDC .lst files -----------------------------------------
+    tdc_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.lst").match, files_in_folder))
+    tdc_fpaths = [data_folder + "/" + n for n in tdc_names]
+    if not tdc_fpaths:
+        raise ValueError(f"No TDC .lst files for measurement '{measurement_name}' in {data_folder}")
+    print(f"Found {len(tdc_fpaths)} TDC .lst files.")
 
-    if len(measurement_fpaths) == 0:
-        raise ValueError(f'No files with measurement_name "{measurement_name}" found in folder "{data_folder}".')
-    
-    print('{} sdu data files found.'.format(len(measurement_fpaths), run_no))
+    # --- Locate raw H5 files for this run ------------------------------
+    h5_paths = sorted(glob.glob(os.path.join(h5_folder, f"*run{run_no}*.h5")))
+    if not h5_paths:
+        raise ValueError(f"No raw H5 files for run {run_no} in {h5_folder}")
+    print(f"Found {len(h5_paths)} raw H5 files for run {run_no}.")
 
-    ## now the electron/ion files
-    ### Get absolute fpaths of all .lst-files of the measurement, sorted by their name and thus by their trainID
-    measurement_names_tdc = list(sorted(filter(re.compile(measurement_name + r'_\d{10}.lst').match, files_in_folder)))
-    measurement_fpaths_tdc = [data_folder + '/' + measurement_name for measurement_name in measurement_names_tdc]
-    
-    if len(measurement_fpaths_tdc) == 0:
-        raise ValueError(f'No files with measurement_name "{measurement_name}" found in folder "{data_folder}".')
+    # --- Determine train-ID range of the measurement -------------------
+    first_tID = int(extract_sdu_data_from_single_file(sdu_fpaths[0])[0][0])
+    last_tID  = int(extract_sdu_data_from_single_file(sdu_fpaths[-1])[0][-1])
+    print(f"Measurement spans train IDs {first_tID} .. {last_tID} ({last_tID - first_tID + 1} trains).")
 
-    ## lastly, the online h5 files
-    h5_folder = os.path.join(base_path, 'raw', 'hdf', 'online-0', 'fl2user1')
-    print(h5_folder + '/*run'+str(run_no)+'*.h5')
-    h5_paths = sorted(glob.glob(h5_folder + '/*run'+str(run_no)+'*.h5'))
-    
-    print('{} h5 files found for run {}.'.format(len(h5_paths), run_no))
-    print(h5_paths)
-
-    # find the first and last trainID in the measurement
-    first_tID = extract_sdu_data_from_single_file(measurement_fpaths[0])[0][0]
-    last_tID  = extract_sdu_data_from_single_file(measurement_fpaths[-1])[0][-1]
-
-    print('Dataset includes bunch IDs from {} until {}.'.format(first_tID, last_tID))
-
+    # --- Find the first raw H5 file whose train range overlaps ---------
+    first_h5_idx = None
     for path_idx, h5_path in enumerate(h5_paths):
+        with h5.File(h5_path, "r") as f:
+            tids = f[_GMD_INDEX]
+            tids_max = int(np.max(tids[...]))
+            print(f"  {Path(h5_path).name}: max train ID = {tids_max}")
+            if tids_max > first_tID:
+                first_h5_idx = path_idx
+                break
+    if first_h5_idx is None:
+        raise RuntimeError("None of the raw H5 files overlap with the SDU train-ID range.")
+    print(f"First raw H5 file with overlap: index {first_h5_idx}")
 
-        f =  h5.File(h5_path,'r')
-        tIDs = f['/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/index']
-        print(max(tIDs))
-        if max(tIDs)>first_tID:
-            first_h5_idx = path_idx
-            break
+    # --- Iterators -----------------------------------------------------
+    sdu_it     = SDUIterator(sdu_fpaths)
+    tdc_it     = TDCIterator(tdc_fpaths, config=config_no)
+    gmd_it     = h5Iterator(h5_paths[first_h5_idx:], [_GMD_INDEX, _GMD_VALUE])
+    mpe_it     = h5Iterator(h5_paths[first_h5_idx:], [_MPE_INDEX, _MPE_VALUE])
+    hor_pos_it = h5Iterator(h5_paths[first_h5_idx:], [_HOR_INDEX, _HOR_VALUE])
+    ver_pos_it = h5Iterator(h5_paths[first_h5_idx:], [_VER_INDEX, _VER_VALUE])
+    if config_no == 2:
+        vls_it = h5Iterator(h5_paths[first_h5_idx:], [_VLS_INDEX, _VLS_VALUE])
 
-    
-    chunk_size = 1000
-    train_length = 400
-    chunk_idx = 0
+    # --- Fast-forward each raw-H5 iterator to first_tID ----------------
+    next_tID_gmd, next_gmd = _advance_to(gmd_it, first_tID, "gmd")
+    next_tID_mpe, next_mpe = _advance_to(mpe_it, first_tID, "mpe")
+    next_tID_hor_pos, next_hor_pos = _advance_to(hor_pos_it, first_tID, "hor_pos")
+    next_tID_ver_pos, next_ver_pos = _advance_to(ver_pos_it, first_tID, "ver_pos")
+    if config_no == 2:
+        next_tID_vls, next_vls = _advance_to(vls_it, first_tID, "vls")
 
-    chunk = DataChunk(chunk_size, train_length, max_ecounts=max_electrons_bunch, max_icounts=max_ions_bunch)
-
-    sdu_it = SDUIterator(measurement_fpaths)
     next_tID_z, next_z, next_z_std = sdu_it.__next__()
+    if config_no == 1:
+        (next_tID_tdc,
+         next_eventcounts_e, next_tofs_e,
+         next_eventcounts_i, next_tofs_i) = tdc_it.__next__()
+    else:
+        (next_tID_tdc,
+         next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
 
-    tdc_it = TDCIterator(measurement_fpaths_tdc)
-
-    gmd_it = h5Iterator(h5_paths[first_h5_idx:], [
-        '/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/index', 
-        '/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/value'])
-    mpe_it = h5Iterator(h5_paths[first_h5_idx:], [
-        '/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/index', 
-        '/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/value'])
-    hor_pos_it = h5Iterator(h5_paths[first_h5_idx:], [
-        '/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/index', 
-        '/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/value'])
-    ver_pos_it = h5Iterator(h5_paths[first_h5_idx:], [
-        '/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/index', 
-        '/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/value'])
-
-
-    for tID_gmd, gmd in gmd_it:
-        if tID_gmd < first_tID:
-            if tID_gmd%500 ==0:
-                print (tID_gmd, first_tID)
-        elif tID_gmd >= first_tID:
-            print('Finished on {}!'.format(tID_gmd))
-            next_tID_gmd, next_gmd = tID_gmd, gmd
-            break
-        # else:
-        #     raise ValueError('Failed on {} > {}'.format(tID_gmd, first_tID))
-
-
-    for tID_mpe, mpe in mpe_it:
-        if tID_mpe < first_tID:
-            if tID_mpe%500 ==0:
-                print (tID_mpe, first_tID)
-        elif tID_mpe >= first_tID:
-            print('Finished on {}!'.format(tID_mpe))
-            next_tID_mpe, next_mpe = tID_mpe, mpe
-            break
-
-    for tID_hor_pos, hor_pos in hor_pos_it:
-        if tID_hor_pos < first_tID:
-            if tID_hor_pos%500 ==0:
-                print (tID_hor_pos, first_tID)
-        elif tID_hor_pos >= first_tID:
-            print('Finished on {}!'.format(tID_hor_pos))
-            next_tID_hor_pos, next_hor_pos = tID_hor_pos, hor_pos
-            break
-
-    for tID_ver_pos, ver_pos in ver_pos_it:
-        if tID_ver_pos < first_tID:
-            if tID_ver_pos%500 ==0:
-                print (tID_ver_pos, first_tID)
-        elif tID_ver_pos >= first_tID:
-            print('Finished on {}!'.format(tID_ver_pos))
-            next_tID_ver_pos, next_ver_pos = tID_ver_pos, ver_pos
-            break
-    # get the starting values for each of the iterators
-    # next_tID_gmd, next_gmd = gmd_it.__next__()
-    # next_tID_mpe, next_mpe = mpe_it.__next__()
-    # next_tID_hor_pos, next_hor_pos = hor_pos_it.__next__()
-    # next_tID_ver_pos, next_ver_pos = ver_pos_it.__next__()
-    next_tID_z, next_z, next_z_std = sdu_it.__next__()
-    next_tID_tdc, next_eventcounts_e, next_tofs_e, next_eventcounts_i, next_tofs_i = tdc_it.__next__()
-    
+    # --- Output H5 layout (schema + legacy extras) ---------------------
     data_len = last_tID - first_tID
+    if config_no == 1:
+        chunk = DataChunk(chunk_size, train_length,
+                          max_ecounts=max_ecounts, max_icounts=max_icounts)
+    else:
+        chunk = DataChunkConfig2(chunk_size, train_length,
+                                 max_ecounts=max_ecounts,
+                                 n_vls_pixels=n_vls_pixels)
 
-    dt = h5.vlen_dtype(np.dtype('int32'))
+    if output_path.exists():
+        output_path.unlink()
 
-    # with h5.File('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/oga/short_scan_275pt5eV.h5', 'a') as f_out:
-    with h5.File('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/oga/{}'.format(fname_out_h5), 'a') as f_out:
-    # with h5.File('/asap3/flash/gpfs/fl24/2023/data/11015651/processed/oga/delay_scan3_120824.h5', 'a') as f_out:
+    with h5.File(output_path, "w") as f_out:
+        # Shared schema fields
+        tID_dset               = f_out.create_dataset("tID",               (data_len,),               dtype="double")
+        data_flag_dset         = f_out.create_dataset("local_DAQ_running", (data_len,),               dtype="bool")
+        z_dset                 = f_out.create_dataset("z",                 (data_len, train_length),  dtype=np.float32)
+        z_std_dset             = f_out.create_dataset("z_std",             (data_len, train_length),  dtype=np.float32)
+        gmd_dset               = f_out.create_dataset("gmd",               (data_len, train_length),  dtype=np.float32)
+        mpe_dset               = f_out.create_dataset("mpe",               (data_len,),               dtype=np.float32)
+        hor_pos_dset           = f_out.create_dataset("hor_pos",           (data_len,),               dtype=np.float32)
+        ver_pos_dset           = f_out.create_dataset("ver_pos",           (data_len,),               dtype=np.float32)
+        between_tdc_files_dset = f_out.create_dataset("between_tdc_files", (data_len,),               dtype="bool")
 
-        tID_dset               = f_out.create_dataset('tID', (data_len, ), maxshape=(data_len, ), dtype='double')
-        data_flag_dset         = f_out.create_dataset('local_DAQ_running', (data_len, ), maxshape=(data_len, ), dtype='bool')
-        z_dset                 = f_out.create_dataset('z', (data_len, 400), maxshape=(data_len, 400), dtype = np.float32)
-        z_std_dset             = f_out.create_dataset('z_std', (data_len, 400), maxshape=(data_len, 400), dtype = np.float32)
-        gmd_dset               = f_out.create_dataset('gmd', (data_len, 400), maxshape=(data_len, 400), dtype = np.float32)
-        mpe_dset               = f_out.create_dataset('mpe', (data_len, ), maxshape=(data_len,), dtype = np.float32)
-        hor_pos_dset           = f_out.create_dataset('hor_pos', (data_len, ), maxshape=(data_len,), dtype = np.float32)
-        ver_pos_dset           = f_out.create_dataset('ver_pos', (data_len, ), maxshape=(data_len,), dtype = np.float32)
-        # tofs_e_dset            = f_out.create_dataset('tofs_e', (data_len, 400), maxshape=(data_len, 400), dtype = dt)
-        # tofs_i_dset            = f_out.create_dataset('tofs_i', (data_len, 400), maxshape=(data_len, 400), dtype = dt)
-        tofs_e_dset            = f_out.create_dataset('tofs_e', (data_len, 400, max_electrons_bunch), maxshape=(data_len, 400, max_electrons_bunch), dtype = np.uint32, compression='gzip')
-        tofs_i_dset            = f_out.create_dataset('tofs_i', (data_len, 400, max_ions_bunch), maxshape=(data_len, 400, max_ions_bunch), dtype = np.uint32, compression='gzip')
-        between_tdc_files_dset = f_out.create_dataset('between_tdc_files', (data_len, ), maxshape=(data_len, ), dtype='bool')
+        if config_no == 1:
+            tofs_e_dset = f_out.create_dataset(
+                "tofs_e", (data_len, train_length, max_ecounts),
+                dtype=np.uint32, compression="gzip",
+            )
+            tofs_i_dset = f_out.create_dataset(
+                "tofs_i", (data_len, train_length, max_icounts),
+                dtype=np.uint32, compression="gzip",
+            )
+        else:
+            liq_tofs_e_dset = f_out.create_dataset(
+                "liq_tofs_e", (data_len, train_length, max_ecounts),
+                dtype=np.uint32, compression="gzip",
+            )
+            vls_dset = f_out.create_dataset(
+                "vls", (data_len, train_length, n_vls_pixels),
+                dtype=np.float32, compression="gzip",
+            )
+            dsets_cfg2 = {
+                "tID": tID_dset, "local_DAQ_running": data_flag_dset,
+                "z": z_dset, "z_std": z_std_dset, "gmd": gmd_dset,
+                "mpe": mpe_dset, "hor_pos": hor_pos_dset, "ver_pos": ver_pos_dset,
+                "liq_tofs_e": liq_tofs_e_dset, "vls": vls_dset,
+                "between_tdc_files": between_tdc_files_dset,
+            }
 
-        for tID in range(first_tID, last_tID+1):
-            # print(tID)
+        # --- Main alignment loop --------------------------------------
+        for tID in range(first_tID, last_tID + 1):
 
-            # iterate through the gmd
+            # ---- gmd (per-bunch) -----------------------------------
             if tID < next_tID_gmd:
-                gmd = np.nan
+                gmd = np.full(train_length, np.nan, dtype=np.float32)
             elif tID == next_tID_gmd:
-                gmd = next_gmd[0]
+                # next_gmd is shape (8, n_bunches_raw); index 0 = per-pulse intensity.
+                gmd = np.asarray(next_gmd[0][:train_length], dtype=np.float32)
                 try:
                     next_tID_gmd, next_gmd = gmd_it.__next__()
                 except StopIteration:
-                    print('Stopped by gmd on tID {}'.format(next_tID_gmd))
+                    print(f"Stopped by gmd on tID {next_tID_gmd}")
                     break
             else:
-                raise ValueError('Faled because {} > {}'.format(tID, next_tID_gmd))
+                raise ValueError(f"gmd overshot: tID={tID}, next={next_tID_gmd}")
 
-            # iterate through the mean photon energy
+            # ---- mean photon energy --------------------------------
             if tID < next_tID_mpe:
                 mpe = np.nan
             elif tID == next_tID_mpe:
@@ -975,14 +1170,13 @@ if __name__ == '__main__':
                 try:
                     next_tID_mpe, next_mpe = mpe_it.__next__()
                 except StopIteration:
-                    print('MPE stopped on {}. All subsequent are nans'.format(next_tID_mpe))
-                    next_tID_mpe = last_tID+1
+                    print(f"MPE stopped on {next_tID_mpe}. Subsequent are NaN.")
+                    next_tID_mpe = last_tID + 1
                     mpe = np.nan
-                    # break
             else:
-                raise ValueError('Failed because {} > {}'.format(tID, next_tID_mpe))
+                raise ValueError(f"mpe overshot: tID={tID}, next={next_tID_mpe}")
 
-            # iterate through the horizontal position
+            # ---- horizontal beam position --------------------------
             if tID < next_tID_hor_pos:
                 hor_pos = np.nan
             elif tID == next_tID_hor_pos:
@@ -990,14 +1184,13 @@ if __name__ == '__main__':
                 try:
                     next_tID_hor_pos, next_hor_pos = hor_pos_it.__next__()
                 except StopIteration:
-                    print('hor_pos stopped on {}. All subsequent are nans'.format(next_tID_hor_os))
-                    next_tID_hor_pos = last_tID+1
+                    print(f"hor_pos stopped on {next_tID_hor_pos}. Subsequent are NaN.")
+                    next_tID_hor_pos = last_tID + 1
                     hor_pos = np.nan
-                    # break
             else:
-                raise ValueError('Failed because {} > {}'.format(tID, next_tID_hor_pos))
+                raise ValueError(f"hor_pos overshot: tID={tID}, next={next_tID_hor_pos}")
 
-            # iterate through the vertical position
+            # ---- vertical beam position ----------------------------
             if tID < next_tID_ver_pos:
                 ver_pos = np.nan
             elif tID == next_tID_ver_pos:
@@ -1005,14 +1198,33 @@ if __name__ == '__main__':
                 try:
                     next_tID_ver_pos, next_ver_pos = ver_pos_it.__next__()
                 except StopIteration:
-                    print('ver_pos stopped on {}. All subsequent are nans'.format(next_tID_ver_os))
-                    next_tID_ver_pos = last_tID+1
+                    print(f"ver_pos stopped on {next_tID_ver_pos}. Subsequent are NaN.")
+                    next_tID_ver_pos = last_tID + 1
                     ver_pos = np.nan
-                    # break
             else:
-                raise ValueError('Faled because {} > {}'.format(tID, next_tID_ver_pos))
+                raise ValueError(f"ver_pos overshot: tID={tID}, next={next_tID_ver_pos}")
 
-            # iterate through the sdu
+            # ---- vls (config 2 only) -------------------------------
+            vls = None
+            if config_no == 2:
+                if tID < next_tID_vls:
+                    vls = np.full((train_length, n_vls_pixels), np.nan, dtype=np.float32)
+                elif tID == next_tID_vls:
+                    raw_vls = np.asarray(next_vls, dtype=np.float32)
+                    vls_buf = np.full((train_length, n_vls_pixels), np.nan, dtype=np.float32)
+                    m = min(raw_vls.shape[0], train_length)
+                    p = min(raw_vls.shape[1] if raw_vls.ndim > 1 else n_vls_pixels, n_vls_pixels)
+                    vls_buf[:m, :p] = raw_vls[:m, :p]
+                    vls = vls_buf
+                    try:
+                        next_tID_vls, next_vls = vls_it.__next__()
+                    except StopIteration:
+                        print(f"VLS stopped on {next_tID_vls}. Subsequent are NaN.")
+                        next_tID_vls = last_tID + 1
+                else:
+                    raise ValueError(f"vls overshot: tID={tID}, next={next_tID_vls}")
+
+            # ---- SDU (delay stage z) -------------------------------
             if tID < next_tID_z:
                 z = np.nan
                 z_std = np.nan
@@ -1024,48 +1236,151 @@ if __name__ == '__main__':
                 try:
                     next_tID_z, next_z, next_z_std = sdu_it.__next__()
                 except StopIteration:
-                    print('Stopped by stu on tID {}'.format(next_tID_z))
+                    print(f"Stopped by SDU on tID {next_tID_z}")
                     break
             else:
-                raise ValueError
+                raise ValueError(f"SDU overshot: tID={tID}, next={next_tID_z}")
 
-            # iterate through the tdc
-            if tID < next_tID_tdc:
-                eventcounts_e = 0
-                tofs_e = None
-                eventcounts_i = 0
-                tofs_i = None
-                between_tdc_files = tdc_it.is_between_files() # Check whether there are no counts because there were none for that short or whether it is in a gap between files
+            # ---- TDC (per-bunch tof lists) -------------------------
+            if config_no == 1:
+                if tID < next_tID_tdc:
+                    tofs_e = None
+                    tofs_i = None
+                    between_tdc_files = tdc_it.is_between_files()
+                elif tID == next_tID_tdc:
+                    tofs_e_raw = next_tofs_e
+                    tofs_i_raw = next_tofs_i
+                    tofs_e = [
+                        tofs_e_raw[(tofs_e_raw >  b * folding_parameter)
+                                 & (tofs_e_raw < (b + 1) * folding_parameter)]
+                        - b * folding_parameter
+                        for b in range(train_length)
+                    ]
+                    tofs_i = [
+                        tofs_i_raw[(tofs_i_raw >  b * folding_parameter)
+                                 & (tofs_i_raw < (b + 1) * folding_parameter)]
+                        - b * folding_parameter
+                        for b in range(train_length)
+                    ]
+                    between_tdc_files = False
+                    try:
+                        (next_tID_tdc,
+                         next_eventcounts_e, next_tofs_e,
+                         next_eventcounts_i, next_tofs_i) = tdc_it.__next__()
+                    except StopIteration:
+                        print(f"Stopped by TDC on tID {next_tID_tdc}")
+                        break
+                else:
+                    raise ValueError(f"TDC overshot: tID={tID}, next={next_tID_tdc}")
 
-            elif tID == next_tID_tdc:
-                eventcounts_e = next_eventcounts_e
-                tofs_e = next_tofs_e
-                eventcounts_i = next_eventcounts_i
-                tofs_i = next_tofs_i
+                chunk_full = chunk.add_row(
+                    is_data, tID, gmd, mpe, hor_pos, ver_pos, z, z_std,
+                    tofs_e, tofs_i, between_tdc_files,
+                )
+                if chunk_full:
+                    chunk.dump(
+                        tID_dset, data_flag_dset, z_dset, z_std_dset,
+                        gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset,
+                        tofs_e_dset, tofs_i_dset, between_tdc_files_dset,
+                    )
+                    chunk.reset()
 
-                tofs_e = [tofs_e[(tofs_e>(b_idx*folding_parameter))*(tofs_e<((b_idx+1)*folding_parameter))] - b_idx*folding_parameter for b_idx in range(train_length)]
-                tofs_i = [tofs_i[(tofs_i>(b_idx*folding_parameter))*(tofs_i<((b_idx+1)*folding_parameter))] - b_idx*folding_parameter for b_idx in range(train_length)]
+            else:  # config 2
+                if tID < next_tID_tdc:
+                    liq_tofs_e = None
+                    between_tdc_files = tdc_it.is_between_files()
+                elif tID == next_tID_tdc:
+                    liq_raw = next_tofs_le
+                    liq_tofs_e = [
+                        liq_raw[(liq_raw >  b * folding_parameter)
+                              & (liq_raw < (b + 1) * folding_parameter)]
+                        - b * folding_parameter
+                        for b in range(train_length)
+                    ]
+                    between_tdc_files = False
+                    try:
+                        (next_tID_tdc,
+                         next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
+                    except StopIteration:
+                        print(f"Stopped by TDC on tID {next_tID_tdc}")
+                        break
+                else:
+                    raise ValueError(f"TDC overshot: tID={tID}, next={next_tID_tdc}")
 
-                between_tdc_files = False
-                
-                try:
-                    next_tID_tdc, next_eventcounts_e, next_tofs_e, next_eventcounts_i, next_tofs_i = tdc_it.__next__()
-                except StopIteration:
-                    print('Stopped by stu on tID {}'.format(next_tID_z))
-                    break
-            else:
-                raise ValueError
+                chunk_full = chunk.add_row(
+                    is_data, tID, gmd, mpe, hor_pos, ver_pos, z, z_std,
+                    liq_tofs_e, vls, between_tdc_files,
+                )
+                if chunk_full:
+                    chunk.dump(dsets_cfg2)
+                    chunk.reset()
 
-            chunk_full = chunk.add_row(is_data, tID, gmd, mpe, hor_pos, ver_pos, z , z_std, tofs_e, tofs_i, between_tdc_files)
-            if chunk_full:
-                chunk.dump(tID_dset, data_flag_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset,
-                    tofs_e_dset, tofs_i_dset, between_tdc_files_dset)
-                chunk.reset()
+            if tID % 1000 == 0:
+                print(f"  tID {tID}  ({tID - first_tID}/{last_tID - first_tID})")
 
-            if tID%400 == 0:
-                print(tID, first_tID, last_tID)
-                # print('****')
-                # print(gmd, mpe, hor_pos, ver_pos)
+        if config_no == 1:
+            chunk.finish(
+                tID_dset, data_flag_dset, z_dset, z_std_dset,
+                gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset,
+                tofs_e_dset, tofs_i_dset, between_tdc_files_dset,
+            )
+        else:
+            chunk.finish(dsets_cfg2)
 
-        chunk.finish(tID_dset, data_flag_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset, 
-            tofs_e_dset, tofs_i_dset, between_tdc_files_dset)
+    # --- Completion summary ----------------------------------------
+    print(f"\n=== {output_path.name} written successfully ===")
+    with h5.File(output_path, "r") as f_out:
+        n_trains  = f_out["tID"].shape[0]
+        n_bunches = f_out["gmd"].shape[1]
+        print(f"Trains written  : {n_trains}")
+        print(f"Bunches/train   : {n_bunches}")
+        print("Datasets:")
+        for k in sorted(f_out.keys()):
+            d = f_out[k]
+            print(f"  /{k:<22} shape={d.shape!s:<24} dtype={d.dtype}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Write a combined H5 file from one beamtime measurement.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python write_h5.py delay_scan3 1 48346\n"
+            "  python write_h5.py glycine_scan1 2 54609 -o glycine_scan1.h5\n"
+        ),
+    )
+    parser.add_argument("measurement_name", type=str,
+                        help="Basename used to locate SDU .txt and TDC .lst files.")
+    parser.add_argument("config", type=int, choices=(1, 2),
+                        help="Experiment configuration: 1 = e+i TOF, 2 = liq eTOF + VLS.")
+    parser.add_argument("run_no", type=int,
+                        help="FLASH run number used to glob raw H5 files.")
+    parser.add_argument("-o", "--output", type=str, default=None,
+                        help="Output H5 path. Defaults to COMBINED_DIR/<measurement>.h5.")
+    parser.add_argument("--train-length", type=int, default=None,
+                        help="Bunches per train (default: 400 for cfg 1, 100 for cfg 2).")
+    parser.add_argument("--chunk-size", type=int, default=None,
+                        help="Rows per chunked write (default: 1000 for cfg 1, 200 for cfg 2).")
+    parser.add_argument("--max-ecounts", type=int, default=50,
+                        help="Zero-padding limit for electron TOF arrays.")
+    parser.add_argument("--max-icounts", type=int, default=120,
+                        help="Zero-padding limit for ion TOF arrays (cfg 1 only).")
+    parser.add_argument("--n-vls-pixels", type=int, default=1280,
+                        help="Width of the Gotthard VLS pixel axis (cfg 2 only).")
+    parser.add_argument("--folding-parameter", type=float, default=9969.225,
+                        help="TOF range (ns) used to split sweep events into per-bunch lists.")
+    args = parser.parse_args()
+    out_path = Path(args.output) if args.output else None
+    main(
+        config_no=args.config,
+        measurement_name=args.measurement_name,
+        run_no=args.run_no,
+        output_path=out_path,
+        train_length=args.train_length,
+        chunk_size=args.chunk_size,
+        max_ecounts=args.max_ecounts,
+        max_icounts=args.max_icounts,
+        n_vls_pixels=args.n_vls_pixels,
+        folding_parameter=args.folding_parameter,
+    )
