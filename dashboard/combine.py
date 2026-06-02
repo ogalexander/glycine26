@@ -20,6 +20,29 @@ from typing import Callable
 import h5py
 import numpy as np
 
+
+class _LineLogWriter:
+    """File-like writer that forwards complete stdout lines to a logger."""
+
+    def __init__(self, log: Callable[[str], None]):
+        self._log = log
+        self._buf = ""
+
+    def write(self, s: str) -> int:
+        if not s:
+            return 0
+        self._buf += s
+        while "\n" in self._buf:
+            line, self._buf = self._buf.split("\n", 1)
+            if line.strip():
+                self._log(line)
+        return len(s)
+
+    def flush(self) -> None:
+        if self._buf.strip():
+            self._log(self._buf)
+        self._buf = ""
+
 # ---------------------------------------------------------------------------
 # Resolve imports from the project tree
 # ---------------------------------------------------------------------------
@@ -350,7 +373,7 @@ def run_config2(
     log("Config        : 2")
     log(f"Output        : {output_path}")
 
-    stream = io.StringIO()
+    stream = _LineLogWriter(log)
     with contextlib.redirect_stdout(stream):
         write_h5_main(
             config_no=2,
@@ -364,10 +387,56 @@ def run_config2(
             folding_parameter=float(folding_parameter),
         )
 
-    output = stream.getvalue().strip()
-    if output:
-        for line in output.splitlines():
-            log(line)
+    stream.flush()
+
+
+def run_aggregates(
+    input_h5: Path | str,
+    config_path: Path | str,
+    output_path: Path | str | None = None,
+    *,
+    log: Callable[[str], None] = print,
+) -> None:
+    """
+    Run the existing ``analysis/scripts/compute_aggregates.py`` flow.
+
+    Parameters
+    ----------
+    input_h5 : Path or str
+        Combined H5 file to aggregate.
+    config_path : Path or str
+        Python config module path under ``analysis/configs``.
+    output_path : Path or str or None
+        Optional output H5 path. If None, the script default is used.
+    log : callable
+        Progress sink.
+    """
+    import contextlib
+    import io
+    from compute_aggregates import main as compute_main
+
+    input_h5 = Path(input_h5)
+    config_path = Path(config_path)
+    out = None if output_path is None else Path(output_path)
+
+    if not input_h5.exists():
+        raise FileNotFoundError(f"input H5 not found: {input_h5}")
+    if not config_path.exists():
+        raise FileNotFoundError(f"config file not found: {config_path}")
+
+    argv = [str(config_path), str(input_h5)]
+    if out is not None:
+        argv.extend(["-o", str(out)])
+
+    log(f"Aggregates config : {config_path}")
+    log(f"Aggregates input  : {input_h5}")
+    if out is not None:
+        log(f"Aggregates output : {out}")
+
+    stream = _LineLogWriter(log)
+    with contextlib.redirect_stdout(stream):
+        compute_main(argv)
+    stream.flush()
 
 
 # ---------------------------------------------------------------------------
