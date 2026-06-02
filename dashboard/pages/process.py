@@ -64,29 +64,19 @@ def show() -> None:
                     st.error(f"Error: {exc}")
 
     # ------------------------------------------------------------------ Config 2
-    with st.expander("Config 2 — liquid-jet eTOF + VLS (synthetic)", expanded=False):
+    with st.expander("Config 2 — liquid-jet eTOF + VLS", expanded=False):
         st.markdown(
-            "Stitches a config-1 combined H5 with a Gotthard VLS H5. "
-            "Alignment is by **sequential index** (both truncated to shortest)."
+            "Runs the real config-2 combine path from `write_h5.py` with the "
+            "same train-ID alignment structure as config 1."
         )
 
-        # Default to existing combined files if present
-        combined_files = sorted(config.COMBINED_DIR.glob("*.h5")) if config.COMBINED_DIR.exists() else []
-        combined_names = [p.name for p in combined_files]
-
-        c2_cfg1 = st.selectbox(
-            "Config 1 source H5 (from combined folder)",
-            options=combined_names,
-            index=0 if combined_names else None,
-            key="c2_cfg1",
+        c2_run = st.number_input(
+            "Run number", value=54609, step=1, key="c2_run"
         )
-        c2_vls = st.text_input(
-            "VLS source H5 (full path)",
-            value=str(
-                config.RAW_H5_DIR
-                / "FLASH2_USER1_main_run54609_file20_20251104T015112.1.h5"
-            ),
-            key="c2_vls",
+        c2_meas = st.text_input(
+            "Measurement name (local DAQ subfolder)",
+            value="delay_scan3",
+            key="c2_meas",
         )
         c2_output = st.text_input(
             "Output file name (in combined folder)",
@@ -95,25 +85,22 @@ def show() -> None:
         )
 
         if st.button("Run Config 2 combine", key="c2_run_btn"):
-            if not c2_cfg1:
-                st.error("Please select a Config 1 source file first.")
-            else:
-                output_path = config.COMBINED_DIR / c2_output
-                log_area2 = st.empty()
-                lines2: list[str] = []
+            output_path = config.COMBINED_DIR / c2_output
+            log_area2 = st.empty()
+            lines2: list[str] = []
 
-                def log2(msg: str) -> None:
-                    lines2.append(msg)
-                    log_area2.code("\n".join(lines2))
+            def log2(msg: str) -> None:
+                lines2.append(msg)
+                log_area2.code("\n".join(lines2))
 
-                with st.spinner("Running…"):
-                    try:
-                        run_config2(
-                            config1_h5=config.COMBINED_DIR / c2_cfg1,
-                            vls_h5=Path(c2_vls),
-                            output_path=output_path,
-                            log=log2,
-                        )
-                        st.success(f"Written: `{output_path}`")
-                    except Exception as exc:
-                        st.error(f"Error: {exc}")
+            with st.spinner("Running…"):
+                try:
+                    run_config2(
+                        run_no=int(c2_run),
+                        measurement_name=c2_meas,
+                        output_path=output_path,
+                        log=log2,
+                    )
+                    st.success(f"Written: `{output_path}`")
+                except Exception as exc:
+                    st.error(f"Error: {exc}")

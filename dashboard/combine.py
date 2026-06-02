@@ -1,9 +1,8 @@
 """
 Callable wrappers around the config 1 and config 2 combine pipelines.
 
-These functions contain the same alignment logic as ``write_h5_test_config1.py``
-and ``write_h5_test_config2.py``, but accept parameters so they can be
-called from the dashboard UI (or any other script) without hardcoded values.
+These functions provide callable wrappers for config-1/config-2 combine runs
+so they can be triggered from the dashboard UI without hardcoded values.
 
 Utility classes (DataChunk, TDCIterator, SDUIterator, h5Iterator) are
 imported from the existing ``write_h5.py`` — no logic is duplicated.
@@ -321,88 +320,54 @@ def run_config1(
 
 
 # ---------------------------------------------------------------------------
-# Config 2 — liquid-jet eTOF + VLS (synthetic index alignment)
+# Config 2 — real combine via write_h5.py (liq eTOF + VLS)
 # ---------------------------------------------------------------------------
 
-_PER_BUNCH_1D_FIELDS = ("gmd", "z", "z_std")
-_PER_BUNCH_3D_FIELDS = ("tofs_e",)
-_RENAME_ON_COPY = {"tofs_e": "liq_tofs_e"}
-_DROP_FROM_CONFIG1 = ("tofs_i",)
-_VLS_DATASET = "/FL2/Support Infrastructure/Gotthard/images/value"
-
-
 def run_config2(
-    config1_h5: Path | str,
-    vls_h5: Path | str,
+    run_no: int,
+    measurement_name: str,
     output_path: Path | str,
     *,
+    train_length: int = 100,
+    chunk_size: int = 200,
+    max_e_per_bunch: int = 50,
+    n_vls_pixels: int = 1280,
+    folding_parameter: float = 9969.225,
     log: Callable[[str], None] = print,
 ) -> None:
     """
-    Build a synthetic config-2 combined H5 from a config-1 file and a VLS file.
+    Run the real config-2 writer path from ``write_h5.py``.
 
-    Alignment is by sequential index (not train ID) — the two runs share no
-    train IDs.  Both stacks are truncated to min(n_config1, n_vls).
-
-    Parameters
-    ----------
-    config1_h5 : Path or str
-        Path to an existing config-1 combined H5 (e.g. ``test_config1.h5``).
-    vls_h5 : Path or str
-        Path to the raw Gotthard H5 file (``FLASH2_USER1_main_run…h5``).
-    output_path : Path or str
-        Where to write the synthetic config-2 combined H5.
-    log : callable
-        Progress sink (default ``print``).
+    This follows the same train-ID alignment structure as config 1 and uses
+    config-2 detector layout (liq eTOF + VLS) from raw streams.
     """
-    config1_h5 = Path(config1_h5)
-    vls_h5 = Path(vls_h5)
+    import contextlib
+    import io
+    from write_h5 import main as write_h5_main
+
     output_path = Path(output_path)
+    log(f"Measurement   : {measurement_name}  (run {run_no})")
+    log("Config        : 2")
+    log(f"Output        : {output_path}")
 
-    log(f"Config 1 source : {config1_h5}")
-    log(f"VLS source      : {vls_h5}")
-    log(f"Output          : {output_path}")
+    stream = io.StringIO()
+    with contextlib.redirect_stdout(stream):
+        write_h5_main(
+            config_no=2,
+            measurement_name=measurement_name,
+            run_no=int(run_no),
+            output_path=output_path,
+            train_length=int(train_length),
+            chunk_size=int(chunk_size),
+            max_ecounts=int(max_e_per_bunch),
+            n_vls_pixels=int(n_vls_pixels),
+            folding_parameter=float(folding_parameter),
+        )
 
-    if not config1_h5.exists():
-        raise FileNotFoundError(f"{config1_h5} not found.")
-    if not vls_h5.exists():
-        raise FileNotFoundError(f"{vls_h5} not found.")
-
-    with h5py.File(config1_h5, "r") as f1:
-        n1 = f1["tID"].shape[0]
-        log(f"  Config 1: {n1} trains.")
-        cfg1 = {k: f1[k][...] for k in f1.keys() if k not in _DROP_FROM_CONFIG1}
-
-    with h5py.File(vls_h5, "r") as f2:
-        vls_arr = f2[_VLS_DATASET]
-        n2, m_vls, _ = vls_arr.shape
-        log(f"  VLS: {n2} trains × {m_vls} bunches.")
-        vls = vls_arr[...].astype(np.float32)
-
-    n = min(n1, n2)
-    log(f"Aligning by index, truncating to n={n} trains, m={m_vls} bunches.")
-
-    for k in cfg1:
-        cfg1[k] = cfg1[k][:n]
-    vls = vls[:n]
-
-    for k in _PER_BUNCH_1D_FIELDS + _PER_BUNCH_3D_FIELDS:
-        if k in cfg1:
-            cfg1[k] = cfg1[k][:, :m_vls, ...]
-
-    if output_path.exists():
-        output_path.unlink()
-
-    with h5py.File(output_path, "w") as f_out:
-        for src_key, arr in cfg1.items():
-            dst_key = _RENAME_ON_COPY.get(src_key, src_key)
-            f_out.create_dataset(
-                dst_key, data=arr,
-                compression="gzip" if arr.ndim >= 2 else None,
-            )
-        f_out.create_dataset("vls", data=vls, compression="gzip")
-
-    log(f"Done — {output_path.name} written.")
+    output = stream.getvalue().strip()
+    if output:
+        for line in output.splitlines():
+            log(line)
 
 
 # ---------------------------------------------------------------------------

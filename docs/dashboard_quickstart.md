@@ -28,9 +28,29 @@ analysis/scripts/data_loading.py, and analysis/scripts/plotting.py).
 
    pip install -r requirements.txt
 
-2. Start the dashboard:
+2. Start the dashboard (local workstation):
 
    streamlit run dashboard/app.py
+
+3. Start the dashboard on Maxwell via JupyterHub:
+
+  streamlit run dashboard/app.py \
+    --server.address 127.0.0.1 \
+    --server.port 8501 \
+    --server.enableCORS false \
+    --server.enableXsrfProtection false
+
+4. Open it through the JupyterHub proxy URL (not localhost):
+
+  https://max-jhub.desy.de/user/<your_user>/proxy/8501/
+
+  For user `kaiyu` this is:
+
+  https://max-jhub.desy.de/user/kaiyu/proxy/8501/
+
+  If needed, try:
+
+  https://max-jhub.desy.de/user/<your_user>/proxy/absolute/8501/
 
 ## Page Usage
 
@@ -59,3 +79,6 @@ analysis/scripts/data_loading.py, and analysis/scripts/plotting.py).
 - No DB initialization is needed.
 - Heavy processing and plotting only run when buttons are clicked.
 - Paths are resolved through analysis/scripts/config.py.
+- On Maxwell/JupyterHub, `http://localhost:8501` from Streamlit logs is the
+  compute node localhost, not your browser localhost. Always use the JupyterHub
+  proxy URL.
