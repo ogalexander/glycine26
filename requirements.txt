@@ -1,0 +1,10 @@
+# Core scientific stack
+numpy
+scipy
+h5py
+matplotlib
+pandas
+tqdm
+
+# Dashboard
+streamlit>=1.33  # @st.fragment(run_every=...) requires 1.33+

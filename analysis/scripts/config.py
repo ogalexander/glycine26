@@ -53,7 +53,7 @@ _REPO_ROOT: Path = ANALYSIS_DIR.parents[1]  # analysis/scripts -> analysis -> re
 _PROFILES: dict[str, dict[str, Path]] = {
     "local": {
         "DATA_ROOT":     _REPO_ROOT / "11022188",
-        "RAW_H5_DIR":    _REPO_ROOT / "11022188" / "raw" / "hdf5" / "online-0" / "fl2user1",
+        "RAW_H5_DIR":    _REPO_ROOT / "11022188" / "raw" / "hdf" / "online-0" / "fl2user1",
         "LOCAL_DAQ_DIR": _REPO_ROOT / "11022188" / "processed" / "local_DAQ",
         "COMBINED_DIR":  _REPO_ROOT / "11022188" / "processed" / "combined",
     },
@@ -62,7 +62,7 @@ _PROFILES: dict[str, dict[str, Path]] = {
     # raise.
     "remote": {
         "DATA_ROOT":     Path("/asap3/flash/gpfs/fl24/2026/data/11022188"),
-        "RAW_H5_DIR":    Path("/asap3/flash/gpfs/fl24/2026/data/11022188/raw/hdf5/online-0/fl2user1"),
+        "RAW_H5_DIR":    Path("/asap3/flash/gpfs/fl24/2026/data/11022188/raw/hdf/online-0/fl2user1"),
         "LOCAL_DAQ_DIR": Path("/asap3/flash/gpfs/fl24/2026/data/11022188/processed/local_DAQ"),
         "COMBINED_DIR":  Path("/asap3/flash/gpfs/fl24/2026/data/11022188/processed/combined"),
     },

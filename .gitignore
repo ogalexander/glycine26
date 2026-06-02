@@ -19,6 +19,13 @@ analysis/notebooks/prep_for_June2026.ipynb
 # ignore personal files
 kaiyu/
 
-# ignore for now 
-dashboard/
-db/
+# dashboard runtime artefacts
+dashboard/__pycache__/
+dashboard/pages/__pycache__/
+# dashboard/
+
+# Ignore virtual environment
+.venv/
+
+# Ignore system files
+.DS_Store
