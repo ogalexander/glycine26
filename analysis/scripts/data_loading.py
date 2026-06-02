@@ -6,14 +6,26 @@ is re-exported here for backwards compatibility with code that imports
 ``from data_loading import ExperimentData``.
 """
 
+import glob
+from pathlib import Path
+
 import h5py
 import numpy as np
 
 from experiment_data import ExperimentData
 
-__all__ = ["ExperimentData", "load_data", "save_vls_moments"]
+__all__ = ["ExperimentData", "load_data", "load_raw_h5", "save_vls_moments"]
 
 _VLS_MOMENTS_GROUP = "vls_moments"
+
+# Raw FLASH H5 dataset paths (duplicated from write_h5.py so this module
+# does not pull in the legacy TDC decoder dependency).
+_GMD_INDEX = "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/index"
+_GMD_VALUE = "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/value"
+_MPE_INDEX = "/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/index"
+_MPE_VALUE = "/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/value"
+_VLS_INDEX = "/FL2/Support Infrastructure/Gotthard/images/index"
+_VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 
 
 def load_data(
@@ -113,6 +125,163 @@ def load_data(
         vls_widths=vls_widths,
         vls_crop_roi=vls_crop_roi,
         vls_background_roi=vls_background_roi,
+    )
+
+
+def _align_by_tID(src_idx, master_tID):
+    """
+    Return ``(matched, src_pos)`` such that ``src_idx[src_pos]`` are the
+    entries of the source dataset whose train IDs match ``master_tID``.
+
+    ``matched`` is a boolean mask of shape ``master_tID.shape`` — True at
+    positions where a match was found. ``src_pos`` is the array of source
+    positions for the matched master entries (length ``matched.sum()``).
+    Both ``src_idx`` and ``master_tID`` must be sorted ascending.
+    """
+    pos = np.searchsorted(src_idx, master_tID)
+    in_range = pos < len(src_idx)
+    matched = np.zeros(master_tID.shape, dtype=bool)
+    matched[in_range] = src_idx[pos[in_range]] == master_tID[in_range]
+    return matched, pos[matched]
+
+
+def load_raw_h5(
+    run_no: int,
+    config: int,
+    raw_dir=None,
+    train_length: int = None,
+    n_vls_pixels: int = 1280,
+    max_files: int = None,
+) -> ExperimentData:
+    """
+    Load experiment data directly from the raw FLASH H5 files for one run.
+
+    Useful for inspecting VLS data during the experiment when no combined
+    H5 has been built yet. The SDU (``z``, ``z_std``) and TDC
+    (``tofs_e``, ``tofs_i``, ``liq_tofs_e``) streams are not read here:
+    ``z`` is NaN-filled and the TOF arrays are left as ``None``.
+
+    The VLS train-ID axis is taken as the master for config 2 (so every
+    output train has a VLS spectrum). GMD and MPE are aligned to that
+    master by train ID; trains missing from a given source are NaN.
+
+    Read-only: the raw H5 directory is treated as a read-only input.
+    Computed VLS moments cannot be persisted back to it — call
+    :func:`save_vls_moments` only against a writable combined H5.
+
+    Parameters
+    ----------
+    run_no : int
+        FLASH run number used to glob raw H5 files.
+    config : int
+        1 or 2. Only config 2 populates ``vls``.
+    raw_dir : str or pathlib.Path, optional
+        Override the raw-H5 directory. Defaults to ``config.RAW_H5_DIR``.
+    train_length : int, optional
+        Bunches per train. Defaults to 100 for config 2 and 400 for
+        config 1. Per-train arrays narrower than this are NaN-padded;
+        wider ones are truncated.
+    n_vls_pixels : int
+        Width of the VLS pixel axis (config 2 only).
+    max_files : int, optional
+        Read only the first ``max_files`` raw H5 files (smallest run
+        numbers first). Default ``None`` reads all of them — be aware
+        that each file can be several GB once the VLS stack is cast to
+        float32.
+
+    Returns
+    -------
+    ExperimentData
+        Container with ``tID``, ``gmd``, ``mpe`` populated. ``vls`` is
+        populated for config 2; ``z`` is NaN-filled; TOF fields are
+        ``None``. ``between_tdc_files`` is all-False (no TDC stream).
+    """
+    # Local import: rename so the int ``config`` argument doesn't shadow
+    # the path-management module.
+    import config as path_config
+
+    if config not in (1, 2):
+        raise ValueError(f"config must be 1 or 2, got {config!r}")
+    if train_length is None:
+        train_length = 100 if config == 2 else 400
+
+    raw_dir = Path(raw_dir) if raw_dir is not None else Path(path_config.RAW_H5_DIR)
+    pattern = str(raw_dir / f"*run{run_no}*.h5")
+    h5_paths = sorted(glob.glob(pattern))
+    if not h5_paths:
+        raise FileNotFoundError(f"No raw H5 files matching {pattern!r}.")
+    if max_files is not None:
+        h5_paths = h5_paths[:max_files]
+    print(f"Loading {len(h5_paths)} raw H5 file(s) for run {run_no} "
+          f"(config {config}).")
+
+    tID_chunks = []
+    gmd_chunks = []
+    mpe_chunks = []
+    vls_chunks = [] if config == 2 else None
+
+    for path in h5_paths:
+        print(f"  reading {Path(path).name}")
+        with h5py.File(path, "r") as f:
+            # Master tID axis: VLS for cfg 2 (so every row has a spectrum),
+            # GMD for cfg 1.
+            if config == 2:
+                master_tID = f[_VLS_INDEX][...]
+            else:
+                master_tID = f[_GMD_INDEX][...]
+            n = master_tID.shape[0]
+            tID_chunks.append(master_tID.astype(np.float64))
+
+            # GMD: dataset is (n_trains, 8, m_raw); keep channel 0 (intensity).
+            gmd_idx = f[_GMD_INDEX][...]
+            m_raw = f[_GMD_VALUE].shape[2]
+            m = min(m_raw, train_length)
+            gmd_slice = f[_GMD_VALUE][:, 0, :m]      # (n_gmd, m)
+            gmd_buf = np.full((n, train_length), np.nan, dtype=np.float32)
+            matched, src_pos = _align_by_tID(gmd_idx, master_tID)
+            if matched.any():
+                gmd_buf[matched, :m] = gmd_slice[src_pos].astype(np.float32)
+            gmd_chunks.append(gmd_buf)
+
+            # MPE: scalar per train.
+            mpe_idx = f[_MPE_INDEX][...]
+            mpe_val = f[_MPE_VALUE][...]
+            mpe_buf = np.full(n, np.nan, dtype=np.float32)
+            matched, src_pos = _align_by_tID(mpe_idx, master_tID)
+            if matched.any():
+                mpe_buf[matched] = mpe_val[src_pos].astype(np.float32)
+            mpe_chunks.append(mpe_buf)
+
+            # VLS (config 2): dataset is (n_trains, m_raw, n_px_raw).
+            if config == 2:
+                vls_raw = f[_VLS_VALUE][...]
+                m_raw_vls = vls_raw.shape[1]
+                p_raw = vls_raw.shape[2] if vls_raw.ndim > 2 else n_vls_pixels
+                m = min(m_raw_vls, train_length)
+                p = min(p_raw, n_vls_pixels)
+                vls_buf = np.full((n, train_length, n_vls_pixels),
+                                  np.nan, dtype=np.float32)
+                vls_buf[:, :m, :p] = vls_raw[:, :m, :p].astype(np.float32)
+                vls_chunks.append(vls_buf)
+
+    tID = np.concatenate(tID_chunks)
+    gmd = np.concatenate(gmd_chunks)
+    mpe = np.concatenate(mpe_chunks)
+    n_total = tID.shape[0]
+    z = np.full((n_total, train_length), np.nan, dtype=np.float32)
+    between_tdc_files = np.zeros(n_total, dtype=bool)
+    vls = np.concatenate(vls_chunks) if vls_chunks is not None else None
+
+    print(f"Loaded {n_total} trains x {train_length} bunches.")
+
+    return ExperimentData(
+        config=config,
+        tID=tID,
+        gmd=gmd,
+        mpe=mpe,
+        z=z,
+        between_tdc_files=between_tdc_files,
+        vls=vls,
     )
 
 
