@@ -61,7 +61,13 @@ import h5py
 import numpy as np
 
 
-__all__ = ["AggregatesData", "compute_aggregates", "load_aggregates", "main"]
+__all__ = [
+    "AggregatesData",
+    "compute_aggregates",
+    "load_aggregates",
+    "load_python_config",
+    "main",
+]
 
 
 # ----------------------------------------------------------------------
@@ -106,16 +112,24 @@ class AggregatesData:
     inserted before the per-shot dimensions; ``z_edges`` is populated
     and ``tof_edges`` collapses to ``[tof_roi_min, tof_roi_max]``
     (``n_tof = 1``).
+
+    XAS-scan mode (config 2, written by ``compute_xas_aggregates.py``):
+    bins are ``(N_E, N_GMD)`` indexed by per-section nominal photon
+    energy and GMD. Only the VLS aggregates (``A``, ``AtA``, ``AtG``)
+    and GMD aggregates (``G``, ``GtG``, ``n_per_bin``) are populated;
+    eTOF fields (``D``, ``DtD``, ``DtG``, ``tof_edges``) are ``None``.
+    ``nominal_energies`` carries the (N_E,) energy axis in eV.
     """
-    # Always present.
-    D: np.ndarray
-    DtD: np.ndarray
+    # Bookkeeping (always present).
     G: np.ndarray
     GtG: np.ndarray
-    DtG: np.ndarray
     n_per_bin: np.ndarray
     gmd_edges: np.ndarray
-    tof_edges: np.ndarray
+    # eTOF (spectral / time-resolved modes; None in xas_scan).
+    D: Optional[np.ndarray] = None
+    DtD: Optional[np.ndarray] = None
+    DtG: Optional[np.ndarray] = None
+    tof_edges: Optional[np.ndarray] = None
     # Config 2 only.
     A: Optional[np.ndarray] = None
     AtA: Optional[np.ndarray] = None
@@ -131,6 +145,8 @@ class AggregatesData:
     ion_tof_edges: Optional[np.ndarray] = None
     # TR mode (config 2).
     z_edges: Optional[np.ndarray] = None
+    # XAS-scan mode (config 2).
+    nominal_energies: Optional[np.ndarray] = None
     metadata: dict = field(default_factory=dict)
 
     @property
@@ -139,7 +155,11 @@ class AggregatesData:
 
     @property
     def mode(self) -> str:
-        return "time_resolved" if self.z_edges is not None else "spectral"
+        if self.nominal_energies is not None:
+            return "xas_scan"
+        if self.z_edges is not None:
+            return "time_resolved"
+        return "spectral"
 
     @property
     def n_gmd_bins(self) -> int:
@@ -150,13 +170,19 @@ class AggregatesData:
         return None if self.z_edges is None else int(self.z_edges.shape[0]) - 1
 
     @property
+    def n_energy_bins(self) -> Optional[int]:
+        return None if self.nominal_energies is None else int(self.nominal_energies.shape[0])
+
+    @property
     def n_pixels(self) -> Optional[int]:
         if self.vls_pixels is None:
             return None
         return int(self.vls_pixels.shape[0])
 
     @property
-    def n_tof(self) -> int:
+    def n_tof(self) -> Optional[int]:
+        if self.tof_edges is None:
+            return None
         return int(self.tof_edges.shape[0]) - 1
 
     @property
@@ -176,7 +202,9 @@ class AggregatesData:
         return 0.5 * (self.z_edges[:-1] + self.z_edges[1:])
 
     @property
-    def tof_centres(self) -> np.ndarray:
+    def tof_centres(self) -> Optional[np.ndarray]:
+        if self.tof_edges is None:
+            return None
         return 0.5 * (self.tof_edges[:-1] + self.tof_edges[1:])
 
     @property
@@ -219,14 +247,15 @@ def load_aggregates(path: Union[str, Path]) -> AggregatesData:
 
         return AggregatesData(
             # always present
-            D=f["D"][:],
-            DtD=f["DtD"][:],
             G=f["G"][:],
             GtG=f["GtG"][:],
-            DtG=f["DtG"][:],
             n_per_bin=f["n_per_bin"][:],
             gmd_edges=f["gmd_edges"][:],
-            tof_edges=f["tof_edges"][:],
+            # eTOF (spectral / TR modes)
+            D=_opt("D"),
+            DtD=_opt("DtD"),
+            DtG=_opt("DtG"),
+            tof_edges=_opt("tof_edges"),
             # config 2
             A=_opt("A"),
             AtA=_opt("AtA"),
@@ -242,6 +271,8 @@ def load_aggregates(path: Union[str, Path]) -> AggregatesData:
             ion_tof_edges=_opt("ion_tof_edges"),
             # TR mode
             z_edges=_opt("z_edges"),
+            # XAS-scan mode
+            nominal_energies=_opt("nominal_energies"),
             metadata=meta,
         )
 
@@ -257,6 +288,10 @@ def _load_python_config(path: Path):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+# Public alias for use by sibling scripts (compute_xas_aggregates.py).
+load_python_config = _load_python_config
 
 
 def _iter_chunks(n_total: int, chunk_size: int):
