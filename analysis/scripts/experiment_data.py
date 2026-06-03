@@ -320,6 +320,54 @@ class ExperimentData:
             vls_background_roi=(int(bunch_start), int(bunch_end)),
         )
 
+    def auto_subtract_background_trainwise(
+        self, background_roi: tuple[int, int]
+    ) -> "ExperimentData":
+        """
+        Per-train counterpart of :meth:`auto_subtract_background`.
+
+        For each train, computes the mean spectrum over the bunches in
+        ``background_roi`` and subtracts it from every bunch of that
+        train. The background is allowed to drift train-to-train
+        (unlike :meth:`auto_subtract_background`, which uses a single
+        background averaged across all trains). Useful when the
+        baseline / dark level changes shot-to-shot but stays constant
+        within a train across non-signal bunches.
+
+        Parameters
+        ----------
+        background_roi : tuple of int
+            ``(bunch_start, bunch_end)`` half-open bunch index range
+            used for the per-train mean.
+
+        Returns
+        -------
+        ExperimentData
+            New dataset with the per-train background subtracted.
+        """
+        if self.vls is None:
+            raise AttributeError("This dataset has no VLS data (config != 2).")
+
+        bunch_start, bunch_end = background_roi
+        if not 0 <= bunch_start < bunch_end <= self.n_bunches:
+            raise ValueError(
+                f"Invalid background_roi {background_roi} for "
+                f"n_bunches={self.n_bunches}: require "
+                f"0 <= bunch_start < bunch_end <= n_bunches."
+            )
+
+        per_train_bg = np.nanmean(
+            self.vls[:, bunch_start:bunch_end, :], axis=1,
+        )
+        return replace(
+            self,
+            vls=self.vls - per_train_bg[:, None, :],
+            vls_background_roi=(int(bunch_start), int(bunch_end)),
+            vls_sums=None,
+            vls_coms=None,
+            vls_widths=None,
+        )
+
     def compute_vls_moments(self) -> "ExperimentData":
         """
         Return a copy with per-shot VLS sum, COM, and width populated.

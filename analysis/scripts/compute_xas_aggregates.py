@@ -9,16 +9,18 @@ index, and writes per-(energy, gmd_bin) aggregates of the VLS spectrum
 and the GMD. The resulting H5 follows the ``AggregatesData`` layout
 defined in ``compute_aggregates.py``.
 
-For each open shutter section the VLS is background-subtracted in two
-steps before binning:
+The VLS is background-subtracted in two steps:
 
-1. **Per-section background** — the 2D ``(m_bunches, n_pixels)`` mean
-   spectrum over the trains of the immediately preceding closed shutter
-   section is subtracted from every train of the open section.
-2. **Per-train background** — the 1D mean over the non-signal bunches
-   (``BG_BUNCH_RANGE``) of each open train is subtracted from every
-   signal bunch of that train, removing per-shot DC offset and dark
-   drift.
+1. **Per-train background** — applied to *every* train of the run, right
+   after cropping. For each train the mean spectrum over the non-signal
+   bunches (``BG_BUNCH_RANGE``) is subtracted from every bunch of that
+   train, removing per-train DC offset and slow dark drift before any
+   section logic runs. Implemented via
+   :meth:`ExperimentData.auto_subtract_background_trainwise`.
+2. **Per-section background** — for each open shutter section, the 2D
+   ``(m_bunches, n_pixels)`` mean spectrum over the trains of the
+   *immediately preceding* closed shutter section (after step 1) is
+   subtracted from every train of the open section.
 
 Shots are then flattened over (train, signal_bunch), binned by GMD, and
 accumulated into ``A``, ``AtA``, ``AtG``, ``G``, ``GtG``, ``n_per_bin``
@@ -297,7 +299,8 @@ def compute_xas_aggregates(
     signal_bunch_range : (int, int)
         Half-open bunch range overlapping the GMD acquisition window.
     bg_bunch_range : (int, int)
-        Half-open bunch range used for per-train VLS background.
+        Half-open bunch range used for the per-train VLS background
+        (applied to every train of the run before section logic runs).
     config : int
         Must be 2 (xas_scan is config-2 only).
     raw_dir : Path, optional
@@ -354,8 +357,19 @@ def compute_xas_aggregates(
     if data.vls is None:
         raise RuntimeError("load_raw_h5 returned no VLS data for this run.")
 
-    # Crop to ROI up front so all downstream arrays use the cropped pixel axis.
+    # Crop to ROI up front so all downstream arrays use the cropped
+    # pixel axis. Then subtract a per-train background (mean over the
+    # non-signal bunches of every train), so the section-level
+    # closed-shutter average that follows is computed on already
+    # baseline-corrected spectra.
     data = data.crop_vls(roi_min, roi_max)
+    m = data.vls.shape[1]
+    if not (0 <= sig_b0 < sig_b1 <= m):
+        raise ValueError(f"signal_bunch_range {signal_bunch_range} not within [0, {m}].")
+    if not (0 <= bg_b0 < bg_b1 <= m):
+        raise ValueError(f"bg_bunch_range {bg_bunch_range} not within [0, {m}].")
+    data = data.auto_subtract_background_trainwise((bg_b0, bg_b1))
+
     vls = np.asarray(data.vls, dtype=np.float64)   # (n_trains, m, n_pixels)
     gmd = np.asarray(data.gmd, dtype=np.float64)   # (n_trains, m)
     n_trains, m, n_pix_check = vls.shape
@@ -364,10 +378,6 @@ def compute_xas_aggregates(
             f"unexpected VLS pixel width {n_pix_check} after crop "
             f"(expected {n_pixels})."
         )
-    if not (0 <= sig_b0 < sig_b1 <= m):
-        raise ValueError(f"signal_bunch_range {signal_bunch_range} not within [0, {m}].")
-    if not (0 <= bg_b0 < bg_b1 <= m):
-        raise ValueError(f"bg_bunch_range {bg_bunch_range} not within [0, {m}].")
 
     # ----- read shutter, detect sections ------------------------------
     h5_paths = _list_raw_h5_files(run_no, raw_dir, max_files)
@@ -446,20 +456,17 @@ def compute_xas_aggregates(
                 f"section {i}: no closed trains available for background."
             )
 
+        # Per-section background: mean over the trains of the preceding
+        # closed section. The per-train baseline has already been
+        # removed by auto_subtract_background_trainwise above, so this
+        # captures any residual shutter-state-dependent offset.
         bg2d = np.nanmean(vls[sec_closed_idx, :, :], axis=0)   # (m, n_pixels)
         section_bg[i] = bg2d
 
-        # Per-train background (1D over pixels) from non-signal bunches.
-        sec_vls_full = vls[sec_open_idx, :, :]                  # (n_sec, m, n_pixels)
-        per_train_bg = np.nanmean(
-            sec_vls_full[:, bg_b0:bg_b1, :], axis=1,
-        )                                                       # (n_sec, n_pixels)
-
-        # Apply both backgrounds and keep only the signal bunches.
+        # Apply the per-section background and keep only the signal bunches.
         A_block = (
-            sec_vls_full[:, sig_b0:sig_b1, :]
+            vls[sec_open_idx][:, sig_b0:sig_b1, :]
             - bg2d[None, sig_b0:sig_b1, :]
-            - per_train_bg[:, None, :]
         )                                                       # (n_sec, n_sig, n_pixels)
         G_block = gmd[sec_open_idx, sig_b0:sig_b1]              # (n_sec, n_sig)
 
