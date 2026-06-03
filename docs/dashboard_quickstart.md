@@ -21,7 +21,9 @@ analysis/scripts/data_loading.py, and analysis/scripts/plotting.py).
   - Config 2 combine form (real write_h5 config 2 path).
   - Aggregates form with three presets (cfg1 spectral, cfg2 spectral, cfg2 TR).
 - dashboard/pages/plots.py
-  - Loads one combined H5 file and runs plot_diagnostics.
+  - Auto-detects H5 type: combined vs aggregates.
+  - Auto-detects config (1 or 2) and aggregates mode (spectral or time_resolved).
+  - Supports multi-panel comparison across different source files.
 
 ## How To Run
 
@@ -76,9 +78,50 @@ analysis/scripts/data_loading.py, and analysis/scripts/plotting.py).
 
 ### 3) Plot
 
-- Select a combined H5 file.
-- Choose config (1 or 2) and trim/downsample options.
-- Click button to run load_data + plot_diagnostics.
+- Select any H5 in COMBINED_DIR (combined or aggregates).
+- The page auto-detects:
+  - Combined vs Aggregates
+  - Config 1 vs Config 2
+  - Aggregates mode (spectral vs time_resolved)
+- Combined H5:
+  - Set trim/downsample and load data.
+  - Plot types:
+    - Diagnostics
+    - Linearity
+    - Energy-Binned Maps
+    - Delay Dependence
+    - TOF inspection plots:
+      - TOF Mean Spectrum (all shots)
+      - TOF Spectrum vs Bunch Index
+      - TOF Spectrum vs Train Index
+      - TOF Spectrum per GMD Bin
+    - Config 2 VLS/Gotthard inspection plots:
+      - VLS Mean Spectrum (all shots)
+      - VLS Spectrum vs Bunch Index
+      - VLS Spectrum vs Train Index
+      - GMD vs VLS Intensity
+- Aggregates H5:
+  - Load aggregates directly (no trim/downsample).
+  - Plot types are mode/config aware:
+    - Aggregate Means (all supported configs/modes)
+    - Cross-Covariance per GMD bin (spectral mode)
+    - Time-Resolved slice per GMD bin (config 2 time_resolved)
+- Plots remain open when you load another file, so cross-file comparison is preserved.
+- Each panel shows its source file, config, and data kind/mode.
+
+## Notebook Mapping (Config + Data Type)
+
+- Combined H5 notebooks:
+  - diagnostics.ipynb: config 1 or 2 combined data (load_data)
+  - demo.ipynb: config 1 or 2 combined data (load_data)
+  - tof_inspect.ipynb: combined data TOF inspection; includes average TOF spectrum, spectrum vs bunch, spectrum vs train, and spectrum per GMD bin
+  - vls_inspect.ipynb: config 2 combined data; includes average VLS spectrum, spectrum vs bunch, spectrum vs train, and GMD vs VLS intensity
+  - check_train_alignment.ipynb: config 1/2 combined data
+- Aggregates H5 notebooks:
+  - covariance_inspect_cfg1.ipynb: config 1 aggregates (spectral)
+  - covariance_inspect.ipynb: config 2 aggregates (spectral)
+  - admm_solve.ipynb: config 2 aggregates (spectral)
+  - admm_solve_tr.ipynb: config 2 aggregates (time_resolved)
 
 ## Notes
 
