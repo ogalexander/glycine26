@@ -205,9 +205,19 @@ def load_raw_h5(
     if train_length is None:
         train_length = 100 if config == 2 else 400
 
+    def _file_order_key(path_str: str):
+        """Sort by numeric index in ..._fileNN_... (fallback to name)."""
+        name = Path(path_str).name
+        if "_file" in name:
+            tail = name.split("_file", 1)[1]
+            num_str = tail.split("_", 1)[0]
+            if num_str.isdigit():
+                return (0, int(num_str), name)
+        return (1, 0, name)
+
     raw_dir = Path(raw_dir) if raw_dir is not None else Path(path_config.RAW_H5_DIR)
     pattern = str(raw_dir / f"*run{run_no}*.h5")
-    h5_paths = sorted(glob.glob(pattern))
+    h5_paths = sorted(glob.glob(pattern), key=_file_order_key)
     if not h5_paths:
         raise FileNotFoundError(f"No raw H5 files matching {pattern!r}.")
     if max_files is not None:
