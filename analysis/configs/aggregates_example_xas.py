@@ -65,3 +65,8 @@ FIRST_SECTION_STATE = "open"
 # wants one Cov(A,A) / Cov(A,G) pair per GMD bin built across the whole
 # energy scan.
 GROUP_BY_ENERGY = True
+
+# Appended to the default output filename before ".h5" so multiple
+# aggregate files can be derived from the same run (e.g. grouped vs
+# ungrouped). Empty string keeps the conventional name.
+OUTPUT_SUFFIX = ""

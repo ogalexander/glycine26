@@ -30,6 +30,12 @@ A Python module exposing the module-level names below. Example file:
     CHUNK_SIZE  : trains per chunk         (optional, default 200)
     TRIM_START  : trains trimmed from the start (optional, 0)
     TRIM_END    : trains trimmed from the end   (optional, 0)
+    OUTPUT_SUFFIX : str appended to the default output filename
+                    (optional, default ""). Inserted before ".h5", so
+                    a value of "_v2" turns the default
+                    "<input>_aggregates.h5" into
+                    "<input>_aggregates_v2.h5". Ignored when ``-o`` is
+                    passed on the CLI.
 
 CLI
 ---
@@ -827,8 +833,11 @@ def main(argv=None) -> None:
 
     cfg_n = int(cfg.CONFIG)
     mode = getattr(cfg, "MODE", "spectral")
-    suffix = "_aggregates_tr.h5" if mode == "time_resolved" else "_aggregates.h5"
-    out = args.output or args.input_h5.with_name(args.input_h5.stem + suffix)
+    base = "_aggregates_tr" if mode == "time_resolved" else "_aggregates"
+    user_suffix = getattr(cfg, "OUTPUT_SUFFIX", "") or ""
+    out = args.output or args.input_h5.with_name(
+        args.input_h5.stem + base + user_suffix + ".h5"
+    )
 
     kwargs = dict(
         input_h5=args.input_h5,

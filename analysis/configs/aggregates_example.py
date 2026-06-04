@@ -37,3 +37,7 @@ CONFIG = 2
 CHUNK_SIZE = 200
 TRIM_START = 3
 TRIM_END   = 3
+
+# Appended to the default output filename before ".h5". Empty string
+# keeps the conventional "<input>_aggregates.h5" name.
+OUTPUT_SUFFIX = ""

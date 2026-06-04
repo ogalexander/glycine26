@@ -52,6 +52,11 @@ A Python module exposing the module-level names below. See
     GROUP_BY_ENERGY     : bool — when False, collapse the energy axis
                           to a single bin so the output is binned only
                           on GMD (default True)
+    OUTPUT_SUFFIX       : str appended to the default output filename
+                          before ".h5", e.g. "_ungrouped" turns
+                          "run58780_xas_aggregates.h5" into
+                          "run58780_xas_aggregates_ungrouped.h5".
+                          Ignored when ``-o`` is passed on the CLI.
 
 CLI
 ---
@@ -642,9 +647,11 @@ def main(argv=None) -> None:
         )
 
     run_no = int(cfg.RUN_NO)
+    user_suffix = getattr(cfg, "OUTPUT_SUFFIX", "") or ""
     if args.output is None:
         import config as path_config
-        out = Path(path_config.COMBINED_DIR) / f"run{run_no}_xas_aggregates.h5"
+        out = (Path(path_config.COMBINED_DIR)
+               / f"run{run_no}_xas_aggregates{user_suffix}.h5")
     else:
         out = args.output
 
