@@ -25,7 +25,11 @@ Config file
 -----------
 Python module exposing: RUN_NO, NOMINAL_ENERGIES, CROP_ROI,
 SIGNAL_BUNCH_RANGE, BG_BUNCH_RANGE, CONFIG=2, plus optional shutter /
-trim knobs. No GMD_EDGES needed. See ``analysis/configs/xas_static/``.
+trim knobs. No GMD_EDGES needed. ``MODE`` may be any of ``"xas"``,
+``"xas_scan"``, or ``"xas_static"``. The same config file also drives
+``compute_xas_aggregates.py``; that script consumes the extra
+GMD-binning fields when present. See ``analysis/configs/xas_static/``
+and ``analysis/configs/aggregates_example_xas.py``.
 
 CLI
 ---
@@ -53,6 +57,14 @@ __all__ = ["compute_static_xas", "main"]
 
 _DEFAULT_SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"
 _DEFAULT_SHUTTER_VALUE_PATH = "/FL2/Beamlines/Fast Shutter/shutter/value"
+
+# Config MODE strings accepted by both this script and
+# compute_xas_aggregates. The two pipelines share inputs and
+# preprocessing knobs; a single config can drive either entry point.
+# The *output* H5 still gets a distinguishing ``mode`` attribute set by
+# whichever script wrote it (``xas_static`` here, ``xas_scan`` in
+# compute_xas_aggregates).
+ACCEPTED_XAS_MODES = ("xas", "xas_scan", "xas_static")
 
 # ---------------------------------------------------------------------------
 # Internal helpers  (self-contained — no imports from other analysis scripts)
@@ -478,9 +490,12 @@ def main(argv=None) -> None:
 
     if int(getattr(cfg, "CONFIG", 2)) != 2:
         raise ValueError("compute_static_xas requires CONFIG = 2.")
-    mode = getattr(cfg, "MODE", "xas_static")
-    if mode != "xas_static":
-        raise ValueError(f"Expected MODE='xas_static', got {mode!r}.")
+    mode = getattr(cfg, "MODE", "xas")
+    if mode not in ACCEPTED_XAS_MODES:
+        raise ValueError(
+            f"this entry point expects MODE in {ACCEPTED_XAS_MODES}, "
+            f"got {mode!r}."
+        )
 
     run_no = int(cfg.RUN_NO)
     if args.output is None:

@@ -37,7 +37,11 @@ arrays of shape ``(N_E, N_GMD, ...)``.
 Config file
 -----------
 A Python module exposing the module-level names below. See
-``analysis/configs/aggregates_example_xas.py``.
+``analysis/configs/aggregates_example_xas.py``. The same config also
+drives ``compute_static_xas.py`` — that script ignores the GMD-binning
+fields (``GMD_EDGES``, ``GROUP_BY_ENERGY``, ``OUTPUT_SUFFIX``) when
+they appear. ``MODE`` may be any of ``"xas"``, ``"xas_scan"``, or
+``"xas_static"``.
 
     RUN_NO              : int
     NOMINAL_ENERGIES    : 1D array-like of nominal photon energies (eV)
@@ -115,6 +119,13 @@ __all__ = ["compute_xas_aggregates", "main"]
 # Default fast-shutter HDF5 paths.
 DEFAULT_SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"
 DEFAULT_SHUTTER_VALUE_PATH = "/FL2/Beamlines/Fast Shutter/shutter/value"
+
+# Config MODE strings accepted by both this script and compute_static_xas.
+# The two pipelines run on identical raw input and the same preprocessing
+# settings, so one config can drive either entry point. The *output* H5
+# still gets a distinguishing ``mode`` attribute set by whichever script
+# wrote it (``xas_scan`` here, ``xas_static`` in compute_static_xas).
+ACCEPTED_XAS_MODES = ("xas", "xas_scan", "xas_static")
 
 
 # ----------------------------------------------------------------------
@@ -668,10 +679,11 @@ def main(argv=None) -> None:
 
     if int(getattr(cfg, "CONFIG", 2)) != 2:
         raise ValueError("compute_xas_aggregates requires CONFIG = 2.")
-    mode = getattr(cfg, "MODE", "xas_scan")
-    if mode != "xas_scan":
+    mode = getattr(cfg, "MODE", "xas")
+    if mode not in ACCEPTED_XAS_MODES:
         raise ValueError(
-            f"this entry point expects MODE='xas_scan', got {mode!r}."
+            f"this entry point expects MODE in {ACCEPTED_XAS_MODES}, "
+            f"got {mode!r}."
         )
 
     run_no = int(cfg.RUN_NO)
