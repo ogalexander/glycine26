@@ -368,6 +368,44 @@ class ExperimentData:
             vls_widths=None,
         )
 
+    def roll_vls_bunches(self, shift: int) -> "ExperimentData":
+        """
+        Cyclically shift the VLS along its bunch axis by ``shift`` bunches.
+
+        Useful for aligning the VLS bunch axis with the GMD/TOF bunch
+        axis when the Gotthard line index is offset from the FEL bunch
+        train. Positive ``shift`` moves entries to higher bunch indices;
+        negative ``shift`` moves them to lower indices. Bunches that
+        roll off one end wrap around to the other.
+
+        Per-shot VLS moments are cleared (they would no longer match the
+        rolled spectra). The cumulative ``shot_mask`` is left untouched
+        — shifting the spectra does not change which shots have been
+        marked invalid.
+
+        Parameters
+        ----------
+        shift : int
+            Number of bunches to roll by. Equivalent to
+            ``np.roll(vls, shift, axis=1)``.
+
+        Returns
+        -------
+        ExperimentData
+            New dataset with the VLS bunch axis rolled.
+        """
+        if self.vls is None:
+            raise AttributeError("This dataset has no VLS data (config != 2).")
+
+        shift = int(shift)
+        return replace(
+            self,
+            vls=np.roll(self.vls, shift, axis=1),
+            vls_sums=None,
+            vls_coms=None,
+            vls_widths=None,
+        )
+
     def compute_vls_moments(self) -> "ExperimentData":
         """
         Return a copy with per-shot VLS sum, COM, and width populated.

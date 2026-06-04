@@ -163,6 +163,11 @@ Use `write_h5.py` for real measurements.
   - `subtract_background(background)` — subtract a 1D spectrum.
   - `auto_subtract_background(background_roi)` — subtract the mean
     spectrum over a half-open bunch range.
+  - `auto_subtract_background_trainwise(background_roi)` — per-train
+    counterpart; mean over the bunch range is taken on each train and
+    subtracted from that train's bunches.
+  - `roll_vls_bunches(shift)` — cyclically shift `vls` along the bunch
+    axis (`np.roll(..., axis=1)`); clears moments.
   - `compute_vls_moments()` — populate `vls_sums/coms/widths`.
   - `filter_shots(values, lo=None, hi=None, inside=True)` — mask shots
     in place; updates the cumulative `shot_mask` (the correct
