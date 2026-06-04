@@ -496,7 +496,7 @@ def compute_xas_aggregates(
             vls[sec_open_idx][:, sig_b0:sig_b1, :]
             - bg2d[None, sig_b0:sig_b1, :]
         )                                                       # (n_sec, n_sig, n_pixels)
-        G_block = gmd[sec_open_idx, sig_b0:sig_b1]              # (n_sec, n_sig)
+        G_block = gmd[sec_open_idx, :A_block.shape[1]]          # (n_sec, n_sig)
 
         # Flatten over (train, bunch) -> shots.
         A_flat = A_block.reshape(-1, n_pixels)
