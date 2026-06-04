@@ -35,6 +35,13 @@ GMD_EDGES = [0.0, 0.5, 1.0, 2.0, 4.0]
 # VLS pixel ROI (half-open). Applied before any background subtraction.
 CROP_ROI = (500, 600)
 
+# Cyclic shift (np.roll) applied to the VLS bunch axis right after the
+# pixel crop, so the VLS bunch index lines up with the GMD bunch index.
+# 0 = no roll (use this when the Gotthard line index already matches the
+# FEL bunch index). SIGNAL_BUNCH_RANGE and BG_BUNCH_RANGE below are
+# interpreted in the rolled frame.
+VLS_BUNCH_ROLL = 0
+
 # Bunch ranges (half-open) for the VLS.
 #   SIGNAL_BUNCH_RANGE : bunches overlapping the GMD acquisition window;
 #                        these contribute one shot each.

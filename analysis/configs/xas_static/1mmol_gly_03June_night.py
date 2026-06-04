@@ -26,6 +26,11 @@ NOMINAL_ENERGIES = np.array([*np.arange(270, 276, 0.5), 276, *np.arange(276, 283
 # VLS pixel ROI (half-open). Applied before any background subtraction.
 CROP_ROI = (450, 650)
 
+# Cyclic shift (np.roll) of the VLS bunch axis applied right after the
+# pixel crop, so the VLS bunch index matches the GMD bunch index. The
+# bunch ranges below are interpreted in the rolled frame.
+VLS_BUNCH_ROLL = 0
+
 # Bunch ranges (half-open).
 #   SIGNAL_BUNCH_RANGE : bunches overlapping the GMD acquisition window.
 #   BG_BUNCH_RANGE     : non-signal bunches used for per-train baseline.

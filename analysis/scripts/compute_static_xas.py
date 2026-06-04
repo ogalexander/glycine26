@@ -2,11 +2,12 @@
 Collect per-shot (VLS, GMD) for a photon-energy XAS scan.
 
 Runs the same pipeline as ``compute_xas_aggregates.py`` — VLS pixel
-crop, per-train background subtraction, fast-shutter section detection,
-per-section closed-shutter background subtraction, signal-bunch
-selection — but stops after flattening (train × bunch → shot).  No GMD
-binning is performed; the raw shot-level data is written for flexible
-downstream analysis and visualisation.
+crop, VLS bunch-axis roll to align with GMD, per-train background
+subtraction, fast-shutter section detection, per-section closed-shutter
+background subtraction, signal-bunch selection — but stops after
+flattening (train x bunch -> shot).  No GMD binning is performed; the
+raw shot-level data is written for flexible downstream analysis and
+visualisation.
 
 Output H5 layout (default: <processed/xas_static>/run<N>_static_xas.h5):
     /vls               (N_E, N_shots, n_pixels)  float64, NaN-padded
@@ -16,8 +17,9 @@ Output H5 layout (default: <processed/xas_static>/run<N>_static_xas.h5):
     /vls_pixels        (n_pixels,)               int64    source-pixel indices
     /section_bg        (N_E, m_bunches, n_pixels) float64 per-section bg
     attrs:  mode='xas_static', config, run_no, vls_crop_roi,
-            signal_bunch_range, bg_bunch_range, n_sections_detected,
-            n_sections_used, transition_trim_trains, ...
+            vls_bunch_roll, signal_bunch_range, bg_bunch_range,
+            n_sections_detected, n_sections_used,
+            transition_trim_trains, ...
 
 Config file
 -----------
@@ -220,6 +222,7 @@ def compute_static_xas(
     crop_roi: Tuple[int, int],
     signal_bunch_range: Tuple[int, int],
     bg_bunch_range: Tuple[int, int],
+    vls_bunch_roll: int = 0,
     config: int = 2,
     raw_dir=None,
     max_files: Optional[int] = None,
@@ -252,6 +255,11 @@ def compute_static_xas(
         Half-open bunch range for signal shots.
     bg_bunch_range : (int, int)
         Half-open bunch range for per-train baseline subtraction.
+    vls_bunch_roll : int
+        Cyclic shift (``np.roll``) applied to the VLS bunch axis right
+        after the pixel crop, aligning the VLS bunch coordinate with
+        the GMD bunch coordinate. ``signal_bunch_range`` and
+        ``bg_bunch_range`` apply in the rolled frame.
     config : int
         Must be 2 (xas_static is config-2 only).
     raw_dir : Path, optional
@@ -275,6 +283,7 @@ def compute_static_xas(
     n_pixels = roi_max - roi_min
     sig_b0, sig_b1 = int(signal_bunch_range[0]), int(signal_bunch_range[1])
     bg_b0,  bg_b1  = int(bg_bunch_range[0]),     int(bg_bunch_range[1])
+    vls_bunch_roll = int(vls_bunch_roll)
 
     first_section_state = str(first_section_state).strip().lower()
     if first_section_state not in ("open", "closed"):
@@ -291,6 +300,7 @@ def compute_static_xas(
     log(f"nominal energies   : {nominal_energies.size}  "
         f"({nominal_energies[0]:.2f} .. {nominal_energies[-1]:.2f} eV)")
     log(f"VLS ROI            : [{roi_min}, {roi_max}) = {n_pixels} pixels")
+    log(f"VLS bunch roll     : {vls_bunch_roll}")
     log(f"signal bunches     : [{sig_b0}, {sig_b1})")
     log(f"bg bunches         : [{bg_b0}, {bg_b1})")
 
@@ -305,6 +315,7 @@ def compute_static_xas(
         raise RuntimeError("load_raw_h5 returned no VLS data for this run.")
 
     data = data.crop_vls(roi_min, roi_max)
+    data = data.roll_vls_bunches(vls_bunch_roll)
     m = data.vls.shape[1]
     if not (0 <= sig_b0 < sig_b1 <= m):
         raise ValueError(f"signal_bunch_range {signal_bunch_range} not within [0, {m}].")
@@ -382,7 +393,7 @@ def compute_static_xas(
             vls[sec_open_idx][:, sig_b0:sig_b1, :]
             - bg2d[None, sig_b0:sig_b1, :]
         )
-        G_block = gmd[sec_open_idx, :A_block.shape[1]]         # (n_sec, n_sig)
+        G_block = gmd[sec_open_idx, sig_b0:sig_b1]              # (n_sec, n_sig)
 
         A_flat = A_block.reshape(-1, n_pixels)
         G_flat = G_block.reshape(-1)
@@ -428,6 +439,7 @@ def compute_static_xas(
         fout.attrs["n_sections_detected"]     = int(n_detected)
         fout.attrs["n_sections_used"]         = int(n_e)
         fout.attrs["vls_crop_roi"]            = np.asarray([roi_min, roi_max], dtype=np.int64)
+        fout.attrs["vls_bunch_roll"]          = int(vls_bunch_roll)
         fout.attrs["signal_bunch_range"]      = np.asarray([sig_b0, sig_b1], dtype=np.int64)
         fout.attrs["bg_bunch_range"]          = np.asarray([bg_b0, bg_b1],   dtype=np.int64)
         fout.attrs["train_rate_hz"]           = float(train_rate_hz)
@@ -485,6 +497,7 @@ def main(argv=None) -> None:
         crop_roi=tuple(cfg.CROP_ROI),
         signal_bunch_range=tuple(cfg.SIGNAL_BUNCH_RANGE),
         bg_bunch_range=tuple(cfg.BG_BUNCH_RANGE),
+        vls_bunch_roll=int(getattr(cfg, "VLS_BUNCH_ROLL", 0)),
         config=int(getattr(cfg, "CONFIG", 2)),
         raw_dir=getattr(cfg, "RAW_DIR", None),
         max_files=getattr(cfg, "MAX_FILES", None),
