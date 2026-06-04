@@ -22,9 +22,7 @@ MODE    = "xas_static"
 MAX_FILES = None
 
 # Nominal photon energies (eV) assigned to detected sections by index.
-NOMINAL_ENERGIES = np.array([
-    *np.arange(270, 276, 0.5), 276, *np.arange(276, 283.5), 283, 283.5, 285,
-])
+NOMINAL_ENERGIES = np.array([*np.arange(270, 276, 0.5), 276, *np.arange(276, 283.5, 0.5), 283, 283.5, 285])
 
 # VLS pixel ROI (half-open). Applied before any background subtraction.
 CROP_ROI = (450, 650)

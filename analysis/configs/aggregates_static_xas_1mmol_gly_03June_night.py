@@ -28,7 +28,7 @@ MAX_FILES = None
 # scan grid was set on the beamline; here, 270 -> 286 eV in 0.5 eV
 # steps (33 points).
 # NOMINAL_ENERGIES = np.arange(270.0, 286.0 + 0.25, 0.5)
-NOMINAL_ENERGIES = np.array([*np.arange(270, 276, 0.5), 276, *np.arange(276, 283.5), 283, 283.5, 285])
+NOMINAL_ENERGIES = np.array([*np.arange(270, 276, 0.5), 276, *np.arange(276, 283.5, 0.5), 283, 283.5, 285])
 
 # GMD bin edges (uJ). Use a single bin (e.g. [-np.inf, np.inf]) to
 # disable GMD binning.
