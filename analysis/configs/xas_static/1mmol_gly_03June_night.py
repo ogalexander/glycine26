@@ -10,7 +10,6 @@ Run with:
     python analysis/scripts/compute_static_xas.py \
         analysis/configs/xas_static/1mmol_gly_03June_night.py [-o OUT.h5]
 """
-
 import numpy as np
 
 # Identify the scan.
