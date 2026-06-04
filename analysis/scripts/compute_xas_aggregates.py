@@ -49,12 +49,16 @@ A Python module exposing the module-level names below. See
     TRAIN_RATE_HZ       : float — FLASH train rate (default 10)
     TRANSITION_TRIM_SECONDS : float — trim window around shutter moves
     FIRST_SECTION_STATE : "open" | "closed" — protocol prior
+    GROUP_BY_ENERGY     : bool — when False, collapse the energy axis
+                          to a single bin so the output is binned only
+                          on GMD (default True)
 
 CLI
 ---
     python compute_xas_aggregates.py CONFIG.py [-o OUT.h5]
 
-Output H5 layout (means per bin):
+Output H5 layout (means per bin; ``N_E = n_sections_used`` when
+``GROUP_BY_ENERGY=True`` else ``N_E = 1``):
     /A                 (N_E, N_GMD, n_pixels)
     /AtA               (N_E, N_GMD, n_pixels, n_pixels)
     /AtG               (N_E, N_GMD, n_pixels)
@@ -62,11 +66,14 @@ Output H5 layout (means per bin):
     /GtG               (N_E, N_GMD)
     /n_per_bin         (N_E, N_GMD)               int64
     /gmd_edges         (N_GMD+1,)
-    /nominal_energies  (N_E,)                     eV
+    /nominal_energies  (N_E,)                     eV (NaN when GROUP_BY_ENERGY=False)
     /vls_pixels        (n_pixels,)                source-pixel indices
     /section_bg        (N_E, m_bunches, n_pixels) preceding-closed mean
-    attrs:             mode='xas_scan', config=2, run_no, signal_bunch_range,
-                       bg_bunch_range, n_sections_detected, etc.
+                                                  (averaged over sections
+                                                  when GROUP_BY_ENERGY=False)
+    attrs:             mode='xas_scan', config=2, run_no, group_by_energy,
+                       signal_bunch_range, bg_bunch_range,
+                       n_sections_detected, n_sections_used, etc.
 """
 
 from __future__ import annotations
@@ -272,6 +279,7 @@ def compute_xas_aggregates(
     train_rate_hz: float = 10.0,
     transition_trim_seconds: float = 3.0,
     first_section_state: str = "open",
+    group_by_energy: bool = True,
     config_path=None,
     verbose: bool = True,
 ) -> None:
@@ -313,6 +321,15 @@ def compute_xas_aggregates(
         Trim window around every shutter state change.
     first_section_state : "open" | "closed"
         Protocol prior controlling background selection for section 0.
+    group_by_energy : bool
+        If True (default), the leading axis of every aggregate is the
+        per-section nominal photon energy (``N_E``). If False, all open
+        sections collapse onto a single bin of size 1 — the output is
+        effectively only binned on GMD. Per-section closed-shutter
+        background subtraction still runs unchanged in both modes; only
+        the accumulator axis is reduced. The ``nominal_energies``
+        dataset becomes ``[NaN]`` in the not-grouped case and
+        ``section_bg`` becomes the mean of the per-section backgrounds.
     config_path : Path, optional
         Recorded as a provenance attribute.
     verbose : bool
@@ -418,18 +435,24 @@ def compute_xas_aggregates(
                                  dtype=np.int64)
 
     # ----- allocate aggregates ----------------------------------------
-    A_sum   = np.zeros((n_e, n_gmd, n_pixels),            dtype=np.float64)
-    AtA_sum = np.zeros((n_e, n_gmd, n_pixels, n_pixels),  dtype=np.float64)
-    AtG_sum = np.zeros((n_e, n_gmd, n_pixels),            dtype=np.float64)
-    G_sum   = np.zeros((n_e, n_gmd),                      dtype=np.float64)
-    GtG_sum = np.zeros((n_e, n_gmd),                      dtype=np.float64)
-    n_per_bin = np.zeros((n_e, n_gmd),                    dtype=np.int64)
-    section_bg = np.full((n_e, m, n_pixels), np.nan,      dtype=np.float64)
+    # Output leading axis: per-section when grouping by energy, single
+    # collapsed bin otherwise. Per-section backgrounds are tracked at
+    # the full per-section resolution and only collapsed at write time.
+    n_e_out = n_e if group_by_energy else 1
+    A_sum   = np.zeros((n_e_out, n_gmd, n_pixels),            dtype=np.float64)
+    AtA_sum = np.zeros((n_e_out, n_gmd, n_pixels, n_pixels),  dtype=np.float64)
+    AtG_sum = np.zeros((n_e_out, n_gmd, n_pixels),            dtype=np.float64)
+    G_sum   = np.zeros((n_e_out, n_gmd),                      dtype=np.float64)
+    GtG_sum = np.zeros((n_e_out, n_gmd),                      dtype=np.float64)
+    n_per_bin = np.zeros((n_e_out, n_gmd),                    dtype=np.int64)
+    section_bg = np.full((n_e, m, n_pixels), np.nan,          dtype=np.float64)
 
     n_skipped_gmd_oor = 0
     n_skipped_gmd_nan = 0
     n_skipped_nan_vls = 0
 
+    log(f"group_by_energy    : {group_by_energy} "
+        f"(output energy axis = {n_e_out})")
     log(f"accumulating over {n_e} sections...")
 
     # ----- main loop over open sections -------------------------------
@@ -485,18 +508,20 @@ def compute_xas_aggregates(
         n_skipped_gmd_oor += int(gmd_oor.sum())
         n_skipped_nan_vls += int((~vls_ok & ~gmd_nan & ~gmd_oor).sum())
 
+        e_idx = i if group_by_energy else 0
+
         for b in np.unique(gmd_bin[valid]):
             mask = (gmd_bin == b) & valid
             A_b = A_flat[mask]
             G_b = G_flat[mask]
             n_b = G_b.shape[0]
 
-            n_per_bin[i, b] += n_b
-            G_sum[i, b]   += G_b.sum()
-            GtG_sum[i, b] += float(G_b @ G_b)
-            A_sum[i, b]   += A_b.sum(axis=0)
-            AtA_sum[i, b] += A_b.T @ A_b
-            AtG_sum[i, b] += A_b.T @ G_b
+            n_per_bin[e_idx, b] += n_b
+            G_sum[e_idx, b]   += G_b.sum()
+            GtG_sum[e_idx, b] += float(G_b @ G_b)
+            A_sum[e_idx, b]   += A_b.sum(axis=0)
+            AtA_sum[e_idx, b] += A_b.T @ A_b
+            AtG_sum[e_idx, b] += A_b.T @ G_b
 
         log(f"  section {i:>3d} (E={energies[i]:.2f} eV): "
             f"open trains={sec_open_idx.size:>4d}  "
@@ -528,6 +553,14 @@ def compute_xas_aggregates(
     G_mean   = _norm_scalar(G_sum)
     GtG_mean = _norm_scalar(GtG_sum)
 
+    if group_by_energy:
+        energies_out   = energies
+        section_bg_out = section_bg
+    else:
+        energies_out = np.array([np.nan], dtype=np.float64)
+        with np.errstate(invalid="ignore"):
+            section_bg_out = np.nanmean(section_bg, axis=0, keepdims=True)
+
     # ----- write ------------------------------------------------------
     output_h5.parent.mkdir(parents=True, exist_ok=True)
     log(f"writing {output_h5}")
@@ -539,10 +572,10 @@ def compute_xas_aggregates(
         fout.create_dataset("GtG", data=GtG_mean, compression="gzip")
         fout.create_dataset("n_per_bin", data=n_per_bin)
         fout.create_dataset("gmd_edges", data=gmd_edges)
-        fout.create_dataset("nominal_energies", data=energies)
+        fout.create_dataset("nominal_energies", data=energies_out)
         fout.create_dataset("vls_pixels",
                             data=np.arange(roi_min, roi_max, dtype=np.int64))
-        fout.create_dataset("section_bg", data=section_bg, compression="gzip")
+        fout.create_dataset("section_bg", data=section_bg_out, compression="gzip")
 
         fout.attrs["mode"]                = "xas_scan"
         fout.attrs["config"]              = int(config)
@@ -550,6 +583,7 @@ def compute_xas_aggregates(
         fout.attrs["raw_dir"]             = str(raw_dir)
         fout.attrs["n_sections_detected"] = int(n_detected)
         fout.attrs["n_sections_used"]     = int(n_e)
+        fout.attrs["group_by_energy"]     = bool(group_by_energy)
         fout.attrs["vls_crop_roi"]        = np.asarray([roi_min, roi_max], dtype=np.int64)
         fout.attrs["signal_bunch_range"]  = np.asarray([sig_b0, sig_b1], dtype=np.int64)
         fout.attrs["bg_bunch_range"]      = np.asarray([bg_b0, bg_b1], dtype=np.int64)
@@ -565,9 +599,11 @@ def compute_xas_aggregates(
         if config_path is not None:
             fout.attrs["config_path"] = str(config_path)
 
+    bin_label = "(energy x GMD)" if group_by_energy else "(GMD-only)"
     summary = (
         f"done: {int(n_per_bin.sum())} shots aggregated across "
-        f"{n_e} x {n_gmd} = {n_e * n_gmd} (energy x GMD) bins; "
+        f"{n_e_out} x {n_gmd} = {n_e_out * n_gmd} {bin_label} bins "
+        f"from {n_e} open section(s); "
         f"skipped {n_skipped_gmd_oor} GMD-oor, "
         f"{n_skipped_gmd_nan} GMD-nan, {n_skipped_nan_vls} VLS-nan."
     )
@@ -633,6 +669,7 @@ def main(argv=None) -> None:
             getattr(cfg, "TRANSITION_TRIM_SECONDS", 3.0)
         ),
         first_section_state=str(getattr(cfg, "FIRST_SECTION_STATE", "open")),
+        group_by_energy=bool(getattr(cfg, "GROUP_BY_ENERGY", True)),
         config_path=args.config_path,
     )
 

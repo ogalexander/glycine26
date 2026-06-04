@@ -57,3 +57,11 @@ TRANSITION_TRIM_SECONDS = 3.0
 # background; otherwise the rule is always "use the preceding closed
 # block."
 FIRST_SECTION_STATE = "open"
+
+# When True (default) the aggregates have a leading axis of length
+# n_sections_used so they are indexed by per-section nominal photon
+# energy. Set to False to collapse the energy axis to a single bin -
+# useful when feeding the aggregates into the ADMM XAS solver, which
+# wants one Cov(A,A) / Cov(A,G) pair per GMD bin built across the whole
+# energy scan.
+GROUP_BY_ENERGY = True
