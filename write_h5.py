@@ -34,6 +34,8 @@ class DataChunk():
         self.train_length = train_length
         self.max_ecounts = max_ecounts
         self.max_icounts = max_icounts
+        self.n_e_overflows = 0
+        self.n_i_overflows = 0
         self.reset()
         self.count = 0
 
@@ -50,10 +52,30 @@ class DataChunk():
 
         if tofs_e is not None:
             for b_idx, tofs_e_bunch in enumerate(tofs_e):
-                self.tofs_es[self.idx, b_idx, :len(tofs_e_bunch)] = tofs_e_bunch
+                n = len(tofs_e_bunch)
+                if n > self.max_ecounts:
+                    self.n_e_overflows += 1
+                    print(
+                        f"WARNING: electron TOF count {n} exceeds "
+                        f"max_ecounts={self.max_ecounts} (tID={tID}, bunch={b_idx}); "
+                        f"clipping. (overflow #{self.n_e_overflows})"
+                    )
+                    tofs_e_bunch = tofs_e_bunch[:self.max_ecounts]
+                    n = self.max_ecounts
+                self.tofs_es[self.idx, b_idx, :n] = tofs_e_bunch
         if tofs_i is not None:
             for b_idx, tofs_i_bunch in enumerate(tofs_i):
-                self.tofs_is[self.idx, b_idx, :len(tofs_i_bunch)] = tofs_i_bunch
+                n = len(tofs_i_bunch)
+                if n > self.max_icounts:
+                    self.n_i_overflows += 1
+                    print(
+                        f"WARNING: ion TOF count {n} exceeds "
+                        f"max_icounts={self.max_icounts} (tID={tID}, bunch={b_idx}); "
+                        f"clipping. (overflow #{self.n_i_overflows})"
+                    )
+                    tofs_i_bunch = tofs_i_bunch[:self.max_icounts]
+                    n = self.max_icounts
+                self.tofs_is[self.idx, b_idx, :n] = tofs_i_bunch
 
         self.idx += 1
 
@@ -151,6 +173,7 @@ class DataChunkConfig2():
         self.train_length = train_length
         self.max_ecounts = max_ecounts
         self.n_vls_pixels = n_vls_pixels
+        self.n_le_overflows = 0
         self.reset()
         self.count = 0
 
@@ -168,7 +191,17 @@ class DataChunkConfig2():
 
         if liq_tofs_e is not None:
             for b_idx, bunch in enumerate(liq_tofs_e):
-                self.liq_tofs_es[self.idx, b_idx, :len(bunch)] = bunch
+                n = len(bunch)
+                if n > self.max_ecounts:
+                    self.n_le_overflows += 1
+                    print(
+                        f"WARNING: liq electron TOF count {n} exceeds "
+                        f"max_ecounts={self.max_ecounts} (tID={tID}, bunch={b_idx}); "
+                        f"clipping. (overflow #{self.n_le_overflows})"
+                    )
+                    bunch = bunch[:self.max_ecounts]
+                    n = self.max_ecounts
+                self.liq_tofs_es[self.idx, b_idx, :n] = bunch
         if vls is not None:
             self.vls[self.idx] = vls
 
