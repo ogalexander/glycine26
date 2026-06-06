@@ -28,7 +28,11 @@ Exported paths
 --------------
 - ``DATA_ROOT``     : root of the 11022188 beamtime folder
 - ``RAW_H5_DIR``    : raw HDF5 files from the FLASH DAQ
-- ``LOCAL_DAQ_DIR`` : processed local DAQ data (.lst + .txt pairs)
+- ``LOCAL_DAQ_DIR`` : parent of the SDU / TDC trees (back-compat)
+- ``SDU_DIR``       : SDU delay-stage ``.txt`` files
+                      (default ``LOCAL_DAQ_DIR / "delay_log"``)
+- ``TDC_DIR``       : TDC ``.lst`` files
+                      (default ``LOCAL_DAQ_DIR / "TDC"``)
 - ``COMBINED_DIR``  : output directory for combined H5 files (created if missing)
 - ``ANALYSIS_DIR``  : analysis/scripts folder (location of this file)
 """
@@ -50,20 +54,27 @@ ANALYSIS_DIR: Path = Path(__file__).resolve().parent
 _REPO_ROOT: Path = ANALYSIS_DIR.parents[1]  # analysis/scripts -> analysis -> repo root
 
 
+_LOCAL_DAQ_LOCAL  = _REPO_ROOT / "11022188" / "processed" / "local_DAQ"
+_LOCAL_DAQ_REMOTE = Path("/asap3/flash/gpfs/fl24/2026/data/11022188/processed/local_DAQ")
+
 _PROFILES: dict[str, dict[str, Path]] = {
     "local": {
         "DATA_ROOT":     _REPO_ROOT / "11022188",
         "RAW_H5_DIR":    _REPO_ROOT / "11022188" / "raw" / "hdf" / "online-0" / "fl2user1",
-        "LOCAL_DAQ_DIR": _REPO_ROOT / "11022188" / "processed" / "local_DAQ",
+        "LOCAL_DAQ_DIR": _LOCAL_DAQ_LOCAL,
+        "SDU_DIR":       _LOCAL_DAQ_LOCAL / "delay_log",
+        "TDC_DIR":       _LOCAL_DAQ_LOCAL / "TDC",
         "COMBINED_DIR":  _REPO_ROOT / "11022188" / "processed" / "combined",
     },
     # TODO: confirm the production data root on the FLASH online cluster
-    # and fill in the four paths below. Until then `FLASH_ENV=remote` will
-    # raise.
+    # and fill in the paths below. Until then `FLASH_ENV=remote` will
+    # raise if any of these are wrong.
     "remote": {
         "DATA_ROOT":     Path("/asap3/flash/gpfs/fl24/2026/data/11022188"),
         "RAW_H5_DIR":    Path("/asap3/flash/gpfs/fl24/2026/data/11022188/raw/hdf/online-0/fl2user1"),
-        "LOCAL_DAQ_DIR": Path("/asap3/flash/gpfs/fl24/2026/data/11022188/processed/local_DAQ"),
+        "LOCAL_DAQ_DIR": _LOCAL_DAQ_REMOTE,
+        "SDU_DIR":       _LOCAL_DAQ_REMOTE / "delay_log",
+        "TDC_DIR":       _LOCAL_DAQ_REMOTE / "TDC",
         "COMBINED_DIR":  Path("/asap3/flash/gpfs/fl24/2026/data/11022188/processed/combined"),
     },
 }
@@ -86,6 +97,8 @@ _active = _PROFILES[FLASH_ENV]
 DATA_ROOT:     Path = _active["DATA_ROOT"]
 RAW_H5_DIR:    Path = _active["RAW_H5_DIR"]
 LOCAL_DAQ_DIR: Path = _active["LOCAL_DAQ_DIR"]
+SDU_DIR:       Path = _active["SDU_DIR"]
+TDC_DIR:       Path = _active["TDC_DIR"]
 COMBINED_DIR:  Path = _active["COMBINED_DIR"]
 
 
@@ -100,6 +113,8 @@ __all__ = [
     "DATA_ROOT",
     "RAW_H5_DIR",
     "LOCAL_DAQ_DIR",
+    "SDU_DIR",
+    "TDC_DIR",
     "COMBINED_DIR",
     "ANALYSIS_DIR",
 ]

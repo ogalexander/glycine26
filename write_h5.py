@@ -993,8 +993,12 @@ def main(config_no, measurement_name, run_no, output_path=None,
     config_no : int
         1 or 2. Selects the detector layout (and therefore the output schema).
     measurement_name : str
-        Basename used to locate the SDU ``.txt`` and TDC ``.lst`` files
-        under ``config.LOCAL_DAQ_DIR / measurement_name``.
+        Basename used to locate the SDU ``.txt`` and TDC ``.lst`` files.
+        For each stream the script first tries
+        ``config.SDU_DIR / measurement_name`` / ``config.TDC_DIR /
+        measurement_name`` (legacy per-measurement subfolder layout)
+        and falls back to ``config.SDU_DIR`` / ``config.TDC_DIR``
+        themselves when the subfolder does not exist.
     run_no : int
         FLASH run number used to glob the raw H5 files under
         ``config.RAW_H5_DIR``.
@@ -1021,32 +1025,44 @@ def main(config_no, measurement_name, run_no, output_path=None,
     if chunk_size is None:
         chunk_size = _DEFAULT_CHUNK_SIZE[config_no]
 
-    data_folder = str(config.LOCAL_DAQ_DIR / measurement_name)
     h5_folder   = str(config.RAW_H5_DIR)
     if output_path is None:
         output_path = config.COMBINED_DIR / f"{measurement_name}.h5"
     output_path = Path(output_path)
 
+    # Pick the per-stream search folder: try the legacy
+    # ``<DIR>/<measurement_name>`` subfolder first; if it does not exist
+    # fall back to the parent directory.
+    def _pick_folder(base: Path, label: str) -> str:
+        subdir = base / measurement_name
+        if subdir.is_dir():
+            return str(subdir)
+        if base.is_dir():
+            return str(base)
+        raise FileNotFoundError(f"{label} folder not found: {base} (no {subdir} either)")
+
+    sdu_folder = _pick_folder(config.SDU_DIR, "SDU")
+    tdc_folder = _pick_folder(config.TDC_DIR, "TDC") if config.TDC_DIR.is_dir() else str(config.TDC_DIR)
+
     print(f"Measurement   : {measurement_name}  (run {run_no})")
     print(f"Config        : {config_no}")
-    print(f"Local DAQ dir : {data_folder}")
+    print(f"SDU dir       : {sdu_folder}")
+    print(f"TDC dir       : {tdc_folder}")
     print(f"Raw H5 dir    : {h5_folder}")
     print(f"Output        : {output_path}")
     print(f"train_length  : {train_length}")
     print(f"chunk_size    : {chunk_size}")
     print()
 
-    if not Path(data_folder).is_dir():
-        raise FileNotFoundError(f"Local DAQ folder not found: {data_folder}")
     if not Path(h5_folder).is_dir():
         raise FileNotFoundError(f"Raw H5 folder not found: {h5_folder}")
 
     # --- Locate SDU .txt files -----------------------------------------
-    files_in_folder = os.listdir(data_folder)
-    sdu_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.txt").match, files_in_folder))
-    sdu_fpaths = [data_folder + "/" + n for n in sdu_names]
+    sdu_files_in_folder = os.listdir(sdu_folder)
+    sdu_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.txt").match, sdu_files_in_folder))
+    sdu_fpaths = [sdu_folder + "/" + n for n in sdu_names]
     if not sdu_fpaths:
-        raise ValueError(f"No SDU .txt files for measurement '{measurement_name}' in {data_folder}")
+        raise ValueError(f"No SDU .txt files for measurement '{measurement_name}' in {sdu_folder}")
     print(f"Found {len(sdu_fpaths)} SDU .txt files.")
 
     # --- Locate TDC .lst files -----------------------------------------
@@ -1054,13 +1070,14 @@ def main(config_no, measurement_name, run_no, output_path=None,
     # combined H5 containing the SDU + raw-H5 streams. The TOF datasets
     # (tofs_e/tofs_i in cfg 1, liq_tofs_e in cfg 2) are simply omitted
     # from the output schema and `between_tdc_files` is all False.
-    tdc_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.lst").match, files_in_folder))
-    tdc_fpaths = [data_folder + "/" + n for n in tdc_names]
+    tdc_files_in_folder = os.listdir(tdc_folder) if Path(tdc_folder).is_dir() else []
+    tdc_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.lst").match, tdc_files_in_folder))
+    tdc_fpaths = [tdc_folder + "/" + n for n in tdc_names]
     has_tdc = bool(tdc_fpaths)
     if has_tdc:
         print(f"Found {len(tdc_fpaths)} TDC .lst files.")
     else:
-        print(f"No TDC .lst files for measurement '{measurement_name}'; "
+        print(f"No TDC .lst files for measurement '{measurement_name}' in {tdc_folder}; "
               f"writing SDU + raw-H5 only.")
 
     # --- Locate raw H5 files for this run ------------------------------
