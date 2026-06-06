@@ -91,8 +91,10 @@ class DataChunk():
         self.ver_poss = np.full((self.chunk_size, ), np.nan, dtype=np.float32)
         self.zs = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
         self.z_stds = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
-        self.tofs_es = np.full((self.chunk_size, self.train_length, self.max_ecounts), np.nan, dtype=np.uint32)
-        self.tofs_is = np.full((self.chunk_size, self.train_length, self.max_icounts), np.nan, dtype=np.uint32)
+        # Zero-padded uint32 TOF buffers: 0 means "no hit". (Was np.full(.., np.nan, uint32)
+        # which raises an invalid-cast warning and stores 0 anyway.)
+        self.tofs_es = np.zeros((self.chunk_size, self.train_length, self.max_ecounts), dtype=np.uint32)
+        self.tofs_is = np.zeros((self.chunk_size, self.train_length, self.max_icounts), dtype=np.uint32)
         self.between_tdc_filess = np.zeros((self.chunk_size, ), dtype='bool')
 
         self.idx = 0
@@ -942,6 +944,43 @@ _DEFAULT_TRAIN_LENGTH = {1: 400, 2: 100}
 _DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
 
 
+def _fold_into_bunches(tofs_raw, train_length, folding_parameter, edges):
+    """
+    Split a sorted per-train flat TOF stream into per-bunch tof arrays.
+
+    Replaces the original ``[tofs_raw[(tofs_raw > b*fp) & (tofs_raw < (b+1)*fp)] - b*fp
+    for b in range(train_length)]`` list comprehension, which performs
+    ``train_length`` (400 or 100) boolean masks over the full array. Two
+    vectorised ``searchsorted`` calls find every bunch boundary in one
+    pass; the remaining Python loop just slices the sorted array and
+    subtracts a scalar per bunch.
+
+    Parameters
+    ----------
+    tofs_raw : np.ndarray
+        TOF values for one train, sorted ascending in ``timedata`` order
+        (the TDC decoder sort already guarantees this).
+    train_length, folding_parameter : int, float
+    edges : np.ndarray
+        Pre-computed ``np.arange(train_length + 1) * folding_parameter``.
+        Passed in so we don't re-allocate it per train.
+
+    Returns
+    -------
+    list of np.ndarray
+        Length ``train_length``; entry ``b`` holds the TOFs of bunch
+        ``b`` after subtracting ``b * folding_parameter``.
+    """
+    # Original bounds were strict: tof > b*fp & tof < (b+1)*fp.
+    # 'right' on the lower edge and 'left' on the upper edge replicate that.
+    starts = np.searchsorted(tofs_raw, edges[:-1], side="right")
+    ends   = np.searchsorted(tofs_raw, edges[1:],  side="left")
+    out = [None] * train_length
+    for b in range(train_length):
+        out[b] = tofs_raw[starts[b]:ends[b]] - edges[b]
+    return out
+
+
 def _h5_file_order_key(path_str: str):
     """
     Sort raw H5 files by the numeric ``_fileNN_`` index in their name.
@@ -1221,21 +1260,21 @@ def main(config_no, measurement_name, run_no, output_path=None,
             if has_tdc:
                 tofs_e_dset = f_out.create_dataset(
                     "tofs_e", (data_len, train_length, max_ecounts),
-                    dtype=np.uint32, compression="gzip",
+                    dtype=np.uint32, compression="lzf",
                 )
                 tofs_i_dset = f_out.create_dataset(
                     "tofs_i", (data_len, train_length, max_icounts),
-                    dtype=np.uint32, compression="gzip",
+                    dtype=np.uint32, compression="lzf",
                 )
         else:
             if has_tdc:
                 liq_tofs_e_dset = f_out.create_dataset(
                     "liq_tofs_e", (data_len, train_length, max_ecounts),
-                    dtype=np.uint32, compression="gzip",
+                    dtype=np.uint32, compression="lzf",
                 )
             vls_dset = f_out.create_dataset(
                 "vls", (data_len, train_length, n_vls_pixels),
-                dtype=np.float32, compression="gzip",
+                dtype=np.float32, compression="lzf",
             )
             dsets_cfg2 = {
                 "tID": tID_dset, "local_DAQ_running": data_flag_dset,
@@ -1249,6 +1288,10 @@ def main(config_no, measurement_name, run_no, output_path=None,
         # of train IDs we already processed (raw H5 file boundary overlap).
         n_skipped_overlap = {"gmd": 0, "mpe": 0, "hor_pos": 0,
                              "ver_pos": 0, "vls": 0}
+
+        # Per-train TOF bunch edges (np.arange(0..train_length) * fp);
+        # precomputed once so the bunch-folder doesn't re-allocate.
+        bunch_edges = np.arange(train_length + 1, dtype=np.float64) * folding_parameter
 
         # --- Main alignment loop --------------------------------------
         for tID in range(first_tID, last_tID + 1):
@@ -1379,18 +1422,15 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 elif tID == next_tID_tdc:
                     tofs_e_raw = next_tofs_e
                     tofs_i_raw = next_tofs_i
-                    tofs_e = [
-                        tofs_e_raw[(tofs_e_raw >  b * folding_parameter)
-                                 & (tofs_e_raw < (b + 1) * folding_parameter)]
-                        - b * folding_parameter
-                        for b in range(train_length)
-                    ]
-                    tofs_i = [
-                        tofs_i_raw[(tofs_i_raw >  b * folding_parameter)
-                                 & (tofs_i_raw < (b + 1) * folding_parameter)]
-                        - b * folding_parameter
-                        for b in range(train_length)
-                    ]
+                    # Sorted within a sweep -> bunch boundaries via two
+                    # vectorised searchsorted calls instead of N boolean
+                    # masks across the full tofs array.
+                    tofs_e = _fold_into_bunches(
+                        tofs_e_raw, train_length, folding_parameter, bunch_edges,
+                    )
+                    tofs_i = _fold_into_bunches(
+                        tofs_i_raw, train_length, folding_parameter, bunch_edges,
+                    )
                     between_tdc_files = False
                     try:
                         (next_tID_tdc,
@@ -1423,12 +1463,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     between_tdc_files = tdc_it.is_between_files()
                 elif tID == next_tID_tdc:
                     liq_raw = next_tofs_le
-                    liq_tofs_e = [
-                        liq_raw[(liq_raw >  b * folding_parameter)
-                              & (liq_raw < (b + 1) * folding_parameter)]
-                        - b * folding_parameter
-                        for b in range(train_length)
-                    ]
+                    liq_tofs_e = _fold_into_bunches(
+                        liq_raw, train_length, folding_parameter, bunch_edges,
+                    )
                     between_tdc_files = False
                     try:
                         (next_tID_tdc,
