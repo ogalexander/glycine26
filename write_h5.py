@@ -939,7 +939,7 @@ _VER_VALUE = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall ver
 _VLS_INDEX = "/FL2/Support Infrastructure/Gotthard/images/index"
 _VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 
-_DEFAULT_TRAIN_LENGTH = {1: 400, 2: 110}
+_DEFAULT_TRAIN_LENGTH = {1: 101, 2: 110}
 _DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
 
 # How many bunches per train carry real GMD / SDU data. For cfg 2 the
