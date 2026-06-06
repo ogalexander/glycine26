@@ -100,13 +100,13 @@ class AggregatesData:
         DtG  (N_GMD[, N_Z], n_tof)
 
     Config 1 — electron + ion TOF (D = eTOF, C = ion TOF):
-        D    (N_GMD, n_tof)
-        DtD  (N_GMD, n_tof, n_tof)
-        C    (N_GMD, n_tof_i)
-        CtC  (N_GMD, n_tof_i, n_tof_i)
-        DtC  (N_GMD, n_tof, n_tof_i)
-        DtG  (N_GMD, n_tof)
-        CtG  (N_GMD, n_tof_i)
+        D    (N_GMD[, N_Z], n_tof)
+        DtD  (N_GMD[, N_Z], n_tof, n_tof)
+        C    (N_GMD[, N_Z], n_tof_i)
+        CtC  (N_GMD[, N_Z], n_tof_i, n_tof_i)
+        DtC  (N_GMD[, N_Z], n_tof, n_tof_i)
+        DtG  (N_GMD[, N_Z], n_tof)
+        CtG  (N_GMD[, N_Z], n_tof_i)
 
     Both configs always populate the GMD aggregates and bookkeeping:
         G          (per-bin mean GMD, scalar per bin)
@@ -114,10 +114,14 @@ class AggregatesData:
         n_per_bin  (shot counts per bin)
         gmd_edges, tof_edges, metadata
 
-    Time-resolved mode (config 2 only): an extra ``N_Z`` axis is
-    inserted before the per-shot dimensions; ``z_edges`` is populated
-    and ``tof_edges`` collapses to ``[tof_roi_min, tof_roi_max]``
-    (``n_tof = 1``).
+    Time-resolved mode: an extra ``N_Z`` axis is inserted before the
+    per-shot dimensions and ``z_edges`` is populated.
+
+    * Config 2: ``tof_edges`` collapses to ``[tof_roi_min, tof_roi_max]``
+      (``n_tof = 1``) — the eTOF is reduced per shot to a scalar count.
+    * Config 1: ``tof_edges`` and ``ion_tof_edges`` keep their full
+      spectral resolution (just with an extra ``N_Z`` axis on every
+      aggregate). No ``tof_roi`` is used.
 
     XAS-scan mode (config 2, written by ``compute_xas_aggregates.py``):
     bins are ``(N_E, N_GMD)`` indexed by per-section nominal photon
@@ -452,10 +456,17 @@ def compute_aggregates(
     -----
     ``mode = "spectral"`` (default)
         Bin by GMD only. Aggregate shapes have a leading ``N_GMD`` axis.
-    ``mode = "time_resolved"`` (config 2 only)
-        Bin by GMD × stage z, with the eTOF reduced per shot to a scalar
-        count inside ``tof_roi``. Aggregate shapes have leading
-        ``(N_GMD, N_Z)`` axes; ``n_tof`` collapses to 1.
+    ``mode = "time_resolved"``
+        Bin by GMD × stage z. Aggregate shapes have leading
+        ``(N_GMD, N_Z)`` axes.
+
+        * ``config = 1``: the full electron / ion TOF spectra are kept,
+          so the eTOF axis is ``n_tof`` and the ion-TOF axis is
+          ``n_tof_i`` (same as spectral mode, just with an extra ``N_Z``
+          axis prepended). ``tof_roi`` is unused.
+        * ``config = 2``: the eTOF is reduced per shot to a scalar count
+          inside ``tof_roi`` (``n_tof`` collapses to 1). VLS keeps its
+          full ``n_pixels`` axis.
 
     Parameters
     ----------
@@ -474,8 +485,12 @@ def compute_aggregates(
         ``{"type": "auto",  "roi": (s, e)}`` |
         ``{"type": "array", "path": "..."}`` |
         ``{"type": "none"}`` — required for ``config = 2``.
-    z_edges, tof_roi : array-like
-        Required for ``mode = "time_resolved"`` (config 2 only).
+    z_edges : array-like
+        Required for ``mode = "time_resolved"`` (both configs).
+    tof_roi : array-like
+        Required for ``mode = "time_resolved"`` with ``config = 2``;
+        unused for ``config = 1`` time-resolved (which keeps the full
+        eTOF / ion-TOF spectra).
     chunk_size, trim_start, trim_end : int
     config_path : Path, optional
         Recorded as a provenance attribute.
@@ -489,10 +504,8 @@ def compute_aggregates(
 
     # ----- per-config validation + key resolution ------------------------
     if config == 1:
-        if mode != "spectral":
-            raise NotImplementedError(
-                "mode='time_resolved' is currently only supported for config=2"
-            )
+        if mode not in ("spectral", "time_resolved"):
+            raise ValueError(f"unknown mode {mode!r}")
         if tof_edges is None or ion_tof_edges is None:
             raise ValueError("config=1 requires tof_edges and ion_tof_edges")
         tof_edges     = np.asarray(tof_edges, dtype=np.float64)
@@ -553,12 +566,13 @@ def compute_aggregates(
         log(f"GMD bins           : {n_gmd}  edges {gmd_edges}")
         if config == 2:
             log(f"VLS ROI            : [{roi_min}, {roi_max}) = {n_pixels} pixels")
-        if mode == "spectral":
+        if mode == "spectral" or config == 1:
             log(f"eTOF bins          : {n_tof} ({tof_edges[0]:.1f} .. {tof_edges[-1]:.1f} 100ps)")
             if config == 1:
                 log(f"ion TOF bins       : {n_tof_i} ({ion_tof_edges[0]:.1f} .. {ion_tof_edges[-1]:.1f} 100ps)")
         else:
             log(f"TOF ROI            : [{tof_edges[0]:.1f}, {tof_edges[-1]:.1f}) 100ps (scalar D)")
+        if mode == "time_resolved":
             log(f"Z bins             : {n_z}  edges {z_edges_arr}")
 
         # --- resolve background (config 2 only) ------------------------
@@ -643,7 +657,10 @@ def compute_aggregates(
 
             n_keep = gmd_block.shape[0]
 
-            if mode == "spectral":
+            if mode == "spectral" or config == 1:
+                # Config 1 (both modes) and config 2 spectral: full TOF
+                # histogram. Config 2 TR collapses the eTOF to a scalar
+                # count in the ROI below.
                 D_block = _histogram_tof_chunk(tof_block, tof_edges)
             else:
                 roi_lo, roi_hi = float(tof_edges[0]), float(tof_edges[-1])
@@ -791,7 +808,10 @@ def compute_aggregates(
         if mode == "time_resolved":
             fout.attrs["n_skipped_z_oor"] = int(n_skipped_z_oor)
             fout.attrs["n_skipped_z_nan"] = int(n_skipped_z_nan)
-            fout.attrs["tof_roi"]         = np.asarray(tof_edges, dtype=np.float64)
+            if config == 2:
+                # Config-2 TR collapses eTOF to a scalar count; record
+                # the ROI used. Config-1 TR keeps full TOF spectra.
+                fout.attrs["tof_roi"] = np.asarray(tof_edges, dtype=np.float64)
 
     summary = (f"done: {int(n_per_bin.sum())} shots aggregated "
                f"across {n_bins_total} bins (config={config}, mode={mode})")
@@ -859,13 +879,18 @@ def main(argv=None) -> None:
         kwargs["crop_roi"] = cfg.CROP_ROI
         kwargs["background_spec"] = background
 
-    if mode == "spectral":
-        kwargs["tof_edges"] = np.asarray(cfg.TOF_EDGES, dtype=float)
-        if cfg_n == 1:
-            kwargs["ion_tof_edges"] = np.asarray(cfg.ION_TOF_EDGES, dtype=float)
+    if cfg_n == 1:
+        # Config 1 always uses full TOF + ion TOF spectra (both modes).
+        kwargs["tof_edges"]     = np.asarray(cfg.TOF_EDGES, dtype=float)
+        kwargs["ion_tof_edges"] = np.asarray(cfg.ION_TOF_EDGES, dtype=float)
+        if mode == "time_resolved":
+            kwargs["z_edges"] = np.asarray(cfg.Z_EDGES, dtype=float)
     else:
-        kwargs["z_edges"] = np.asarray(cfg.Z_EDGES, dtype=float)
-        kwargs["tof_roi"] = tuple(cfg.TOF_ROI)
+        if mode == "spectral":
+            kwargs["tof_edges"] = np.asarray(cfg.TOF_EDGES, dtype=float)
+        else:
+            kwargs["z_edges"] = np.asarray(cfg.Z_EDGES, dtype=float)
+            kwargs["tof_roi"] = tuple(cfg.TOF_ROI)
 
     compute_aggregates(**kwargs)
 
