@@ -1068,7 +1068,7 @@ def _advance_to(it, target_tID, label):
 def main(config_no, measurement_name, run_no, output_path=None,
          train_length=None, chunk_size=None,
          max_ecounts=50, max_icounts=120, n_vls_pixels=1280,
-         folding_parameter=9969.225, data_bunches=None):
+         folding_parameter=39876.9, data_bunches=None):
     """
     Decode and align the local-DAQ + raw-H5 streams for one measurement.
 
@@ -1111,7 +1111,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
     n_vls_pixels : int
         Width of the Gotthard VLS pixel axis (config 2 only).
     folding_parameter : float
-        TOF range (ns) used to split each sweep's flat tof stream into
+        TOF range (100 ps) used to split each sweep's flat tof stream into
         per-bunch lists.
     data_bunches : int, optional
         Number of bunches per train that the non-VLS fields actually
@@ -1567,9 +1567,9 @@ if __name__ == "__main__":
                         help="FLASH run number used to glob raw H5 files.")
     parser.add_argument("-o", "--output", type=str, default=None,
                         help="Output H5 path. Defaults to COMBINED_DIR/<measurement>.h5.")
-    parser.add_argument("--train-length", type=int, default=None,
+    parser.add_argument("--train-length", type=int, default=101,
                         help="Bunches per train (default: 400 for cfg 1, 110 for cfg 2).")
-    parser.add_argument("--data-bunches", type=int, default=None,
+    parser.add_argument("--data-bunches", type=int, default=101,
                         help="Bunches per train carrying real GMD/SDU data. "
                              "Slots beyond this are NaN. Default: 101 for cfg 2 "
                              "(VLS=110, FEL=101), full train_length for cfg 1.")
@@ -1581,8 +1581,8 @@ if __name__ == "__main__":
                         help="Zero-padding limit for ion TOF arrays (cfg 1 only).")
     parser.add_argument("--n-vls-pixels", type=int, default=1280,
                         help="Width of the Gotthard VLS pixel axis (cfg 2 only).")
-    parser.add_argument("--folding-parameter", type=float, default=9969.225,
-                        help="TOF range (ns) used to split sweep events into per-bunch lists.")
+    parser.add_argument("--folding-parameter", type=float, default=39876.9,
+                        help="TOF range (100 ps) used to split sweep events into per-bunch lists.")
     args = parser.parse_args()
     out_path = Path(args.output) if args.output else None
     main(

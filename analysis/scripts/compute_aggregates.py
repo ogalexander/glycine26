@@ -23,7 +23,7 @@ A Python module exposing the module-level names below. Example file:
         {"type": "auto",  "roi": (bunch_start, bunch_end)}   or
         {"type": "array", "path": "background.npy"}          or
         {"type": "none"}
-    TOF_EDGES   : 1D array-like of TOF bin edges (ns)
+    TOF_EDGES   : 1D array-like of TOF bin edges (100 ps)
     GMD_EDGES   : 1D array-like of GMD bin edges (µJ); shots outside
                   the first/last edges are dropped
     CONFIG      : 1 or 2  (H5 layout — picks tofs_e vs liq_tofs_e)
@@ -465,9 +465,9 @@ def compute_aggregates(
     config : int  (1 or 2)
     mode : {"spectral", "time_resolved"}
     tof_edges : array-like
-        eTOF histogram edges (ns) — required for spectral mode.
+        eTOF histogram edges (100 ps) — required for spectral mode.
     ion_tof_edges : array-like
-        Ion-TOF histogram edges (ns) — required for ``config = 1``.
+        Ion-TOF histogram edges (100 ps) — required for ``config = 1``.
     crop_roi : (int, int)
         Half-open VLS pixel ROI — required for ``config = 2``.
     background_spec : dict
@@ -554,11 +554,11 @@ def compute_aggregates(
         if config == 2:
             log(f"VLS ROI            : [{roi_min}, {roi_max}) = {n_pixels} pixels")
         if mode == "spectral":
-            log(f"eTOF bins          : {n_tof} ({tof_edges[0]:.1f} .. {tof_edges[-1]:.1f} ns)")
+            log(f"eTOF bins          : {n_tof} ({tof_edges[0]:.1f} .. {tof_edges[-1]:.1f} 100ps)")
             if config == 1:
-                log(f"ion TOF bins       : {n_tof_i} ({ion_tof_edges[0]:.1f} .. {ion_tof_edges[-1]:.1f} ns)")
+                log(f"ion TOF bins       : {n_tof_i} ({ion_tof_edges[0]:.1f} .. {ion_tof_edges[-1]:.1f} 100ps)")
         else:
-            log(f"TOF ROI            : [{tof_edges[0]:.1f}, {tof_edges[-1]:.1f}) ns (scalar D)")
+            log(f"TOF ROI            : [{tof_edges[0]:.1f}, {tof_edges[-1]:.1f}) 100ps (scalar D)")
             log(f"Z bins             : {n_z}  edges {z_edges_arr}")
 
         # --- resolve background (config 2 only) ------------------------
