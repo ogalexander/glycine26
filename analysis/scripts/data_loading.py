@@ -85,12 +85,19 @@ def load_data(
         liq_tofs_e = None
         vls        = None
 
+        # The TOF datasets are optional: write_h5.py omits them when the
+        # run has no TDC .lst files. Same goes for VLS in pathological
+        # cfg-2 files. Anything missing stays None on the result.
         if config == 1:
-            tofs_e = load("tofs_e")  # (n, m, 50)
-            tofs_i = load("tofs_i")  # (n, m, 120)
+            if "tofs_e" in f:
+                tofs_e = load("tofs_e")  # (n, m, 50)
+            if "tofs_i" in f:
+                tofs_i = load("tofs_i")  # (n, m, 120)
         elif config == 2:
-            liq_tofs_e = load("liq_tofs_e")  # (n, m, ?)
-            vls        = load("vls")          # (n, m, ?)
+            if "liq_tofs_e" in f:
+                liq_tofs_e = load("liq_tofs_e")  # (n, m, ?)
+            if "vls" in f:
+                vls = load("vls")                # (n, m, ?)
         else:
             raise ValueError(f"config must be 1 or 2, got {config}")
 
