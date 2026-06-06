@@ -961,6 +961,38 @@ def _h5_file_order_key(path_str: str):
     return (1, 0, name)
 
 
+def _skip_stale_raw_h5(it, next_tID, next_val, current_tID, last_tID,
+                       counters, label):
+    """
+    Drop iterator rows whose train ID has fallen behind ``current_tID``.
+
+    Consecutive raw H5 files for the same run can have overlapping
+    train ranges (e.g. file N's last tIDs reappear at the start of
+    file N+1). Once the iterator crosses such a boundary it can yield
+    train IDs we already passed, so the strict ``>`` overshot check
+    fires. This helper consumes those duplicates until either the
+    iterator catches up (``next_tID >= current_tID``) or runs out.
+
+    Returns
+    -------
+    next_tID, next_val, exhausted
+        ``next_tID`` clamped to ``last_tID + 1`` on exhaustion so
+        downstream comparisons take the "<" / NaN branch.
+        ``exhausted`` is True iff the iterator ran out.
+    """
+    exhausted = False
+    while next_tID < current_tID:
+        try:
+            next_tID, next_val = next(it)
+            counters[label] += 1
+        except StopIteration:
+            next_tID = last_tID + 1
+            next_val = None
+            exhausted = True
+            break
+    return next_tID, next_val, exhausted
+
+
 def _advance_to(it, target_tID, label):
     """
     Pull rows from an ``h5Iterator`` until tID >= target_tID and return that row.
@@ -1213,10 +1245,24 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 "between_tdc_files": between_tdc_files_dset,
             }
 
+        # Per-stream count of rows dropped because they were duplicates
+        # of train IDs we already processed (raw H5 file boundary overlap).
+        n_skipped_overlap = {"gmd": 0, "mpe": 0, "hor_pos": 0,
+                             "ver_pos": 0, "vls": 0}
+
         # --- Main alignment loop --------------------------------------
         for tID in range(first_tID, last_tID + 1):
 
             # ---- gmd (per-bunch) -----------------------------------
+            # Skip duplicate rows left over from raw H5 file overlap.
+            next_tID_gmd, next_gmd, gmd_exhausted = _skip_stale_raw_h5(
+                gmd_it, next_tID_gmd, next_gmd, tID, last_tID,
+                n_skipped_overlap, "gmd",
+            )
+            if gmd_exhausted:
+                print(f"Stopped by gmd on tID {tID} (during overlap skip).")
+                break
+
             if tID < next_tID_gmd:
                 gmd = np.full(train_length, np.nan, dtype=np.float32)
             elif tID == next_tID_gmd:
@@ -1227,10 +1273,13 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 except StopIteration:
                     print(f"Stopped by gmd on tID {next_tID_gmd}")
                     break
-            else:
-                raise ValueError(f"gmd overshot: tID={tID}, next={next_tID_gmd}")
+            # tID > next_tID_gmd cannot happen — the skip above ensures it.
 
             # ---- mean photon energy --------------------------------
+            next_tID_mpe, next_mpe, _ = _skip_stale_raw_h5(
+                mpe_it, next_tID_mpe, next_mpe, tID, last_tID,
+                n_skipped_overlap, "mpe",
+            )
             if tID < next_tID_mpe:
                 mpe = np.nan
             elif tID == next_tID_mpe:
@@ -1241,10 +1290,12 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     print(f"MPE stopped on {next_tID_mpe}. Subsequent are NaN.")
                     next_tID_mpe = last_tID + 1
                     mpe = np.nan
-            else:
-                raise ValueError(f"mpe overshot: tID={tID}, next={next_tID_mpe}")
 
             # ---- horizontal beam position --------------------------
+            next_tID_hor_pos, next_hor_pos, _ = _skip_stale_raw_h5(
+                hor_pos_it, next_tID_hor_pos, next_hor_pos, tID, last_tID,
+                n_skipped_overlap, "hor_pos",
+            )
             if tID < next_tID_hor_pos:
                 hor_pos = np.nan
             elif tID == next_tID_hor_pos:
@@ -1255,10 +1306,12 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     print(f"hor_pos stopped on {next_tID_hor_pos}. Subsequent are NaN.")
                     next_tID_hor_pos = last_tID + 1
                     hor_pos = np.nan
-            else:
-                raise ValueError(f"hor_pos overshot: tID={tID}, next={next_tID_hor_pos}")
 
             # ---- vertical beam position ----------------------------
+            next_tID_ver_pos, next_ver_pos, _ = _skip_stale_raw_h5(
+                ver_pos_it, next_tID_ver_pos, next_ver_pos, tID, last_tID,
+                n_skipped_overlap, "ver_pos",
+            )
             if tID < next_tID_ver_pos:
                 ver_pos = np.nan
             elif tID == next_tID_ver_pos:
@@ -1269,12 +1322,14 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     print(f"ver_pos stopped on {next_tID_ver_pos}. Subsequent are NaN.")
                     next_tID_ver_pos = last_tID + 1
                     ver_pos = np.nan
-            else:
-                raise ValueError(f"ver_pos overshot: tID={tID}, next={next_tID_ver_pos}")
 
             # ---- vls (config 2 only) -------------------------------
             vls = None
             if config_no == 2:
+                next_tID_vls, next_vls, _ = _skip_stale_raw_h5(
+                    vls_it, next_tID_vls, next_vls, tID, last_tID,
+                    n_skipped_overlap, "vls",
+                )
                 if tID < next_tID_vls:
                     vls = np.full((train_length, n_vls_pixels), np.nan, dtype=np.float32)
                 elif tID == next_tID_vls:
@@ -1289,8 +1344,6 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     except StopIteration:
                         print(f"VLS stopped on {next_tID_vls}. Subsequent are NaN.")
                         next_tID_vls = last_tID + 1
-                else:
-                    raise ValueError(f"vls overshot: tID={tID}, next={next_tID_vls}")
 
             # ---- SDU (delay stage z) -------------------------------
             if tID < next_tID_z:
@@ -1408,6 +1461,11 @@ def main(config_no, measurement_name, run_no, output_path=None,
 
     # --- Completion summary ----------------------------------------
     print(f"\n=== {output_path.name} written successfully ===")
+    n_skipped_total = sum(n_skipped_overlap.values())
+    if n_skipped_total:
+        print("raw-H5 overlap rows skipped (duplicate train IDs across file boundaries):")
+        for k, v in n_skipped_overlap.items():
+            print(f"  {k:<8s} {v}")
     with h5.File(output_path, "r") as f_out:
         n_trains  = f_out["tID"].shape[0]
         n_bunches = f_out["gmd"].shape[1]
