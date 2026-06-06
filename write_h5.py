@@ -942,6 +942,25 @@ _DEFAULT_TRAIN_LENGTH = {1: 400, 2: 100}
 _DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
 
 
+def _h5_file_order_key(path_str: str):
+    """
+    Sort raw H5 files by the numeric ``_fileNN_`` index in their name.
+
+    Lexicographic sorting puts ``file100`` before ``file11``, which
+    desynchronises every train-aligned iterator and triggers
+    ``mpe/gmd/... overshot`` errors at the wrap-around. Numeric sort
+    keeps the files in train-ID order. Falls back to plain name sort
+    when the pattern is absent.
+    """
+    name = Path(path_str).name
+    if "_file" in name:
+        tail = name.split("_file", 1)[1]
+        num_str = tail.split("_", 1)[0]
+        if num_str.isdigit():
+            return (0, int(num_str), name)
+    return (1, 0, name)
+
+
 def _advance_to(it, target_tID, label):
     """
     Pull rows from an ``h5Iterator`` until tID >= target_tID and return that row.
@@ -1081,7 +1100,10 @@ def main(config_no, measurement_name, run_no, output_path=None,
               f"writing SDU + raw-H5 only.")
 
     # --- Locate raw H5 files for this run ------------------------------
-    h5_paths = sorted(glob.glob(os.path.join(h5_folder, f"*run{run_no}*.h5")))
+    h5_paths = sorted(
+        glob.glob(os.path.join(h5_folder, f"*run{run_no}*.h5")),
+        key=_h5_file_order_key,
+    )
     if not h5_paths:
         raise ValueError(f"No raw H5 files for run {run_no} in {h5_folder}")
     print(f"Found {len(h5_paths)} raw H5 files for run {run_no}.")
