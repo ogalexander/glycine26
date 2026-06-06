@@ -406,6 +406,97 @@ class ExperimentData:
             vls_widths=None,
         )
 
+    def roll_tofs_trains(self, shift: int) -> "ExperimentData":
+        """
+        Roll the TDC hit arrays along the train axis and trim the ends.
+
+        Corrects a small integer train-ID offset between the TDC stream
+        (``tofs_e`` / ``tofs_i`` / ``liq_tofs_e``) and the
+        raw-H5 / SDU streams (``gmd``, ``mpe``, ``z``, ...). Positive
+        ``shift`` moves TDC entries to higher train indices (equivalent
+        to ``np.roll(tofs, shift, axis=0)``); negative ``shift`` moves
+        them to lower indices.
+
+        To remove the wrap-around that ``np.roll`` introduces, every
+        field is then trimmed by ``abs(shift)`` trains at *each* end.
+        The output has ``n_trains - 2 * abs(shift)`` rows. Trimming both
+        ends (rather than only the wrap-around end) keeps the surviving
+        shot count independent of the sign of ``shift``, which makes
+        run-vs-run correlation sweeps directly comparable.
+
+        Per-shot VLS moments are preserved (the VLS is not rolled, so
+        the moments are still valid on the trimmed train range). The
+        cumulative ``shot_mask`` is trimmed along with everything else.
+
+        Parameters
+        ----------
+        shift : int
+            Number of trains to roll the TDC arrays by. ``0`` is a
+            no-op copy. ``abs(shift)`` must be smaller than
+            ``n_trains // 2`` so at least one train survives the trim.
+
+        Returns
+        -------
+        ExperimentData
+            New dataset with the TDC arrays rolled and every field
+            trimmed by ``abs(shift)`` trains at each end.
+
+        Raises
+        ------
+        ValueError
+            If ``2 * abs(shift) >= n_trains`` (no trains would survive).
+        """
+        shift = int(shift)
+        n_trim = abs(shift)
+        if 2 * n_trim >= self.n_trains:
+            raise ValueError(
+                f"shift={shift} would trim {2 * n_trim} of {self.n_trains} "
+                f"trains; need 2 * abs(shift) < n_trains."
+            )
+
+        def _roll3(arr):
+            return None if arr is None else np.roll(arr, shift, axis=0)
+
+        rolled_tofs_e     = _roll3(self.tofs_e)
+        rolled_tofs_i     = _roll3(self.tofs_i)
+        rolled_liq_tofs_e = _roll3(self.liq_tofs_e)
+
+        if n_trim == 0:
+            return replace(
+                self,
+                tofs_e=rolled_tofs_e,
+                tofs_i=rolled_tofs_i,
+                liq_tofs_e=rolled_liq_tofs_e,
+            )
+
+        sl = slice(n_trim, self.n_trains - n_trim)
+
+        def _1d(arr):
+            return None if arr is None else arr[sl]
+
+        def _2d(arr):
+            return None if arr is None else arr[sl, :]
+
+        def _3d(arr):
+            return None if arr is None else arr[sl, :, :]
+
+        return replace(
+            self,
+            tID=self.tID[sl],
+            mpe=self.mpe[sl],
+            between_tdc_files=self.between_tdc_files[sl],
+            gmd=self.gmd[sl, :],
+            z=self.z[sl, :],
+            tofs_e=_3d(rolled_tofs_e),
+            tofs_i=_3d(rolled_tofs_i),
+            liq_tofs_e=_3d(rolled_liq_tofs_e),
+            vls=_3d(self.vls),
+            vls_sums=_2d(self.vls_sums),
+            vls_coms=_2d(self.vls_coms),
+            vls_widths=_2d(self.vls_widths),
+            shot_mask=_2d(self.shot_mask),
+        )
+
     def compute_vls_moments(self) -> "ExperimentData":
         """
         Return a copy with per-shot VLS sum, COM, and width populated.
