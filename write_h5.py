@@ -904,8 +904,7 @@ def check_and_correct_trainIDs_sdu(df: pd.DataFrame) -> pd.DataFrame:
         trainID_offset = int(correct_value_pair['trainID'] - correct_value_pair.name)
 
         # Reconstruct the trainIDs
-        d
-        f['trainID'] = df.index + trainID_offset
+        df['trainID'] = df.index + trainID_offset
     else:
         # Correct a lag of the trainID in the last 10 rows where the jump following it is not saved in the .txt-file
         
@@ -940,7 +939,7 @@ _VER_VALUE = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall ver
 _VLS_INDEX = "/FL2/Support Infrastructure/Gotthard/images/index"
 _VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 
-_DEFAULT_TRAIN_LENGTH = {1: 400, 2: 100}
+_DEFAULT_TRAIN_LENGTH = {1: 400, 2: 110}
 _DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
 
 
