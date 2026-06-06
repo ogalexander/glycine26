@@ -942,6 +942,14 @@ _VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 _DEFAULT_TRAIN_LENGTH = {1: 400, 2: 110}
 _DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
 
+# How many bunches per train carry real GMD / SDU data. For cfg 2 the
+# Gotthard VLS has more lines than the FEL has pulses (110 vs 101), so
+# the non-VLS fields fill only the first 101 positions of the
+# train_length=110 bunch axis and the remainder is NaN. ``None`` means
+# "use every bunch slot", matching the cfg 1 layout where GMD spans the
+# whole train.
+_DEFAULT_DATA_BUNCHES = {1: None, 2: 101}
+
 
 def _fold_into_bunches(tofs_raw, train_length, folding_parameter, edges):
     """
@@ -1060,7 +1068,7 @@ def _advance_to(it, target_tID, label):
 def main(config_no, measurement_name, run_no, output_path=None,
          train_length=None, chunk_size=None,
          max_ecounts=50, max_icounts=120, n_vls_pixels=1280,
-         folding_parameter=9969.225):
+         folding_parameter=9969.225, data_bunches=None):
     """
     Decode and align the local-DAQ + raw-H5 streams for one measurement.
 
@@ -1105,6 +1113,13 @@ def main(config_no, measurement_name, run_no, output_path=None,
     folding_parameter : float
         TOF range (ns) used to split each sweep's flat tof stream into
         per-bunch lists.
+    data_bunches : int, optional
+        Number of bunches per train that the non-VLS fields actually
+        carry. Bunches in ``[data_bunches, train_length)`` are NaN-filled
+        for GMD, ``z``, and ``z_std``. Default is 101 for cfg 2 (matches
+        the FEL pulse count when ``train_length = 110``) and ``None``
+        for cfg 1 (fills every bunch). VLS always uses the full
+        ``train_length``.
     """
     config_no = int(config_no)
     if config_no not in (1, 2):
@@ -1113,6 +1128,15 @@ def main(config_no, measurement_name, run_no, output_path=None,
         train_length = _DEFAULT_TRAIN_LENGTH[config_no]
     if chunk_size is None:
         chunk_size = _DEFAULT_CHUNK_SIZE[config_no]
+    if data_bunches is None:
+        data_bunches = _DEFAULT_DATA_BUNCHES[config_no]
+    # Effective per-train slot count for non-VLS streams. None = the
+    # entire train_length.
+    _data_n = train_length if data_bunches is None else int(data_bunches)
+    if _data_n > train_length:
+        raise ValueError(
+            f"data_bunches={data_bunches} cannot exceed train_length={train_length}."
+        )
 
     h5_folder   = str(config.RAW_H5_DIR)
     if output_path is None:
@@ -1140,6 +1164,8 @@ def main(config_no, measurement_name, run_no, output_path=None,
     print(f"Raw H5 dir    : {h5_folder}")
     print(f"Output        : {output_path}")
     print(f"train_length  : {train_length}")
+    print(f"data_bunches  : {data_bunches}  "
+          f"({'all bunches' if data_bunches is None else f'fills first {_data_n}; rest NaN'})")
     print(f"chunk_size    : {chunk_size}")
     print()
 
@@ -1308,8 +1334,13 @@ def main(config_no, measurement_name, run_no, output_path=None,
             if tID < next_tID_gmd:
                 gmd = np.full(train_length, np.nan, dtype=np.float32)
             elif tID == next_tID_gmd:
-                # next_gmd is shape (8, n_bunches_raw); index 0 = per-pulse intensity.
-                gmd = np.asarray(next_gmd[0][:train_length], dtype=np.float32)
+                # next_gmd is shape (8, n_bunches_raw); index 0 = per-pulse
+                # intensity. Pad to the full train_length so VLS-padded
+                # schemas (cfg 2: train_length=110, gmd typically 101)
+                # don't blow up at chunk-buffer assignment.
+                gmd_src = np.asarray(next_gmd[0][:_data_n], dtype=np.float32)
+                gmd = np.full(train_length, np.nan, dtype=np.float32)
+                gmd[:gmd_src.shape[0]] = gmd_src
                 try:
                     next_tID_gmd, next_gmd = gmd_it.__next__()
                 except StopIteration:
@@ -1388,13 +1419,18 @@ def main(config_no, measurement_name, run_no, output_path=None,
                         next_tID_vls = last_tID + 1
 
             # ---- SDU (delay stage z) -------------------------------
+            # z / z_std are scalar per train; expand to a (train_length,)
+            # array and NaN-fill the bunch slots beyond _data_n so VLS-
+            # padded schemas don't carry stale broadcasts in those slots.
             if tID < next_tID_z:
-                z = np.nan
-                z_std = np.nan
+                z = np.full(train_length, np.nan, dtype=np.float32)
+                z_std = np.full(train_length, np.nan, dtype=np.float32)
                 is_data = False
             elif tID == next_tID_z:
-                z = next_z
-                z_std = next_z_std
+                z = np.full(train_length, np.nan, dtype=np.float32)
+                z_std = np.full(train_length, np.nan, dtype=np.float32)
+                z[:_data_n] = next_z
+                z_std[:_data_n] = next_z_std
                 is_data = True
                 try:
                     next_tID_z, next_z, next_z_std = sdu_it.__next__()
@@ -1532,7 +1568,11 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, default=None,
                         help="Output H5 path. Defaults to COMBINED_DIR/<measurement>.h5.")
     parser.add_argument("--train-length", type=int, default=None,
-                        help="Bunches per train (default: 400 for cfg 1, 100 for cfg 2).")
+                        help="Bunches per train (default: 400 for cfg 1, 110 for cfg 2).")
+    parser.add_argument("--data-bunches", type=int, default=None,
+                        help="Bunches per train carrying real GMD/SDU data. "
+                             "Slots beyond this are NaN. Default: 101 for cfg 2 "
+                             "(VLS=110, FEL=101), full train_length for cfg 1.")
     parser.add_argument("--chunk-size", type=int, default=None,
                         help="Rows per chunked write (default: 1000 for cfg 1, 200 for cfg 2).")
     parser.add_argument("--max-ecounts", type=int, default=50,
@@ -1556,4 +1596,5 @@ if __name__ == "__main__":
         max_icounts=args.max_icounts,
         n_vls_pixels=args.n_vls_pixels,
         folding_parameter=args.folding_parameter,
+        data_bunches=args.data_bunches,
     )
