@@ -29,8 +29,8 @@ E_START, E_STOP, E_STEP = 270.0, 283.0, 0.5
 
 
 def _fmt(e: float) -> str:
-    """270.0 -> '270', 270.5 -> '270.5'."""
-    return f"{e:g}"
+    """270.0 -> '270.0', 270.5 -> '270.5'."""
+    return f"{e:.1f}"
 
 
 def main() -> int:
