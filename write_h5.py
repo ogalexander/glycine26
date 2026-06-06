@@ -74,8 +74,11 @@ class DataChunk():
         mpe_dset[roi]                 = self.mpes
         hor_pos_dset[roi]             = self.hor_poss
         ver_pos_dset[roi]             = self.ver_poss
-        tofs_es_dset[roi]             = self.tofs_es
-        tofs_is_dset[roi]             = self.tofs_is
+        # TOF datasets may be None when the run has no TDC .lst files.
+        if tofs_es_dset is not None:
+            tofs_es_dset[roi]         = self.tofs_es
+        if tofs_is_dset is not None:
+            tofs_is_dset[roi]         = self.tofs_is
         between_tdc_files_dset[roi]   = self.between_tdc_filess
         self.count += 1
 
@@ -120,8 +123,10 @@ class DataChunk():
         mpe_dset[roi]               = self.mpes
         hor_pos_dset[roi]           = self.hor_poss
         ver_pos_dset[roi]           = self.ver_poss
-        tofs_es_dset[roi]           = self.tofs_es
-        tofs_is_dset[roi]           = self.tofs_is
+        if tofs_es_dset is not None:
+            tofs_es_dset[roi]       = self.tofs_es
+        if tofs_is_dset is not None:
+            tofs_is_dset[roi]       = self.tofs_is
         data_flag_dset[roi]         = self.is_datas
         between_tdc_files_dset[roi] = self.between_tdc_filess
 
@@ -181,7 +186,9 @@ class DataChunkConfig2():
         dsets['mpe'][roi]                = self.mpes
         dsets['hor_pos'][roi]            = self.hor_poss
         dsets['ver_pos'][roi]            = self.ver_poss
-        dsets['liq_tofs_e'][roi]         = self.liq_tofs_es
+        # liq_tofs_e is omitted from the schema when the run has no TDC files.
+        if dsets.get('liq_tofs_e') is not None:
+            dsets['liq_tofs_e'][roi]     = self.liq_tofs_es
         dsets['vls'][roi]                = self.vls
         dsets['between_tdc_files'][roi]  = self.between_tdc_filess
         self.count += 1
@@ -225,7 +232,8 @@ class DataChunkConfig2():
         dsets['mpe'][roi]                = self.mpes
         dsets['hor_pos'][roi]            = self.hor_poss
         dsets['ver_pos'][roi]            = self.ver_poss
-        dsets['liq_tofs_e'][roi]         = self.liq_tofs_es
+        if dsets.get('liq_tofs_e') is not None:
+            dsets['liq_tofs_e'][roi]     = self.liq_tofs_es
         dsets['vls'][roi]                = self.vls
         dsets['between_tdc_files'][roi]  = self.between_tdc_filess
 
@@ -974,6 +982,12 @@ def main(config_no, measurement_name, run_no, output_path=None,
     - config 2: TDC channel 3 (liquid-jet electron, ``liq_tofs_e``) plus
       Gotthard VLS spectra read from the raw H5.
 
+    If no TDC ``.lst`` files exist for the measurement, the TOF datasets
+    (``tofs_e``/``tofs_i`` for cfg 1, ``liq_tofs_e`` for cfg 2) are
+    omitted from the output and ``between_tdc_files`` is written as all
+    False. The SDU and raw-H5 streams are still aligned and written
+    normally. For cfg 2, ``vls`` is always written regardless.
+
     Parameters
     ----------
     config_no : int
@@ -1036,11 +1050,18 @@ def main(config_no, measurement_name, run_no, output_path=None,
     print(f"Found {len(sdu_fpaths)} SDU .txt files.")
 
     # --- Locate TDC .lst files -----------------------------------------
+    # TDC is optional: if no .lst files are present, we still write a
+    # combined H5 containing the SDU + raw-H5 streams. The TOF datasets
+    # (tofs_e/tofs_i in cfg 1, liq_tofs_e in cfg 2) are simply omitted
+    # from the output schema and `between_tdc_files` is all False.
     tdc_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.lst").match, files_in_folder))
     tdc_fpaths = [data_folder + "/" + n for n in tdc_names]
-    if not tdc_fpaths:
-        raise ValueError(f"No TDC .lst files for measurement '{measurement_name}' in {data_folder}")
-    print(f"Found {len(tdc_fpaths)} TDC .lst files.")
+    has_tdc = bool(tdc_fpaths)
+    if has_tdc:
+        print(f"Found {len(tdc_fpaths)} TDC .lst files.")
+    else:
+        print(f"No TDC .lst files for measurement '{measurement_name}'; "
+              f"writing SDU + raw-H5 only.")
 
     # --- Locate raw H5 files for this run ------------------------------
     h5_paths = sorted(glob.glob(os.path.join(h5_folder, f"*run{run_no}*.h5")))
@@ -1069,7 +1090,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
 
     # --- Iterators -----------------------------------------------------
     sdu_it     = SDUIterator(sdu_fpaths)
-    tdc_it     = TDCIterator(tdc_fpaths, config=config_no)
+    tdc_it     = TDCIterator(tdc_fpaths, config=config_no) if has_tdc else None
     gmd_it     = h5Iterator(h5_paths[first_h5_idx:], [_GMD_INDEX, _GMD_VALUE])
     mpe_it     = h5Iterator(h5_paths[first_h5_idx:], [_MPE_INDEX, _MPE_VALUE])
     hor_pos_it = h5Iterator(h5_paths[first_h5_idx:], [_HOR_INDEX, _HOR_VALUE])
@@ -1086,13 +1107,14 @@ def main(config_no, measurement_name, run_no, output_path=None,
         next_tID_vls, next_vls = _advance_to(vls_it, first_tID, "vls")
 
     next_tID_z, next_z, next_z_std = sdu_it.__next__()
-    if config_no == 1:
-        (next_tID_tdc,
-         next_eventcounts_e, next_tofs_e,
-         next_eventcounts_i, next_tofs_i) = tdc_it.__next__()
-    else:
-        (next_tID_tdc,
-         next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
+    if has_tdc:
+        if config_no == 1:
+            (next_tID_tdc,
+             next_eventcounts_e, next_tofs_e,
+             next_eventcounts_i, next_tofs_i) = tdc_it.__next__()
+        else:
+            (next_tID_tdc,
+             next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
 
     # --- Output H5 layout (schema + legacy extras) ---------------------
     data_len = last_tID - first_tID
@@ -1119,20 +1141,27 @@ def main(config_no, measurement_name, run_no, output_path=None,
         ver_pos_dset           = f_out.create_dataset("ver_pos",           (data_len,),               dtype=np.float32)
         between_tdc_files_dset = f_out.create_dataset("between_tdc_files", (data_len,),               dtype="bool")
 
+        # TOF datasets are only written when TDC .lst files are present;
+        # otherwise the slots stay None and the chunk dump/finish code
+        # skips them. `between_tdc_files` is still emitted (all False) so
+        # `load_data` downstream can filter without special-casing.
+        tofs_e_dset = tofs_i_dset = liq_tofs_e_dset = None
         if config_no == 1:
-            tofs_e_dset = f_out.create_dataset(
-                "tofs_e", (data_len, train_length, max_ecounts),
-                dtype=np.uint32, compression="gzip",
-            )
-            tofs_i_dset = f_out.create_dataset(
-                "tofs_i", (data_len, train_length, max_icounts),
-                dtype=np.uint32, compression="gzip",
-            )
+            if has_tdc:
+                tofs_e_dset = f_out.create_dataset(
+                    "tofs_e", (data_len, train_length, max_ecounts),
+                    dtype=np.uint32, compression="gzip",
+                )
+                tofs_i_dset = f_out.create_dataset(
+                    "tofs_i", (data_len, train_length, max_icounts),
+                    dtype=np.uint32, compression="gzip",
+                )
         else:
-            liq_tofs_e_dset = f_out.create_dataset(
-                "liq_tofs_e", (data_len, train_length, max_ecounts),
-                dtype=np.uint32, compression="gzip",
-            )
+            if has_tdc:
+                liq_tofs_e_dset = f_out.create_dataset(
+                    "liq_tofs_e", (data_len, train_length, max_ecounts),
+                    dtype=np.uint32, compression="gzip",
+                )
             vls_dset = f_out.create_dataset(
                 "vls", (data_len, train_length, n_vls_pixels),
                 dtype=np.float32, compression="gzip",
@@ -1242,8 +1271,16 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 raise ValueError(f"SDU overshot: tID={tID}, next={next_tID_z}")
 
             # ---- TDC (per-bunch tof lists) -------------------------
+            # When the run has no TDC .lst files, every train gets empty
+            # TOFs and between_tdc_files=False; the chunk buffers carry
+            # zero-padded placeholders that are never flushed to disk
+            # (the TOF datasets weren't created).
             if config_no == 1:
-                if tID < next_tID_tdc:
+                if not has_tdc:
+                    tofs_e = None
+                    tofs_i = None
+                    between_tdc_files = False
+                elif tID < next_tID_tdc:
                     tofs_e = None
                     tofs_i = None
                     between_tdc_files = tdc_it.is_between_files()
@@ -1286,7 +1323,10 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     chunk.reset()
 
             else:  # config 2
-                if tID < next_tID_tdc:
+                if not has_tdc:
+                    liq_tofs_e = None
+                    between_tdc_files = False
+                elif tID < next_tID_tdc:
                     liq_tofs_e = None
                     between_tdc_files = tdc_it.is_between_files()
                 elif tID == next_tID_tdc:
