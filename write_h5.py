@@ -556,18 +556,23 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
             print('Longer bunchIDs intervall in file than sweeps. Lost shots or fast trigger?')
     print('Sweeps:',sweeps_per_file)
 
-    # Split events by TDC channel:
-    #   channel 1 -> electron (config 1, tofs_e)
-    #   channel 2 -> ion      (config 1, tofs_i)
-    #   channel 3 -> liquid-jet electron (config 2, liq_tofs_e)
-    # Channels with no events for the active config remain empty; this is fine.
-    electron_events = df[df['channel'] == 1]
-    ion_events      = df[df['channel'] == 2]
-    liq_e_events    = df[df['channel'] == 3]
-
     # Calculate array of all trainIDs that should be present in the .lst-file
     if len(df) > 0:
         trainIDs=np.arange(sweeps_per_file)+df.iloc[0,3]-df.iloc[0,2]+1
+
+        # Drop events whose trainIDs fall outside the expected range.
+        # `check_and_correct_trainIDs` can leave a handful of stragglers when
+        # the sweep↔tagbit alignment had to be guessed (the "Deviations between
+        # sweeps and tag bits detected!" warning above) — they'd otherwise
+        # break the boolean-mask assignment inside calc_eventcount_per_trainID.
+        tid_min, tid_max = int(trainIDs[0]), int(trainIDs[-1])
+        tid_col = df['trainID'].to_numpy()
+        in_range = (tid_col >= tid_min) & (tid_col <= tid_max)
+        n_dropped = int((~in_range).sum())
+        if n_dropped > 0:
+            print(f"WARNING: dropping {n_dropped} event(s) with trainIDs "
+                  f"outside expected range [{tid_min}, {tid_max}]")
+            df = df[in_range]
     else:
         # Added this after files with no real data made the script throw an exception
         # Problem: Because not a single event is listed in the file, one can not know the exact offset between the
@@ -576,6 +581,15 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
         # higher than the trainID in the respective filename."
         # trainID_offset = trainID_at_start_32bit + 5
         trainIDs = np.arange(sweeps_per_file) + trainID_at_start_32bit + 6
+
+    # Split events by TDC channel:
+    #   channel 1 -> electron (config 1, tofs_e)
+    #   channel 2 -> ion      (config 1, tofs_i)
+    #   channel 3 -> liquid-jet electron (config 2, liq_tofs_e)
+    # Channels with no events for the active config remain empty; this is fine.
+    electron_events = df[df['channel'] == 1]
+    ion_events      = df[df['channel'] == 2]
+    liq_e_events    = df[df['channel'] == 3]
 
     # Per-trainID event counts for each channel.
     eventcounts_e  = calc_eventcount_per_trainID(electron_events, trainIDs)
@@ -608,21 +622,22 @@ def calc_eventcount_per_trainID(df: pd.DataFrame, all_trainIDs: np.ndarray) -> n
     :param all_trainIDs: Numpy array of all trainIDs that should be present in the single .lst-file
     :return: all_eventcounts: Numpy array of all eventcounts (data corresponding to trainID at same index)
     """
-    # Get the number of events per trainID
-    eventcount_per_train = df['trainID'].value_counts(sort=False)#.sort_index() # sort unnecessary because already sorted
-    
-    trainIDs = eventcount_per_train.index.to_numpy()
-    
-    # Get the eventcounts as a simple Numpy vector
-    eventcounts = eventcount_per_train.to_numpy()
-
-    # Create array of zeros with the same length as all_trainIDs
-    all_eventcounts = np.zeros(all_trainIDs.shape[0], dtype=np.uint16)
-
-    # Insert the eventcounts (> 0) into said array; Every trainID now has a corresponding eventcount, even if it is 0
-    trainIDs_with_events = np.isin(all_trainIDs, trainIDs)
-    all_eventcounts[trainIDs_with_events] = eventcounts
-
+    # Count events per trainID, then realign onto the full `all_trainIDs`
+    # axis by trainID *value*. `reindex(fill_value=0)` produces a row for
+    # every trainID we expect (zero where the channel had no events) and
+    # silently drops any unique trainIDs in `df` that fall outside
+    # `all_trainIDs` — without `reindex` the assignment relied on the
+    # value_counts() order matching ascending all_trainIDs, which breaks
+    # when sweep↔tagbit alignment drifts.
+    if len(df) == 0:
+        return np.zeros(all_trainIDs.shape[0], dtype=np.uint16)
+    eventcount_per_train = df['trainID'].value_counts(sort=False)
+    all_eventcounts = (
+        eventcount_per_train
+        .reindex(all_trainIDs, fill_value=0)
+        .to_numpy()
+        .astype(np.uint16)
+    )
     return all_eventcounts
 
 
