@@ -16,6 +16,7 @@ sys.path.append('/asap3/flash/gpfs/fl24/2026/data/11022188/processed/analysis_to
 
 import re
 import glob
+import fnmatch
 
 from tqdm import tqdm
 import numpy as np
@@ -1036,6 +1037,81 @@ def _fold_into_bunches(tofs_raw, train_length, folding_parameter, edges):
     return out
 
 
+def _has_glob_meta(name: str) -> bool:
+    """True if ``name`` contains shell-style glob metacharacters."""
+    return any(c in name for c in "*?[")
+
+
+def _list_measurement_files(base_dir: Path, measurement_name: str, ext: str) -> list:
+    """
+    Locate files matching ``<measurement_name>_<10 digits>.<ext>`` under
+    ``base_dir``, supporting both single literal names and shell-style
+    glob patterns (``*``, ``?``, ``[``).
+
+    Search strategy
+    ---------------
+    Literal name (no glob metacharacters):
+        - Try the per-measurement subfolder ``base_dir / measurement_name`` first.
+        - Fall back to ``base_dir`` itself (flat layout).
+
+    Glob pattern:
+        - Scan every subfolder of ``base_dir`` whose name matches the
+          pattern, AND ``base_dir`` itself (handles both per-scan
+          subfolder and flat layouts in one pass).
+
+    Files in each searched folder are kept only when:
+        1. Their name matches ``<measurement_name>_*.<ext>`` (fnmatch).
+        2. They end with ``_<10 digits>.<ext>`` (the standard suffix).
+
+    Duplicates (e.g. via symlinks) are removed. The result is sorted by
+    the 10-digit trainID encoded in the suffix, so scan boundaries fall
+    in chronological order even when multiple scans are concatenated.
+    """
+    if not base_dir.is_dir():
+        return []
+    name_pattern = measurement_name + "_*." + ext
+    suffix_re = re.compile(r"_\d{10}\." + re.escape(ext) + "$")
+
+    folders = []
+    if _has_glob_meta(measurement_name):
+        for child in sorted(base_dir.iterdir()):
+            if child.is_dir() and fnmatch.fnmatchcase(child.name, measurement_name):
+                folders.append(child)
+        folders.append(base_dir)
+    else:
+        subdir = base_dir / measurement_name
+        if subdir.is_dir():
+            folders.append(subdir)
+        else:
+            folders.append(base_dir)
+
+    seen = set()
+    matches = []
+    for folder in folders:
+        try:
+            entries = os.listdir(folder)
+        except OSError:
+            continue
+        for name in entries:
+            if not fnmatch.fnmatchcase(name, name_pattern):
+                continue
+            if not suffix_re.search(name):
+                continue
+            p = str(folder / name)
+            if p in seen:
+                continue
+            seen.add(p)
+            matches.append(p)
+    matches.sort(key=lambda p: int(Path(p).stem[-10:]))
+    return matches
+
+
+def _sanitize_output_stem(measurement_name: str) -> str:
+    """Strip glob metacharacters from ``measurement_name`` for use as a filename."""
+    cleaned = re.sub(r"[\*\?\[\]]", "", measurement_name).strip("_")
+    return (cleaned or "combined") + "_combined"
+
+
 def _h5_file_order_key(path_str: str):
     """
     Sort raw H5 files by the numeric ``_fileNN_`` index in their name.
@@ -1186,29 +1262,18 @@ def main(config_no, measurement_name, run_no, output_path=None,
             f"data_bunches={data_bunches} cannot exceed train_length={train_length}."
         )
 
-    h5_folder   = str(config.RAW_H5_DIR)
+    h5_folder    = str(config.RAW_H5_DIR)
+    is_glob_name = _has_glob_meta(measurement_name)
     if output_path is None:
-        output_path = config.COMBINED_DIR / f"{measurement_name}.h5"
+        stem = _sanitize_output_stem(measurement_name) if is_glob_name else measurement_name
+        output_path = config.COMBINED_DIR / f"{stem}.h5"
     output_path = Path(output_path)
 
-    # Pick the per-stream search folder: try the legacy
-    # ``<DIR>/<measurement_name>`` subfolder first; if it does not exist
-    # fall back to the parent directory.
-    def _pick_folder(base: Path, label: str) -> str:
-        subdir = base / measurement_name
-        if subdir.is_dir():
-            return str(subdir)
-        if base.is_dir():
-            return str(base)
-        raise FileNotFoundError(f"{label} folder not found: {base} (no {subdir} either)")
-
-    sdu_folder = _pick_folder(config.SDU_DIR, "SDU")
-    tdc_folder = _pick_folder(config.TDC_DIR, "TDC") if config.TDC_DIR.is_dir() else str(config.TDC_DIR)
-
-    print(f"Measurement   : {measurement_name}  (run {run_no})")
+    print(f"Measurement   : {measurement_name}"
+          f"{'  (glob pattern)' if is_glob_name else ''}  (run {run_no})")
     print(f"Config        : {config_no}")
-    print(f"SDU dir       : {sdu_folder}")
-    print(f"TDC dir       : {tdc_folder}")
+    print(f"SDU base      : {config.SDU_DIR}")
+    print(f"TDC base      : {config.TDC_DIR}")
     print(f"Raw H5 dir    : {h5_folder}")
     print(f"Output        : {output_path}")
     print(f"train_length  : {train_length}")
@@ -1221,27 +1286,33 @@ def main(config_no, measurement_name, run_no, output_path=None,
         raise FileNotFoundError(f"Raw H5 folder not found: {h5_folder}")
 
     # --- Locate SDU .txt files -----------------------------------------
-    sdu_files_in_folder = os.listdir(sdu_folder)
-    sdu_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.txt").match, sdu_files_in_folder))
-    sdu_fpaths = [sdu_folder + "/" + n for n in sdu_names]
+    sdu_fpaths = _list_measurement_files(Path(config.SDU_DIR), measurement_name, "txt")
     if not sdu_fpaths:
-        raise ValueError(f"No SDU .txt files for measurement '{measurement_name}' in {sdu_folder}")
+        raise ValueError(
+            f"No SDU .txt files for measurement '{measurement_name}' "
+            f"under {config.SDU_DIR}."
+        )
     print(f"Found {len(sdu_fpaths)} SDU .txt files.")
+    if is_glob_name:
+        # Show which scan(s) the wildcard matched, by file-prefix.
+        prefixes = sorted({Path(p).stem[:-11] for p in sdu_fpaths})
+        print(f"  SDU scan prefixes matched: {prefixes}")
 
     # --- Locate TDC .lst files -----------------------------------------
     # TDC is optional: if no .lst files are present, we still write a
     # combined H5 containing the SDU + raw-H5 streams. The TOF datasets
     # (tofs_e/tofs_i in cfg 1, liq_tofs_e in cfg 2) are simply omitted
     # from the output schema and `between_tdc_files` is all False.
-    tdc_files_in_folder = os.listdir(tdc_folder) if Path(tdc_folder).is_dir() else []
-    tdc_names = sorted(filter(re.compile(measurement_name + r"_\d{10}\.lst").match, tdc_files_in_folder))
-    tdc_fpaths = [tdc_folder + "/" + n for n in tdc_names]
+    tdc_fpaths = _list_measurement_files(Path(config.TDC_DIR), measurement_name, "lst")
     has_tdc = bool(tdc_fpaths)
     if has_tdc:
         print(f"Found {len(tdc_fpaths)} TDC .lst files.")
+        if is_glob_name:
+            prefixes = sorted({Path(p).stem[:-11] for p in tdc_fpaths})
+            print(f"  TDC scan prefixes matched: {prefixes}")
     else:
-        print(f"No TDC .lst files for measurement '{measurement_name}' in {tdc_folder}; "
-              f"writing SDU + raw-H5 only.")
+        print(f"No TDC .lst files for measurement '{measurement_name}' "
+              f"under {config.TDC_DIR}; writing SDU + raw-H5 only.")
 
     # --- Locate raw H5 files for this run ------------------------------
     h5_paths = sorted(
@@ -1599,16 +1670,22 @@ def main(config_no, measurement_name, run_no, output_path=None,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Write a combined H5 file from one beamtime measurement.",
+        description="Write a combined H5 file from one or more beamtime measurements.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
             "  python write_h5.py delay_scan3 1 48346\n"
             "  python write_h5.py glycine_scan1 2 54609 -o glycine_scan1.h5\n"
+            "  python write_h5.py 'glycine_WL_scan*' 1 48346 -o glycine_WL.h5\n"
+            "    (quote the pattern to stop the shell expanding it; matches\n"
+            "     glycine_WL_scan1, glycine_WL_scan2, ... in both SDU and TDC dirs)\n"
         ),
     )
     parser.add_argument("measurement_name", type=str,
-                        help="Basename used to locate SDU .txt and TDC .lst files.")
+                        help="Basename used to locate SDU .txt and TDC .lst files. "
+                             "May be a shell-style glob pattern (e.g. 'glycine_WL_scan*') "
+                             "to concatenate multiple scans into one combined H5. The "
+                             "files are sorted by trainID across scans.")
     parser.add_argument("config", type=int, choices=(1, 2),
                         help="Experiment configuration: 1 = e+i TOF, 2 = liq eTOF + VLS.")
     parser.add_argument("run_no", type=int,
