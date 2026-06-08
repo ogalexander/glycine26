@@ -80,6 +80,10 @@ def load_data(
         z                = load("z")                 # (n, m)
         btf              = load("between_tdc_files") # (n,)
 
+        # Shutter was added to the combined-H5 schema after the initial
+        # write_h5 release; treat as optional so older files still load.
+        shutter = load("shutter") if "shutter" in f else None
+
         tofs_e     = None
         tofs_i     = None
         liq_tofs_e = None
@@ -127,6 +131,7 @@ def load_data(
         tofs_i=tofs_i,
         liq_tofs_e=liq_tofs_e,
         vls=vls,
+        shutter=shutter,
         vls_sums=vls_sums,
         vls_coms=vls_coms,
         vls_widths=vls_widths,

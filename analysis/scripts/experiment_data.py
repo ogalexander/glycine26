@@ -74,6 +74,11 @@ class ExperimentData:
         Electron TOF hits (config 2), shape (n, m, max_hits). Units: ns.
     vls : np.ndarray, optional
         X-ray spectrum (config 2), shape (n, m, n_pixels).
+    shutter : np.ndarray, optional
+        Per-train fast-shutter signal (multi-dim raw samples are reduced
+        to a scalar via nanmean by ``write_h5.py``), shape (n,).
+        ``None`` for combined H5 files written before shutter was added
+        to the schema.
     vls_pixel_ax : np.ndarray, optional
         Source-pixel indices for the VLS pixel axis. ``None`` means no
         cropping has been applied (use ``np.arange(vls.shape[-1])``).
@@ -114,6 +119,7 @@ class ExperimentData:
     tofs_i: Optional[np.ndarray] = field(default=None)
     liq_tofs_e: Optional[np.ndarray] = field(default=None)
     vls: Optional[np.ndarray] = field(default=None)
+    shutter: Optional[np.ndarray] = field(default=None)
     vls_pixel_ax: Optional[np.ndarray] = field(default=None)
     vls_sums: Optional[np.ndarray] = field(default=None)
     vls_coms: Optional[np.ndarray] = field(default=None)
@@ -484,6 +490,7 @@ class ExperimentData:
             self,
             tID=self.tID[sl],
             mpe=self.mpe[sl],
+            shutter=_1d(self.shutter),
             between_tdc_files=self.between_tdc_files[sl],
             gmd=self.gmd[sl, :],
             z=self.z[sl, :],
@@ -691,6 +698,7 @@ class ExperimentData:
             self,
             tID=self.tID[keep],
             mpe=self.mpe[keep],
+            shutter=_1d(self.shutter),
             between_tdc_files=self.between_tdc_files[keep],
             gmd=self.gmd[keep, :],
             z=self.z[keep, :],

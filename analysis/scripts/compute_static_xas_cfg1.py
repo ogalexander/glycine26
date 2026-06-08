@@ -2,22 +2,12 @@
 Collect per-shot (TOF_e, TOF_i, GMD) for a photon-energy XAS scan in
 config 1 (electron + ion TOF).
 
-Mirrors the structure of ``compute_static_xas.py`` (the config 2 / VLS
-script) but stops after flattening (train x bunch -> shot). No GMD
-binning, no TOF histogramming, no background subtraction: the raw
-per-shot hit lists are written for flexible downstream analysis.
-
-Differences from the cfg 2 script:
-    * Input is the combined H5 (built by ``write_h5.py``) — the raw H5
-      stream for config 1 does not carry TDC TOFs.
-    * Shutter is still read from the raw H5 directory and aligned to
-      the combined H5's ``tID`` axis.
-    * No VLS, so no ``CROP_ROI``, ``VLS_BUNCH_ROLL``, or
-      ``BG_BUNCH_RANGE``. TOF hits are zero-padded lists rather than
-      spectra, so no per-train or per-section spectrum baseline is
-      subtracted.
-    * Train score used for shutter polarity flipping is the per-train
-      electron hit count in the signal-bunch window.
+Reads a combined H5 file (built by ``write_h5.py``) which now carries
+``/shutter`` per train, detects shutter open / closed sections, assigns
+each open section a nominal photon energy, and flattens its signal-bunch
+hits into a single (n_shots, max_hits) array per energy. Stops at
+flattening — no GMD binning, no TOF histogramming, no background
+subtraction.
 
 Output H5 layout (default:
 ``<processed/xas_static>/run<N>_cfg1_static_xas.h5``)::
@@ -34,9 +24,9 @@ Output H5 layout (default:
 Config file
 -----------
 Python module exposing: ``RUN_NO``, ``NOMINAL_ENERGIES``,
-``SIGNAL_BUNCH_RANGE``, ``CONFIG = 1``, plus optional shutter / trim
-knobs and an optional ``INPUT_H5`` override. ``MODE`` may be any of
-``"xas"``, ``"xas_scan"``, or ``"xas_static"``.
+``SIGNAL_BUNCH_RANGE``, ``CONFIG = 1``, plus optional trim and
+shutter-transition knobs and an optional ``INPUT_H5`` override.
+``MODE`` may be any of ``"xas"``, ``"xas_scan"``, or ``"xas_static"``.
 
 CLI
 ---
@@ -46,10 +36,9 @@ CLI
 from __future__ import annotations
 
 import argparse
-import glob
 import importlib.util
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 
 import h5py
 import numpy as np
@@ -57,13 +46,6 @@ import numpy as np
 import data_loading
 
 __all__ = ["compute_static_xas_cfg1", "main"]
-
-# ---------------------------------------------------------------------------
-# Shutter HDF5 path defaults
-# ---------------------------------------------------------------------------
-
-_DEFAULT_SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"
-_DEFAULT_SHUTTER_VALUE_PATH = "/FL2/Beamlines/Fast Shutter/shutter/value"
 
 ACCEPTED_XAS_MODES = ("xas", "xas_scan", "xas_static")
 
@@ -78,60 +60,6 @@ def _load_config(path: Path):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
-
-
-def _file_order_key(path_str: str):
-    """Sort raw H5 files by numeric index in ..._fileNN_..."""
-    name = Path(path_str).name
-    if "_file" in name:
-        tail = name.split("_file", 1)[1]
-        num_str = tail.split("_", 1)[0]
-        if num_str.isdigit():
-            return (0, int(num_str), name)
-    return (1, 0, name)
-
-
-def _list_raw_h5_files(run_no: int, raw_dir: Path):
-    pattern = str(raw_dir / f"*run{run_no}*.h5")
-    paths = sorted(glob.glob(pattern), key=_file_order_key)
-    if not paths:
-        raise FileNotFoundError(f"No raw H5 files matching {pattern!r}.")
-    return paths
-
-
-def _read_aligned_shutter(
-    h5_paths,
-    idx_path: str,
-    val_path: str,
-    master_tID: np.ndarray,
-) -> np.ndarray:
-    """Concatenate shutter index/value across raw H5 files and align to
-    ``master_tID``. Multi-dim samples are reduced via nanmean."""
-    src_idx_parts, src_val_parts = [], []
-    for fp in h5_paths:
-        with h5py.File(fp, "r") as f:
-            if (idx_path not in f) or (val_path not in f):
-                continue
-            src_idx_parts.append(f[idx_path][...])
-            v = f[val_path][...]
-            if v.dtype.kind in ("S", "U", "O"):
-                raise NotImplementedError("Non-numeric shutter values are not supported.")
-            if v.ndim > 1:
-                v = np.nanmean(v.astype(np.float64), axis=tuple(range(1, v.ndim)))
-            src_val_parts.append(v.astype(np.float64))
-    if not src_idx_parts:
-        raise RuntimeError(
-            f"Shutter datasets {idx_path!r}, {val_path!r} not found in any raw H5 file."
-        )
-    src_idx = np.concatenate(src_idx_parts)
-    src_val = np.concatenate(src_val_parts)
-    order = np.argsort(src_idx)
-    src_idx = src_idx[order]
-    src_val = src_val[order]
-    out = np.full(master_tID.shape, np.nan, dtype=np.float64)
-    matched, src_pos = data_loading._align_by_tID(src_idx, master_tID)
-    out[matched] = src_val[src_pos]
-    return out
 
 
 def _contiguous_true_blocks(mask: np.ndarray):
@@ -196,11 +124,8 @@ def compute_static_xas_cfg1(
     nominal_energies,
     signal_bunch_range: Tuple[int, int],
     input_h5=None,
-    raw_dir=None,
     trim_start: int = 2,
     trim_end: int = 2,
-    shutter_index_path: str = _DEFAULT_SHUTTER_INDEX_PATH,
-    shutter_value_path: str = _DEFAULT_SHUTTER_VALUE_PATH,
     train_rate_hz: float = 10.0,
     transition_trim_seconds: float = 3.0,
     first_section_state: str = "open",
@@ -211,11 +136,11 @@ def compute_static_xas_cfg1(
     Run the config-1 static-XAS shot-collection pipeline and write to
     ``output_h5``.
 
-    Loads ``tofs_e``, ``tofs_i``, ``gmd``, ``tID`` from a combined H5
-    (via :func:`data_loading.load_data`), reads the shutter signal from
-    the raw H5 directory aligned by train ID, detects open / closed
-    sections, and flattens each open section's signal-bunch hits to a
-    single (n_shots, max_hits) array per energy.
+    Loads ``tofs_e``, ``tofs_i``, ``gmd``, ``tID``, and ``shutter`` from
+    a combined H5 (via :func:`data_loading.load_data`), detects open /
+    closed sections from the shutter signal, and flattens each open
+    section's signal-bunch hits to a single (n_shots, max_hits) array
+    per energy.
 
     Parameters
     ----------
@@ -228,12 +153,8 @@ def compute_static_xas_cfg1(
     input_h5 : str or Path, optional
         Combined H5 path. Defaults to
         ``config.COMBINED_DIR / f"run{run_no}.h5"``.
-    raw_dir : Path, optional
-        Raw-H5 directory (shutter source). Defaults to
-        ``config.RAW_H5_DIR``.
     trim_start, trim_end : int
         Forwarded to :func:`data_loading.load_data`.
-    shutter_index_path, shutter_value_path : str
     train_rate_hz, transition_trim_seconds : float
     first_section_state : "open" | "closed"
     config_path : Path, optional  (recorded as a provenance attribute)
@@ -256,11 +177,9 @@ def compute_static_xas_cfg1(
         input_h5 = Path(input_h5)
     if not input_h5.exists():
         raise FileNotFoundError(f"Combined H5 not found: {input_h5}")
-    raw_dir = Path(raw_dir) if raw_dir is not None else Path(path_config.RAW_H5_DIR)
 
     log(f"run                : {run_no}")
     log(f"input combined H5  : {input_h5}")
-    log(f"raw dir (shutter)  : {raw_dir}")
     log(f"nominal energies   : {nominal_energies.size}  "
         f"({nominal_energies[0]:.2f} .. {nominal_energies[-1]:.2f} eV)")
     log(f"signal bunches     : [{sig_b0}, {sig_b1})")
@@ -277,11 +196,17 @@ def compute_static_xas_cfg1(
             f"Combined H5 {input_h5} is missing tofs_e or tofs_i — "
             "rebuild it with write_h5.py before running this script."
         )
+    if data.shutter is None:
+        raise RuntimeError(
+            f"Combined H5 {input_h5} has no /shutter dataset — rebuild "
+            "it with the current write_h5.py (which adds shutter to the "
+            "combined-H5 schema)."
+        )
 
-    tofs_e = np.asarray(data.tofs_e)              # (n_trains, m, max_ecounts)
-    tofs_i = np.asarray(data.tofs_i)              # (n_trains, m, max_icounts)
-    gmd    = np.asarray(data.gmd, dtype=np.float64)  # (n_trains, m)
-    tID    = np.asarray(data.tID)
+    tofs_e  = np.asarray(data.tofs_e)              # (n_trains, m, max_ecounts)
+    tofs_i  = np.asarray(data.tofs_i)              # (n_trains, m, max_icounts)
+    gmd     = np.asarray(data.gmd, dtype=np.float64)  # (n_trains, m)
+    shutter = np.asarray(data.shutter, dtype=np.float64)  # (n_trains,)
 
     n_trains, m, max_ecounts = tofs_e.shape
     _, _, max_icounts        = tofs_i.shape
@@ -290,24 +215,9 @@ def compute_static_xas_cfg1(
     log(f"loaded n_trains    : {n_trains}, m={m}, "
         f"max_ecounts={max_ecounts}, max_icounts={max_icounts}")
 
-    # tID must be sorted ascending for the searchsorted-based shutter
-    # alignment. load_data filters by `between_tdc_files` but preserves
-    # file order, which write_h5 emits ascending — guard anyway.
-    if not np.all(np.diff(tID) >= 0):
-        order = np.argsort(tID)
-        tID    = tID[order]
-        gmd    = gmd[order]
-        tofs_e = tofs_e[order]
-        tofs_i = tofs_i[order]
-
     # ------------------------------------------------------------------
     # Shutter section detection
     # ------------------------------------------------------------------
-    h5_paths = _list_raw_h5_files(run_no, raw_dir)
-    shutter  = _read_aligned_shutter(
-        h5_paths, shutter_index_path, shutter_value_path, tID,
-    )
-
     # Per-train signal score: total non-zero electron hits in signal bunches.
     train_score = np.sum(
         tofs_e[:, sig_b0:sig_b1, :] > 0, axis=(1, 2),
@@ -398,7 +308,6 @@ def compute_static_xas_cfg1(
         fout.attrs["config"]                  = 1
         fout.attrs["run_no"]                  = int(run_no)
         fout.attrs["input_h5"]                = str(input_h5)
-        fout.attrs["raw_dir"]                 = str(raw_dir)
         fout.attrs["n_sections_detected"]     = int(n_detected)
         fout.attrs["n_sections_used"]         = int(n_e)
         fout.attrs["signal_bunch_range"]      = np.asarray([sig_b0, sig_b1], dtype=np.int64)
@@ -408,8 +317,6 @@ def compute_static_xas_cfg1(
         fout.attrs["transition_trim_seconds"] = float(transition_trim_seconds)
         fout.attrs["transition_trim_trains"]  = int(transition_trim_trains)
         fout.attrs["first_section_state"]     = first_section_state
-        fout.attrs["shutter_index_path"]      = shutter_index_path
-        fout.attrs["shutter_value_path"]      = shutter_value_path
         if config_path is not None:
             fout.attrs["config_path"] = str(config_path)
 
@@ -467,13 +374,8 @@ def main(argv=None) -> None:
         nominal_energies=np.asarray(cfg.NOMINAL_ENERGIES, dtype=float),
         signal_bunch_range=tuple(cfg.SIGNAL_BUNCH_RANGE),
         input_h5=input_h5,
-        raw_dir=getattr(cfg, "RAW_DIR", None),
         trim_start=int(getattr(cfg, "TRIM_START", 2)),
         trim_end=int(getattr(cfg, "TRIM_END", 2)),
-        shutter_index_path=getattr(cfg, "SHUTTER_INDEX_PATH",
-                                   _DEFAULT_SHUTTER_INDEX_PATH),
-        shutter_value_path=getattr(cfg, "SHUTTER_VALUE_PATH",
-                                   _DEFAULT_SHUTTER_VALUE_PATH),
         train_rate_hz=float(getattr(cfg, "TRAIN_RATE_HZ", 10.0)),
         transition_trim_seconds=float(getattr(cfg, "TRANSITION_TRIM_SECONDS", 3.0)),
         first_section_state=str(getattr(cfg, "FIRST_SECTION_STATE", "open")),

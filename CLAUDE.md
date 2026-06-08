@@ -63,6 +63,7 @@ has `m = 400` bunches/train; the config 2 test file is truncated to
 | `z_std`              | (n, m)       | arb.   | Std of delay stage position (per train)    |
 | `hor_pos`            | (n,)         | arb.   | Per-train horizontal beam position         |
 | `ver_pos`            | (n,)         | arb.   | Per-train vertical beam position           |
+| `shutter`            | (n,)         | arb.   | Per-train fast-shutter level (NaN if absent in raw) |
 | `local_DAQ_running`  | (n,)         | bool   | True if local DAQ was active for the train |
 
 The `liq_tofs_e` last dim (50) is inherited from `tofs_e` (synthetic test
@@ -78,6 +79,7 @@ The config 1 writer pulls these from each `FLASH2_USER1_stream_2_run48346_*.h5`:
 | `mpe`       | `/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/value`              |
 | `hor_pos`   | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/value`               |
 | `ver_pos`   | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/value`                 |
+| `shutter`   | `/FL2/Beamlines/Fast Shutter/shutter/value` (multi-dim → nanmean'd to a scalar per train; optional in raw — combined H5 is NaN-filled when missing) |
 
 The 8-channel axis of `Pulse resolved energy` is *not* eight detector
 channels — it is per-pulse metadata channels (intensity, aux intensity,
@@ -153,9 +155,9 @@ Use `write_h5.py` for real measurements.
 ### `experiment_data.py`
 `ExperimentData` dataclass — container for one loaded combined-H5 dataset.
 - Fields: `config`, `tID`, `gmd`, `mpe`, `z`, `between_tdc_files`;
-  optional `tofs_e`, `tofs_i`, `liq_tofs_e`, `vls`; VLS metadata
-  `vls_pixel_ax`, `vls_sums`, `vls_coms`, `vls_widths`, `vls_crop_roi`,
-  `vls_background_roi`; `shot_mask`.
+  optional `tofs_e`, `tofs_i`, `liq_tofs_e`, `vls`, `shutter`; VLS
+  metadata `vls_pixel_ax`, `vls_sums`, `vls_coms`, `vls_widths`,
+  `vls_crop_roi`, `vls_background_roi`; `shot_mask`.
 - Properties: `.n_trains`, `.n_bunches`, `.mpe_broadcast`, `.vls_pixels`,
   `.valid_shots`, `.n_valid_shots`.
 - Transforms — each returns a **new** `ExperimentData` (never mutates):

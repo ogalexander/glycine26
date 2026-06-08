@@ -2,6 +2,10 @@
 Example config for ``compute_static_xas_cfg1.py`` — static XAS, config 1
 (electron + ion TOF).
 
+The shutter signal is now carried by the combined H5 (per-train
+``/shutter`` dataset written by ``write_h5.py``), so this script reads
+*only* the combined H5 — no separate raw-H5 lookup is needed.
+
 Each open-shutter section is assigned a nominal photon energy by section
 index. Per-shot (tofs_e, tofs_i, gmd) arrays are written to disk without
 any GMD binning or TOF histogramming; downstream notebooks decide how to
@@ -35,10 +39,6 @@ SIGNAL_BUNCH_RANGE = (10, 40)
 # load_data trimming.
 TRIM_START = 2
 TRIM_END   = 2
-
-# Fast shutter dataset paths (in the raw H5).
-SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"
-SHUTTER_VALUE_PATH = "/FL2/Beamlines/Fast Shutter/shutter/value"
 
 # Transition rejection around shutter moves.
 TRAIN_RATE_HZ           = 10.0

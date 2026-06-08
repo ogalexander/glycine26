@@ -40,7 +40,7 @@ class DataChunk():
         self.reset()
         self.count = 0
 
-    def add_row(self, is_data, tID, gmd, mpe, hor_pos, ver_pos, z , z_std, tofs_e, tofs_i, between_tdc_files):
+    def add_row(self, is_data, tID, gmd, mpe, hor_pos, ver_pos, z , z_std, tofs_e, tofs_i, between_tdc_files, shutter=np.nan):
         self.is_datas[self.idx] = is_data
         self.tIDs[self.idx] = tID
         self.gmds[self.idx] = gmd
@@ -49,6 +49,7 @@ class DataChunk():
         self.ver_poss[self.idx] = ver_pos
         self.zs[self.idx] = z
         self.z_stds[self.idx] = z_std
+        self.shutters[self.idx] = shutter
         self.between_tdc_filess[self.idx] = between_tdc_files
 
         if tofs_e is not None:
@@ -87,7 +88,7 @@ class DataChunk():
             return False
 
     def dump(self, tID_dset, data_flag_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset,
-        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset):
+        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset, shutter_dset):
         roi = np.s_[self.count*self.chunk_size:(self.count+1)*self.chunk_size]
         tID_dset[roi]                 = self.tIDs
         data_flag_dset[roi]           = self.is_datas
@@ -97,6 +98,7 @@ class DataChunk():
         mpe_dset[roi]                 = self.mpes
         hor_pos_dset[roi]             = self.hor_poss
         ver_pos_dset[roi]             = self.ver_poss
+        shutter_dset[roi]             = self.shutters
         # TOF datasets may be None when the run has no TDC .lst files.
         if tofs_es_dset is not None:
             tofs_es_dset[roi]         = self.tofs_es
@@ -114,6 +116,7 @@ class DataChunk():
         self.ver_poss = np.full((self.chunk_size, ), np.nan, dtype=np.float32)
         self.zs = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
         self.z_stds = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
+        self.shutters = np.full((self.chunk_size,), np.nan, dtype=np.float32)
         # Zero-padded uint32 TOF buffers: 0 means "no hit". (Was np.full(.., np.nan, uint32)
         # which raises an invalid-cast warning and stores 0 anyway.)
         self.tofs_es = np.zeros((self.chunk_size, self.train_length, self.max_ecounts), dtype=np.uint32)
@@ -126,7 +129,7 @@ class DataChunk():
         print('reset.')
 
     def finish(self, tID_dset, data_flag_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset,
-        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset):
+        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset, shutter_dset):
         self.is_datas            = self.is_datas[:self.idx-1]
         self.tIDs                = self.tIDs[:self.idx-1]
         self.gmds                = self.gmds[:self.idx-1]
@@ -135,6 +138,7 @@ class DataChunk():
         self.ver_poss            = self.ver_poss[:self.idx-1]
         self.zs                  = self.zs[:self.idx-1]
         self.z_stds              = self.z_stds[:self.idx-1]
+        self.shutters            = self.shutters[:self.idx-1]
         self.tofs_es             = self.tofs_es[:self.idx-1]
         self.tofs_is             = self.tofs_is[:self.idx-1]
         self.between_tdc_filess  = self.between_tdc_filess[:self.idx-1]
@@ -148,6 +152,7 @@ class DataChunk():
         mpe_dset[roi]               = self.mpes
         hor_pos_dset[roi]           = self.hor_poss
         ver_pos_dset[roi]           = self.ver_poss
+        shutter_dset[roi]           = self.shutters
         if tofs_es_dset is not None:
             tofs_es_dset[roi]       = self.tofs_es
         if tofs_is_dset is not None:
@@ -179,7 +184,7 @@ class DataChunkConfig2():
         self.count = 0
 
     def add_row(self, is_data, tID, gmd, mpe, hor_pos, ver_pos, z, z_std,
-                liq_tofs_e, vls, between_tdc_files):
+                liq_tofs_e, vls, between_tdc_files, shutter=np.nan):
         self.is_datas[self.idx]            = is_data
         self.tIDs[self.idx]                = tID
         self.gmds[self.idx]                = gmd
@@ -188,6 +193,7 @@ class DataChunkConfig2():
         self.ver_poss[self.idx]            = ver_pos
         self.zs[self.idx]                  = z
         self.z_stds[self.idx]              = z_std
+        self.shutters[self.idx]            = shutter
         self.between_tdc_filess[self.idx]  = between_tdc_files
 
         if liq_tofs_e is not None:
@@ -222,6 +228,7 @@ class DataChunkConfig2():
         dsets['mpe'][roi]                = self.mpes
         dsets['hor_pos'][roi]            = self.hor_poss
         dsets['ver_pos'][roi]            = self.ver_poss
+        dsets['shutter'][roi]            = self.shutters
         # liq_tofs_e is omitted from the schema when the run has no TDC files.
         if dsets.get('liq_tofs_e') is not None:
             dsets['liq_tofs_e'][roi]     = self.liq_tofs_es
@@ -238,6 +245,7 @@ class DataChunkConfig2():
         self.ver_poss            = np.full((self.chunk_size,), np.nan, dtype=np.float32)
         self.zs                  = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
         self.z_stds              = np.full((self.chunk_size, self.train_length), np.nan, dtype=np.float32)
+        self.shutters            = np.full((self.chunk_size,), np.nan, dtype=np.float32)
         self.liq_tofs_es         = np.zeros((self.chunk_size, self.train_length, self.max_ecounts), dtype=np.uint32)
         self.vls                 = np.full((self.chunk_size, self.train_length, self.n_vls_pixels), np.nan, dtype=np.float32)
         self.between_tdc_filess  = np.zeros((self.chunk_size,), dtype='bool')
@@ -255,6 +263,7 @@ class DataChunkConfig2():
         self.ver_poss            = self.ver_poss[:self.idx-1]
         self.zs                  = self.zs[:self.idx-1]
         self.z_stds              = self.z_stds[:self.idx-1]
+        self.shutters            = self.shutters[:self.idx-1]
         self.liq_tofs_es         = self.liq_tofs_es[:self.idx-1]
         self.vls                 = self.vls[:self.idx-1]
         self.between_tdc_filess  = self.between_tdc_filess[:self.idx-1]
@@ -268,6 +277,7 @@ class DataChunkConfig2():
         dsets['mpe'][roi]                = self.mpes
         dsets['hor_pos'][roi]            = self.hor_poss
         dsets['ver_pos'][roi]            = self.ver_poss
+        dsets['shutter'][roi]            = self.shutters
         if dsets.get('liq_tofs_e') is not None:
             dsets['liq_tofs_e'][roi]     = self.liq_tofs_es
         dsets['vls'][roi]                = self.vls
@@ -420,6 +430,33 @@ class h5Iterator:
     def load_file(self, h5_index):
         with h5.File(self._h5_paths[h5_index], 'r') as f:
             self._values = [np.array(f[key]) for key in self._keys]
+
+
+class h5IteratorReduced(h5Iterator):
+    """
+    Variant of :class:`h5Iterator` that reduces multi-dim per-train value
+    arrays to a 1D ``(n_trains,)`` scalar series via ``nanmean`` over the
+    trailing axes.
+
+    Used for streams (e.g. fast shutter) whose per-train value is a small
+    aux sample array but where downstream consumers only need the scalar
+    "shutter open / closed" level per train. String / object dtypes are
+    rejected.
+    """
+
+    def load_file(self, h5_index):
+        super().load_file(h5_index)
+        # values[0] = index, values[1] = value; only reduce the latter.
+        v = self._values[1]
+        if v.dtype.kind in ("S", "U", "O"):
+            raise NotImplementedError(
+                "h5IteratorReduced: non-numeric per-train values are not supported."
+            )
+        if v.ndim > 1:
+            self._values[1] = np.nanmean(
+                v.astype(np.float64), axis=tuple(range(1, v.ndim)),
+            )
+
 
 def decode_tdc_data(tdc_data_folder: str, measurement_name: str, decoded_data_folder: str) -> None:
     """
@@ -987,6 +1024,8 @@ _VER_INDEX = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall ver
 _VER_VALUE = "/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/value"
 _VLS_INDEX = "/FL2/Support Infrastructure/Gotthard/images/index"
 _VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
+_SHUTTER_INDEX = "/FL2/Beamlines/Fast Shutter/shutter/index"
+_SHUTTER_VALUE = "/FL2/Beamlines/Fast Shutter/shutter/value"
 
 _DEFAULT_TRAIN_LENGTH = {1: 101, 2: 110}
 _DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
@@ -1352,6 +1391,23 @@ def main(config_no, measurement_name, run_no, output_path=None,
     if config_no == 2:
         vls_it = h5Iterator(h5_paths[first_h5_idx:], [_VLS_INDEX, _VLS_VALUE])
 
+    # Shutter is optional in the raw H5. If the dataset is missing in
+    # any of the active files, fall back to NaN-fill for every train so
+    # the output schema is still complete.
+    shutter_it = None
+    try:
+        with h5.File(h5_paths[first_h5_idx], "r") as f_probe:
+            has_shutter = (_SHUTTER_INDEX in f_probe) and (_SHUTTER_VALUE in f_probe)
+    except OSError:
+        has_shutter = False
+    if has_shutter:
+        shutter_it = h5IteratorReduced(
+            h5_paths[first_h5_idx:], [_SHUTTER_INDEX, _SHUTTER_VALUE],
+        )
+        print("shutter        : found in raw H5; aligning by train ID.")
+    else:
+        print("shutter        : not found in raw H5; output /shutter will be NaN.")
+
     # --- Fast-forward each raw-H5 iterator to first_tID ----------------
     next_tID_gmd, next_gmd = _advance_to(gmd_it, first_tID, "gmd")
     next_tID_mpe, next_mpe = _advance_to(mpe_it, first_tID, "mpe")
@@ -1359,6 +1415,11 @@ def main(config_no, measurement_name, run_no, output_path=None,
     next_tID_ver_pos, next_ver_pos = _advance_to(ver_pos_it, first_tID, "ver_pos")
     if config_no == 2:
         next_tID_vls, next_vls = _advance_to(vls_it, first_tID, "vls")
+    if shutter_it is not None:
+        next_tID_shutter, next_shutter = _advance_to(shutter_it, first_tID, "shutter")
+    else:
+        next_tID_shutter = last_tID + 1
+        next_shutter = None
 
     next_tID_z, next_z, next_z_std = sdu_it.__next__()
     if has_tdc:
@@ -1393,6 +1454,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
         mpe_dset               = f_out.create_dataset("mpe",               (data_len,),               dtype=np.float32)
         hor_pos_dset           = f_out.create_dataset("hor_pos",           (data_len,),               dtype=np.float32)
         ver_pos_dset           = f_out.create_dataset("ver_pos",           (data_len,),               dtype=np.float32)
+        shutter_dset           = f_out.create_dataset("shutter",           (data_len,),               dtype=np.float32)
         between_tdc_files_dset = f_out.create_dataset("between_tdc_files", (data_len,),               dtype="bool")
 
         # TOF datasets are only written when TDC .lst files are present;
@@ -1424,6 +1486,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 "tID": tID_dset, "local_DAQ_running": data_flag_dset,
                 "z": z_dset, "z_std": z_std_dset, "gmd": gmd_dset,
                 "mpe": mpe_dset, "hor_pos": hor_pos_dset, "ver_pos": ver_pos_dset,
+                "shutter": shutter_dset,
                 "liq_tofs_e": liq_tofs_e_dset, "vls": vls_dset,
                 "between_tdc_files": between_tdc_files_dset,
             }
@@ -1431,7 +1494,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
         # Per-stream count of rows dropped because they were duplicates
         # of train IDs we already processed (raw H5 file boundary overlap).
         n_skipped_overlap = {"gmd": 0, "mpe": 0, "hor_pos": 0,
-                             "ver_pos": 0, "vls": 0}
+                             "ver_pos": 0, "vls": 0, "shutter": 0}
 
         # Per-train TOF bunch edges (np.arange(0..train_length) * fp);
         # precomputed once so the bunch-folder doesn't re-allocate.
@@ -1514,6 +1577,24 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     print(f"ver_pos stopped on {next_tID_ver_pos}. Subsequent are NaN.")
                     next_tID_ver_pos = last_tID + 1
                     ver_pos = np.nan
+
+            # ---- fast shutter --------------------------------------
+            if shutter_it is None:
+                shutter_val = np.nan
+            else:
+                next_tID_shutter, next_shutter, _ = _skip_stale_raw_h5(
+                    shutter_it, next_tID_shutter, next_shutter, tID, last_tID,
+                    n_skipped_overlap, "shutter",
+                )
+                if tID < next_tID_shutter:
+                    shutter_val = np.nan
+                elif tID == next_tID_shutter:
+                    shutter_val = float(next_shutter)
+                    try:
+                        next_tID_shutter, next_shutter = shutter_it.__next__()
+                    except StopIteration:
+                        print(f"shutter stopped on {next_tID_shutter}. Subsequent are NaN.")
+                        next_tID_shutter = last_tID + 1
 
             # ---- vls (config 2 only) -------------------------------
             vls = None
@@ -1598,13 +1679,14 @@ def main(config_no, measurement_name, run_no, output_path=None,
 
                 chunk_full = chunk.add_row(
                     is_data, tID, gmd, mpe, hor_pos, ver_pos, z, z_std,
-                    tofs_e, tofs_i, between_tdc_files,
+                    tofs_e, tofs_i, between_tdc_files, shutter=shutter_val,
                 )
                 if chunk_full:
                     chunk.dump(
                         tID_dset, data_flag_dset, z_dset, z_std_dset,
                         gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset,
                         tofs_e_dset, tofs_i_dset, between_tdc_files_dset,
+                        shutter_dset,
                     )
                     chunk.reset()
 
@@ -1632,7 +1714,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
 
                 chunk_full = chunk.add_row(
                     is_data, tID, gmd, mpe, hor_pos, ver_pos, z, z_std,
-                    liq_tofs_e, vls, between_tdc_files,
+                    liq_tofs_e, vls, between_tdc_files, shutter=shutter_val,
                 )
                 if chunk_full:
                     chunk.dump(dsets_cfg2)
@@ -1646,6 +1728,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 tID_dset, data_flag_dset, z_dset, z_std_dset,
                 gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset,
                 tofs_e_dset, tofs_i_dset, between_tdc_files_dset,
+                shutter_dset,
             )
         else:
             chunk.finish(dsets_cfg2)
