@@ -585,8 +585,18 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
 
     if sweeps_per_file > 500000:
         # if sweep preset > 14 hours, probably continuous scan (set 2^32-1) or manual stop
-        # we need to determine the actual amount of sweeps in the file        
-        sweeps_per_file=df.iloc[len(df)-1,2]    # read 32 bit sweep number of last event in file (is sorted already)
+        # we need to determine the actual amount of sweeps in the file
+        if len(df) > 0:
+            sweeps_per_file=df.iloc[len(df)-1,2]    # read 32 bit sweep number of last event in file (is sorted already)
+        else:
+            # Empty file in continuous-scan mode: there are no events, so the
+            # actual sweep count can't be recovered from the data and the
+            # 2^32-1 preset would make np.arange(sweeps_per_file) explode.
+            # Such files (e.g. a pre-beam acquisition started before the run)
+            # carry no TOFs, so contribute zero trains and let the iterator
+            # move on to the next file.
+            print('Empty continuous-scan file; contributing 0 trains.')
+            sweeps_per_file=0
     elif len(df)>0:
         alt_sweeps=df.iloc[len(df)-1,3]-df.iloc[0,3]+1    # read differences between bunchIDs (is sorted already)
         if alt_sweeps>sweeps_per_file:

@@ -242,6 +242,50 @@ with `M = Cov(A)`, `B = Cov(A, D)`.
 - `ADMMResult` dataclass: `.X`, `.n_iter`, `.converged`, `.history`
   (`primal`, `dual`, `objective` arrays).
 
+### Static-XAS scripts (photon-energy scans via the fast shutter)
+A photon-energy XAS scan steps the mono while the fast shutter gates
+acquisition: each **open** shutter section corresponds to one nominal
+photon energy, and the intervening **closed** sections give the
+shutter-down background. These scripts detect those sections from the
+per-train `/shutter` signal in the combined H5 and assign each open
+section a nominal energy *by section index* (so the order of
+`NOMINAL_ENERGIES` must match the scan order). Shutter detection lives
+in `compute_static_xas_cfg1.py`: percentile-threshold the signal,
+auto-flip polarity using the per-train hit score, and trim
+`TRANSITION_TRIM_SECONDS × TRAIN_RATE_HZ` trains around every state
+change to drop shutter-in-motion trains.
+
+- **`compute_static_xas_cfg1.py`** — config 1 (electron + ion TOF).
+  Reads `tofs_e`, `tofs_i`, `gmd`, `tID`, `shutter` from a combined H5
+  (via `load_data`), collects each open section's `SIGNAL_BUNCH_RANGE`
+  hits, and flattens train×bunch → shot. **Stops at flattening** — no
+  GMD binning, no TOF histogramming, no background subtraction (left to
+  downstream notebooks). Output `run<N>_cfg1_static_xas.h5`:
+  `tofs_e (N_E, N_shots, max_ecounts)`, `tofs_i (…, max_icounts)`,
+  `gmd (N_E, N_shots)` NaN-padded, `n_shots (N_E,)`,
+  `nominal_energies (N_E,)`; provenance in attrs (`mode='xas_static'`,
+  `config=1`, `run_no`, `signal_bunch_range`, section counts, transition
+  trim, …). CLI: `python compute_static_xas_cfg1.py CONFIG.py [-o OUT.h5] [-i IN.h5]`.
+- **`compute_static_xas.py`** — config 2 (VLS) counterpart. Same
+  section logic but with the full VLS pipeline (pixel crop → bunch-axis
+  roll → per-train background → per-section closed-shutter background →
+  signal-bunch crop), stopping after flattening. Writes `vls`, `gmd`,
+  `n_shots`, `nominal_energies`, `vls_pixels`, `section_bg`.
+- **`compute_xas_aggregates.py`** — the XAS analogue of
+  `compute_aggregates.py`: same section logic + VLS background pipeline,
+  but bins each open section by GMD into the `AggregatesData` layout
+  (`A`, `AtA`, `AtG`, `G`, `GtG`, `n_per_bin` of shape `(N_E, N_GMD, …)`).
+  Reads raw FLASH H5 directly (SDU/TDC streams not needed).
+
+Config modules live in `analysis/configs/xas_static/` (per-shot scripts)
+and `analysis/configs/aggregates_*xas*.py` (aggregate script); a single
+module can drive both — the aggregate script consumes the extra
+GMD-binning fields when present. Required keys: `RUN_NO`,
+`NOMINAL_ENERGIES`, `SIGNAL_BUNCH_RANGE`, `CONFIG`; `MODE` ∈ `{"xas",
+"xas_scan", "xas_static"}`. Config 2 adds `CROP_ROI`, `BG_BUNCH_RANGE`,
+`VLS_BUNCH_ROLL`. Optional: `INPUT_H5`, `TRIM_START/END`,
+`TRAIN_RATE_HZ`, `TRANSITION_TRIM_SECONDS`, `FIRST_SECTION_STATE`.
+
 ### Notebooks (`analysis/notebooks/`)
 - `diagnostics.ipynb` — GMD / beam-position / per-train diagnostics
   plus `plot_linearity` (GMD vs electrons and, for config 2, GMD vs
@@ -322,6 +366,35 @@ collapses to 1 (scalar eTOF count inside `tof_roi`), and `z_edges`
 
 ---
 
+## Post-Analysis Phase (publishable results)
+
+**The beamtime is complete — no more raw data will be produced.** The
+project has moved from quick-look analysis (early results) to
+**well-organised, repeatable analysis for publication.** All new
+analysis work lives in **`analysis/post/`** and follows these rules:
+
+- **One notebook = one well-defined analysis task.** Name it for the
+  task and the run(s) it consumes.
+- **Comment throughout.** Every notebook states, up front, the physics
+  question, the exact runs / datasets it reads (run numbers + combined-H5
+  / aggregate paths), and the analysis steps. Each cell carries a short
+  comment tying it to that task.
+- **Reuse the existing API.** Build on `data_loading`, `experiment_data`,
+  `processing`, `binning`, `plotting`, and the `compute_*` scripts rather
+  than re-implementing. Promote anything reused across notebooks into the
+  scripts package.
+- **Reproducible.** No hardcoded absolute paths — resolve everything
+  through `config.py`. Record run numbers and parameters in a header cell.
+
+The **maintained task list** for this phase is
+**`analysis/post/TASKS.md`** — tasks, subtasks, progress, and notes.
+The user owns and updates it; keep it current as work proceeds (it is
+the source of truth for what is done / next, in preference to the
+checklist below). The legacy quick-look notebooks remain in
+`analysis/notebooks/` for reference.
+
+---
+
 ## Current Status
 - [x] Analysis scripts written (data_loading, experiment_data, binning,
       processing, plotting)
@@ -349,6 +422,14 @@ collapses to 1 (scalar eTOF count inside `tof_roi`), and `z_edges`
       `admm_solve_tr`.
 - [x] `plot_linearity` integrated into `diagnostics.ipynb`; extended so
       config 2 shows integrated VLS as the secondary observable.
+- [x] Fast-shutter `/shutter` added to the combined-H5 schema
+      (`write_h5.py`); optional on load (`ExperimentData.shutter`).
+- [x] Static-XAS scripts: `compute_static_xas_cfg1.py` (e+i TOF
+      per-shot), `compute_static_xas.py` (VLS per-shot),
+      `compute_xas_aggregates.py` (GMD aggregates) — shutter-section
+      detection, nominal-energy-by-section.
+- [x] **Beamtime complete — entered the post-analysis phase.** See the
+      "Post-Analysis Phase" section above and `analysis/post/TASKS.md`.
 - [ ] Remaining plotting notebooks (energy maps, delay dependence) to be
       written.
 - [ ] Remote profile paths in `config.py` to be filled in once the
