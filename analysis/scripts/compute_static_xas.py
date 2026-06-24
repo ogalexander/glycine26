@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import glob
 import importlib.util
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -98,6 +99,54 @@ def _list_raw_h5_files(run_no: int, raw_dir: Path, max_files: Optional[int]):
     if max_files is not None:
         paths = paths[:max_files]
     return paths
+
+
+def _normalize_run_numbers(run_no):
+    if isinstance(run_no, str):
+        parts = run_no.replace(",", " ").split()
+        return [int(p) for p in parts]
+    if np.isscalar(run_no):
+        return [int(run_no)]
+    return [int(r) for r in run_no]
+
+
+def _run_label(run_numbers):
+    if len(run_numbers) == 1:
+        return f"run{run_numbers[0]}"
+    return "runs" + "_".join(str(r) for r in run_numbers)
+
+
+def _list_raw_h5_files_for_runs(run_numbers, raw_dir: Path, max_files: Optional[int]):
+    paths = []
+    for run in run_numbers:
+        paths.extend(_list_raw_h5_files(run, raw_dir, max_files))
+    return paths
+
+
+def _concat_experiment_data(parts):
+    if len(parts) == 1:
+        return parts[0]
+
+    def cat(name):
+        arrays = [getattr(p, name) for p in parts]
+        if arrays[0] is None:
+            return None
+        return np.concatenate(arrays, axis=0)
+
+    return replace(
+        parts[0],
+        tID=cat("tID"),
+        gmd=cat("gmd"),
+        mpe=cat("mpe"),
+        z=cat("z"),
+        between_tdc_files=cat("between_tdc_files"),
+        tofs_e=cat("tofs_e"),
+        tofs_i=cat("tofs_i"),
+        liq_tofs_e=cat("liq_tofs_e"),
+        vls=cat("vls"),
+        shutter=cat("shutter"),
+        shot_mask=cat("shot_mask"),
+    )
 
 
 def _read_aligned_shutter(
@@ -229,7 +278,7 @@ def _preceding_closed_indices(
 def compute_static_xas(
     output_h5,
     *,
-    run_no: int,
+    run_no,
     nominal_energies,
     crop_roi: Tuple[int, int],
     signal_bunch_range: Tuple[int, int],
@@ -258,7 +307,7 @@ def compute_static_xas(
     Parameters
     ----------
     output_h5 : str or Path
-    run_no : int
+    run_no : int or sequence of int
     nominal_energies : array-like
         Energies (eV) assigned to detected sections by index.
     crop_roi : (int, int)
@@ -290,6 +339,10 @@ def compute_static_xas(
 
     log = print if verbose else (lambda *a, **k: None)
 
+    run_numbers = _normalize_run_numbers(run_no)
+    if not run_numbers:
+        raise ValueError("run_no must contain at least one run number.")
+
     nominal_energies = np.asarray(nominal_energies, dtype=np.float64).ravel()
     roi_min, roi_max = int(crop_roi[0]), int(crop_roi[1])
     n_pixels = roi_max - roi_min
@@ -307,7 +360,7 @@ def compute_static_xas(
     else:
         raw_dir = Path(raw_dir)
 
-    log(f"run                : {run_no}")
+    log(f"run                : {_run_label(run_numbers)}")
     log(f"raw dir            : {raw_dir}")
     log(f"nominal energies   : {nominal_energies.size}  "
         f"({nominal_energies[0]:.2f} .. {nominal_energies[-1]:.2f} eV)")
@@ -319,9 +372,14 @@ def compute_static_xas(
     # ------------------------------------------------------------------
     # Load full run (gmd + vls), crop, per-train baseline subtraction
     # ------------------------------------------------------------------
-    data = data_loading.load_raw_h5(
-        run_no, config=2, raw_dir=raw_dir,
-        train_length=train_length, max_files=max_files,
+    data = _concat_experiment_data(
+        [
+            data_loading.load_raw_h5(
+                run, config=2, raw_dir=raw_dir,
+                train_length=train_length, max_files=max_files,
+            )
+            for run in run_numbers
+        ]
     )
     if data.vls is None:
         raise RuntimeError("load_raw_h5 returned no VLS data for this run.")
@@ -342,7 +400,7 @@ def compute_static_xas(
     # ------------------------------------------------------------------
     # Shutter section detection
     # ------------------------------------------------------------------
-    h5_paths = _list_raw_h5_files(run_no, raw_dir, max_files)
+    h5_paths = _list_raw_h5_files_for_runs(run_numbers, raw_dir, max_files)
     shutter  = _read_aligned_shutter(
         h5_paths, shutter_index_path, shutter_value_path, data.tID,
     )
@@ -446,7 +504,10 @@ def compute_static_xas(
 
         fout.attrs["mode"]                    = "xas_static"
         fout.attrs["config"]                  = int(config)
-        fout.attrs["run_no"]                  = int(run_no)
+        fout.attrs["run_no"]                  = (
+            int(run_numbers[0]) if len(run_numbers) == 1
+            else np.asarray(run_numbers, dtype=np.int64)
+        )
         fout.attrs["raw_dir"]                 = str(raw_dir)
         fout.attrs["n_sections_detected"]     = int(n_detected)
         fout.attrs["n_sections_used"]         = int(n_e)
@@ -497,11 +558,11 @@ def main(argv=None) -> None:
             f"got {mode!r}."
         )
 
-    run_no = int(cfg.RUN_NO)
+    run_no = _normalize_run_numbers(cfg.RUN_NO)
     if args.output is None:
         import config as path_config
         out_dir = Path(path_config.COMBINED_DIR).parent / "xas_static"
-        out = out_dir / f"run{run_no}_static_xas.h5"
+        out = out_dir / f"{_run_label(run_no)}_static_xas.h5"
     else:
         out = args.output
 
