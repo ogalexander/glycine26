@@ -24,8 +24,8 @@ Output H5 layout (default:
 Config file
 -----------
 Python module exposing: ``RUN_NO``, ``NOMINAL_ENERGIES``,
-``SIGNAL_BUNCH_RANGE``, ``CONFIG = 1``, plus optional trim and
-shutter-transition knobs and an optional ``INPUT_H5`` override.
+``SIGNAL_BUNCH_RANGE``, ``CONFIG = 1``, plus optional trim,
+section-detection knobs, and an optional ``INPUT_H5`` override.
 ``MODE`` may be any of ``"xas"``, ``"xas_scan"``, or ``"xas_static"``.
 
 CLI
@@ -48,6 +48,7 @@ import data_loading
 __all__ = ["compute_static_xas_cfg1", "main"]
 
 ACCEPTED_XAS_MODES = ("xas", "xas_scan", "xas_static")
+ACCEPTED_SECTION_SOURCES = ("shutter", "tid_starts")
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -113,6 +114,49 @@ def _detect_sections(
     return open_blocks, closed_blocks, is_open_raw, is_closed_raw, valid_mask
 
 
+def _detect_tid_start_sections(
+    tID: np.ndarray,
+    section_tid_starts,
+    local_daq_running: np.ndarray | None,
+):
+    """
+    Build section blocks from explicit train-ID starts.
+
+    Section i is the half-open train-ID interval
+    ``[SECTION_TID_STARTS[i], SECTION_TID_STARTS[i + 1])``; the last
+    section runs to the end of the loaded data. If ``/local_DAQ_running``
+    exists, only those trains are valid inside each section so gaps
+    between per-energy local-DAQ files do not become shots.
+    """
+    starts = np.asarray(section_tid_starts, dtype=np.int64).ravel()
+    if starts.size == 0:
+        raise ValueError("SECTION_TID_STARTS must contain at least one train ID.")
+    if np.any(np.diff(starts) <= 0):
+        raise ValueError("SECTION_TID_STARTS must be strictly increasing.")
+
+    tids = np.asarray(tID, dtype=np.int64)
+    base_valid = np.ones(tids.shape, dtype=bool)
+    if local_daq_running is not None:
+        base_valid &= np.asarray(local_daq_running, dtype=bool)
+
+    open_blocks = []
+    valid_mask = np.zeros(tids.shape, dtype=bool)
+    for i, start in enumerate(starts):
+        stop = starts[i + 1] if i + 1 < starts.size else tids[-1] + 1
+        s = int(np.searchsorted(tids, start, side="left"))
+        e = int(np.searchsorted(tids, stop, side="left"))
+        if s < e:
+            valid_mask[s:e] |= base_valid[s:e]
+        open_blocks.append((s, e))
+
+    is_open_raw = np.zeros(tids.shape, dtype=bool)
+    for s, e in open_blocks:
+        is_open_raw[s:e] = True
+    is_closed_raw = ~is_open_raw
+    closed_blocks = _contiguous_true_blocks(is_closed_raw)
+    return open_blocks, closed_blocks, is_open_raw, is_closed_raw, valid_mask
+
+
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -129,6 +173,8 @@ def compute_static_xas_cfg1(
     train_rate_hz: float = 10.0,
     transition_trim_seconds: float = 3.0,
     first_section_state: str = "open",
+    section_source: str = "shutter",
+    section_tid_starts=None,
     config_path=None,
     verbose: bool = True,
 ) -> None:
@@ -169,6 +215,12 @@ def compute_static_xas_cfg1(
     first_section_state = str(first_section_state).strip().lower()
     if first_section_state not in ("open", "closed"):
         raise ValueError("first_section_state must be 'open' or 'closed'.")
+    section_source = str(section_source).strip().lower()
+    if section_source not in ACCEPTED_SECTION_SOURCES:
+        raise ValueError(
+            f"section_source must be one of {ACCEPTED_SECTION_SOURCES}, "
+            f"got {section_source!r}."
+        )
 
     import config as path_config
     if input_h5 is None:
@@ -196,7 +248,7 @@ def compute_static_xas_cfg1(
             f"Combined H5 {input_h5} is missing tofs_e or tofs_i — "
             "rebuild it with write_h5.py before running this script."
         )
-    if data.shutter is None:
+    if section_source == "shutter" and data.shutter is None:
         raise RuntimeError(
             f"Combined H5 {input_h5} has no /shutter dataset — rebuild "
             "it with the current write_h5.py (which adds shutter to the "
@@ -206,7 +258,11 @@ def compute_static_xas_cfg1(
     tofs_e  = np.asarray(data.tofs_e)              # (n_trains, m, max_ecounts)
     tofs_i  = np.asarray(data.tofs_i)              # (n_trains, m, max_icounts)
     gmd     = np.asarray(data.gmd, dtype=np.float64)  # (n_trains, m)
-    shutter = np.asarray(data.shutter, dtype=np.float64)  # (n_trains,)
+    shutter = (
+        np.asarray(data.shutter, dtype=np.float64)
+        if data.shutter is not None else None
+    )  # (n_trains,)
+    local_daq_running = data.local_daq_running
 
     n_trains, m, max_ecounts = tofs_e.shape
     _, _, max_icounts        = tofs_i.shape
@@ -216,17 +272,28 @@ def compute_static_xas_cfg1(
         f"max_ecounts={max_ecounts}, max_icounts={max_icounts}")
 
     # ------------------------------------------------------------------
-    # Shutter section detection
+    # Section detection
     # ------------------------------------------------------------------
-    # Per-train signal score: total non-zero electron hits in signal bunches.
-    train_score = np.sum(
-        tofs_e[:, sig_b0:sig_b1, :] > 0, axis=(1, 2),
-    ).astype(np.float64)
-
     transition_trim_trains = int(round(transition_trim_seconds * train_rate_hz))
-    open_blocks, closed_blocks, is_open_raw, _is_closed_raw, valid_mask = (
-        _detect_sections(shutter, train_score, transition_trim_trains)
-    )
+    if section_source == "shutter":
+        # Per-train signal score: total non-zero electron hits in signal bunches.
+        train_score = np.sum(
+            tofs_e[:, sig_b0:sig_b1, :] > 0, axis=(1, 2),
+        ).astype(np.float64)
+        open_blocks, closed_blocks, is_open_raw, _is_closed_raw, valid_mask = (
+            _detect_sections(shutter, train_score, transition_trim_trains)
+        )
+    else:
+        if section_tid_starts is None:
+            raise ValueError(
+                "SECTION_TID_STARTS is required when SECTION_SOURCE='tid_starts'."
+            )
+        open_blocks, closed_blocks, is_open_raw, _is_closed_raw, valid_mask = (
+            _detect_tid_start_sections(
+                data.tID, section_tid_starts, local_daq_running,
+            )
+        )
+        transition_trim_trains = 0
     if not open_blocks:
         raise RuntimeError("No open-shutter sections detected.")
     if not closed_blocks:
@@ -317,6 +384,12 @@ def compute_static_xas_cfg1(
         fout.attrs["transition_trim_seconds"] = float(transition_trim_seconds)
         fout.attrs["transition_trim_trains"]  = int(transition_trim_trains)
         fout.attrs["first_section_state"]     = first_section_state
+        fout.attrs["section_source"]          = section_source
+        if section_tid_starts is not None:
+            fout.create_dataset(
+                "section_tid_starts",
+                data=np.asarray(section_tid_starts, dtype=np.int64),
+            )
         if config_path is not None:
             fout.attrs["config_path"] = str(config_path)
 
@@ -379,6 +452,8 @@ def main(argv=None) -> None:
         train_rate_hz=float(getattr(cfg, "TRAIN_RATE_HZ", 10.0)),
         transition_trim_seconds=float(getattr(cfg, "TRANSITION_TRIM_SECONDS", 3.0)),
         first_section_state=str(getattr(cfg, "FIRST_SECTION_STATE", "open")),
+        section_source=str(getattr(cfg, "SECTION_SOURCE", "shutter")),
+        section_tid_starts=getattr(cfg, "SECTION_TID_STARTS", None),
         config_path=args.config_path,
     )
 

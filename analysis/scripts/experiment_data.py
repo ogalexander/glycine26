@@ -66,6 +66,10 @@ class ExperimentData:
         Delay stage position, shape (n, m).
     between_tdc_files : np.ndarray
         Boolean flag for bad/incomplete trains, shape (n,).
+    local_daq_running : np.ndarray, optional
+        Boolean flag for trains where the local DAQ/SDU stream carried
+        data, shape (n,). Present in combined H5 files written by
+        ``write_h5.py`` as ``/local_DAQ_running``.
     tofs_e : np.ndarray, optional
         Electron TOF hits (config 1), shape (n, m, 50). Units: ns.
     tofs_i : np.ndarray, optional
@@ -115,6 +119,7 @@ class ExperimentData:
     mpe: np.ndarray
     z: np.ndarray
     between_tdc_files: np.ndarray
+    local_daq_running: Optional[np.ndarray] = field(default=None)
     tofs_e: Optional[np.ndarray] = field(default=None)
     tofs_i: Optional[np.ndarray] = field(default=None)
     liq_tofs_e: Optional[np.ndarray] = field(default=None)
@@ -492,6 +497,7 @@ class ExperimentData:
             mpe=self.mpe[sl],
             shutter=_1d(self.shutter),
             between_tdc_files=self.between_tdc_files[sl],
+            local_daq_running=_1d(self.local_daq_running),
             gmd=self.gmd[sl, :],
             z=self.z[sl, :],
             tofs_e=_3d(rolled_tofs_e),
@@ -700,6 +706,7 @@ class ExperimentData:
             mpe=self.mpe[keep],
             shutter=_1d(self.shutter),
             between_tdc_files=self.between_tdc_files[keep],
+            local_daq_running=_1d(self.local_daq_running),
             gmd=self.gmd[keep, :],
             z=self.z[keep, :],
             tofs_e=_3d(self.tofs_e),

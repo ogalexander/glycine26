@@ -150,6 +150,7 @@ def _concat_experiment_data(parts):
         mpe=cat("mpe"),
         z=cat("z"),
         between_tdc_files=cat("between_tdc_files"),
+        local_daq_running=cat("local_daq_running"),
         tofs_e=cat("tofs_e"),
         tofs_i=cat("tofs_i"),
         liq_tofs_e=cat("liq_tofs_e"),

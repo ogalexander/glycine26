@@ -46,3 +46,13 @@ TRANSITION_TRIM_SECONDS = 3.0
 
 # Protocol prior: "open" means the scan begins with the shutter open.
 FIRST_SECTION_STATE = "open"
+
+# Section detection. Default "shutter" thresholds the /shutter trace in
+# the combined H5. Use "tid_starts" for scans where each local-DAQ file
+# is one energy and the shutter readback is not a clean binary signal.
+# SECTION_SOURCE = "tid_starts"
+# SECTION_TID_STARTS = np.array([
+#     2661317895,
+#     2661320027,
+#     2661322085,
+# ])

@@ -79,6 +79,7 @@ def load_data(
         mpe              = load("mpe")               # (n,)
         z                = load("z")                 # (n, m)
         btf              = load("between_tdc_files") # (n,)
+        local_daq_running = load("local_DAQ_running") if "local_DAQ_running" in f else None
 
         # Shutter was added to the combined-H5 schema after the initial
         # write_h5 release; treat as optional so older files still load.
@@ -127,6 +128,7 @@ def load_data(
         mpe=mpe,
         z=z,
         between_tdc_files=btf,
+        local_daq_running=local_daq_running,
         tofs_e=tofs_e,
         tofs_i=tofs_i,
         liq_tofs_e=liq_tofs_e,
