@@ -11,7 +11,8 @@ visualisation.
 
 Output H5 layout (default: <processed/xas_static>/run<N>_static_xas.h5):
     /vls               (N_E, N_shots, n_pixels)  float64, NaN-padded
-    /gmd               (N_E, N_shots)            float64, NaN-padded
+    /gmd               (N_E, N_shots)            float64, NaN-padded, hall
+    /gmd_tunnel        (N_E, N_shots)            float64, NaN-padded
     /n_shots           (N_E,)                    int64
     /nominal_energies  (N_E,)                    float64  eV
     /vls_pixels        (n_pixels,)               int64    source-pixel indices
@@ -41,6 +42,7 @@ from __future__ import annotations
 import argparse
 import glob
 import importlib.util
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -57,6 +59,15 @@ __all__ = ["compute_static_xas", "main"]
 
 _DEFAULT_SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"
 _DEFAULT_SHUTTER_VALUE_PATH = "/FL2/Beamlines/Fast Shutter/shutter/value"
+
+_GMD_TUNNEL_INDEX_CANDIDATES = (
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index",
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/tunnel/index",
+)
+_GMD_TUNNEL_VALUE_CANDIDATES = (
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/value",
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/tunnel/value",
+)
 
 # Config MODE strings accepted by both this script and
 # compute_xas_aggregates. The two pipelines share inputs and
@@ -100,6 +111,54 @@ def _list_raw_h5_files(run_no: int, raw_dir: Path, max_files: Optional[int]):
     return paths
 
 
+def _normalize_run_numbers(run_no):
+    if isinstance(run_no, str):
+        parts = run_no.replace(",", " ").split()
+        return [int(p) for p in parts]
+    if np.isscalar(run_no):
+        return [int(run_no)]
+    return [int(r) for r in run_no]
+
+
+def _run_label(run_numbers):
+    if len(run_numbers) == 1:
+        return f"run{run_numbers[0]}"
+    return "runs" + "_".join(str(r) for r in run_numbers)
+
+
+def _list_raw_h5_files_for_runs(run_numbers, raw_dir: Path, max_files: Optional[int]):
+    paths = []
+    for run in run_numbers:
+        paths.extend(_list_raw_h5_files(run, raw_dir, max_files))
+    return paths
+
+
+def _concat_experiment_data(parts):
+    if len(parts) == 1:
+        return parts[0]
+
+    def cat(name):
+        arrays = [getattr(p, name) for p in parts]
+        if arrays[0] is None:
+            return None
+        return np.concatenate(arrays, axis=0)
+
+    return replace(
+        parts[0],
+        tID=cat("tID"),
+        gmd=cat("gmd"),
+        mpe=cat("mpe"),
+        z=cat("z"),
+        between_tdc_files=cat("between_tdc_files"),
+        tofs_e=cat("tofs_e"),
+        tofs_i=cat("tofs_i"),
+        liq_tofs_e=cat("liq_tofs_e"),
+        vls=cat("vls"),
+        shutter=cat("shutter"),
+        shot_mask=cat("shot_mask"),
+    )
+
+
 def _read_aligned_shutter(
     h5_paths,
     idx_path: str,
@@ -132,6 +191,67 @@ def _read_aligned_shutter(
     matched, src_pos = data_loading._align_by_tID(src_idx, master_tID)
     out[matched] = src_val[src_pos]
     return out
+
+
+def _read_aligned_pulse_gmd(
+    h5_paths,
+    index_candidates,
+    value_candidates,
+    master_tID: np.ndarray,
+    train_length: int,
+    *,
+    channel: int = 0,
+):
+    """
+    Concatenate pulse-resolved GMD index/value datasets and align to
+    ``master_tID``. Missing trains and bunches are NaN-filled.
+
+    Returns
+    -------
+    out, index_path, value_path
+        ``out`` is ``None`` if no matching path pair was found.
+    """
+    index_path = value_path = None
+    for fp in h5_paths:
+        with h5py.File(fp, "r") as f:
+            if index_path is None:
+                for p in index_candidates:
+                    if p in f:
+                        index_path = p
+                        break
+            if value_path is None:
+                for p in value_candidates:
+                    if p in f:
+                        value_path = p
+                        break
+        if index_path is not None and value_path is not None:
+            break
+
+    if index_path is None or value_path is None:
+        return None, index_path, value_path
+
+    out = np.full((master_tID.shape[0], train_length), np.nan, dtype=np.float64)
+    for fp in h5_paths:
+        with h5py.File(fp, "r") as f:
+            if index_path not in f or value_path not in f:
+                continue
+            src_idx = f[index_path][...]
+            val = f[value_path]
+            if val.ndim == 3:
+                m = min(val.shape[2], train_length)
+                src_val = val[:, int(channel), :m]
+            elif val.ndim == 2:
+                m = min(val.shape[1], train_length)
+                src_val = val[:, :m]
+            elif val.ndim == 1:
+                m = 1
+                src_val = val[:, None]
+            else:
+                continue
+            matched, src_pos = data_loading._align_by_tID(src_idx, master_tID)
+            if matched.any():
+                out[matched, :m] = np.asarray(src_val[src_pos], dtype=np.float64)
+    return out, index_path, value_path
 
 
 def _contiguous_true_blocks(mask: np.ndarray):
@@ -229,7 +349,7 @@ def _preceding_closed_indices(
 def compute_static_xas(
     output_h5,
     *,
-    run_no: int,
+    run_no,
     nominal_energies,
     crop_roi: Tuple[int, int],
     signal_bunch_range: Tuple[int, int],
@@ -258,7 +378,7 @@ def compute_static_xas(
     Parameters
     ----------
     output_h5 : str or Path
-    run_no : int
+    run_no : int or sequence of int
     nominal_energies : array-like
         Energies (eV) assigned to detected sections by index.
     crop_roi : (int, int)
@@ -290,6 +410,10 @@ def compute_static_xas(
 
     log = print if verbose else (lambda *a, **k: None)
 
+    run_numbers = _normalize_run_numbers(run_no)
+    if not run_numbers:
+        raise ValueError("run_no must contain at least one run number.")
+
     nominal_energies = np.asarray(nominal_energies, dtype=np.float64).ravel()
     roi_min, roi_max = int(crop_roi[0]), int(crop_roi[1])
     n_pixels = roi_max - roi_min
@@ -307,7 +431,7 @@ def compute_static_xas(
     else:
         raw_dir = Path(raw_dir)
 
-    log(f"run                : {run_no}")
+    log(f"run                : {_run_label(run_numbers)}")
     log(f"raw dir            : {raw_dir}")
     log(f"nominal energies   : {nominal_energies.size}  "
         f"({nominal_energies[0]:.2f} .. {nominal_energies[-1]:.2f} eV)")
@@ -319,9 +443,14 @@ def compute_static_xas(
     # ------------------------------------------------------------------
     # Load full run (gmd + vls), crop, per-train baseline subtraction
     # ------------------------------------------------------------------
-    data = data_loading.load_raw_h5(
-        run_no, config=2, raw_dir=raw_dir,
-        train_length=train_length, max_files=max_files,
+    data = _concat_experiment_data(
+        [
+            data_loading.load_raw_h5(
+                run, config=2, raw_dir=raw_dir,
+                train_length=train_length, max_files=max_files,
+            )
+            for run in run_numbers
+        ]
     )
     if data.vls is None:
         raise RuntimeError("load_raw_h5 returned no VLS data for this run.")
@@ -336,13 +465,28 @@ def compute_static_xas(
     data = data.auto_subtract_background_trainwise((bg_b0, bg_b1))
 
     vls = np.asarray(data.vls, dtype=np.float64)   # (n_trains, m, n_pixels)
-    gmd = np.asarray(data.gmd, dtype=np.float64)   # (n_trains, m)
+    gmd = np.asarray(data.gmd, dtype=np.float64)   # (n_trains, m), hall GMD
     n_trains = vls.shape[0]
+
+    h5_paths = _list_raw_h5_files_for_runs(run_numbers, raw_dir, max_files)
+    gmd_tunnel, gmd_tunnel_index_path, gmd_tunnel_value_path = _read_aligned_pulse_gmd(
+        h5_paths,
+        _GMD_TUNNEL_INDEX_CANDIDATES,
+        _GMD_TUNNEL_VALUE_CANDIDATES,
+        data.tID,
+        m,
+        channel=0,
+    )
+    gmd_tunnel_present = gmd_tunnel is not None
+    if gmd_tunnel is None:
+        gmd_tunnel = np.full_like(gmd, np.nan, dtype=np.float64)
+        log("GMD tunnel         : not found; /gmd_tunnel will be NaN-filled")
+    else:
+        log(f"GMD tunnel         : {gmd_tunnel_value_path}")
 
     # ------------------------------------------------------------------
     # Shutter section detection
     # ------------------------------------------------------------------
-    h5_paths = _list_raw_h5_files(run_no, raw_dir, max_files)
     shutter  = _read_aligned_shutter(
         h5_paths, shutter_index_path, shutter_value_path, data.tID,
     )
@@ -375,6 +519,7 @@ def compute_static_xas(
     section_bg  = np.full((n_e, m, n_pixels), np.nan, dtype=np.float64)
     vls_shots: list[np.ndarray] = []
     gmd_shots: list[np.ndarray] = []
+    gmd_tunnel_shots: list[np.ndarray] = []
     n_shots_arr = np.zeros(n_e, dtype=np.int64)
 
     log(f"collecting shots over {n_e} sections...")
@@ -388,6 +533,7 @@ def compute_static_xas(
             log(f"  section {i:>3d} (E={energies[i]:.2f} eV): no open trains; skipping")
             vls_shots.append(np.empty((0, n_pixels), dtype=np.float64))
             gmd_shots.append(np.empty(0, dtype=np.float64))
+            gmd_tunnel_shots.append(np.empty(0, dtype=np.float64))
             continue
 
         sec_closed_idx = _preceding_closed_indices(
@@ -406,13 +552,16 @@ def compute_static_xas(
             - bg2d[None, sig_b0:sig_b1, :]
         )
         G_block = gmd[sec_open_idx, sig_b0:sig_b1]              # (n_sec, n_sig)
+        G_tunnel_block = gmd_tunnel[sec_open_idx, sig_b0:sig_b1]
 
         A_flat = A_block.reshape(-1, n_pixels)
         G_flat = G_block.reshape(-1)
+        G_tunnel_flat = G_tunnel_block.reshape(-1)
 
         n_shots_arr[i] = A_flat.shape[0]
         vls_shots.append(A_flat)
         gmd_shots.append(G_flat)
+        gmd_tunnel_shots.append(G_tunnel_flat)
         log(f"  section {i:>3d} (E={energies[i]:.2f} eV): "
             f"open trains={sec_open_idx.size:>4d}  "
             f"bg trains={sec_closed_idx.size:>4d}  "
@@ -424,11 +573,13 @@ def compute_static_xas(
     n_shots_max = int(n_shots_arr.max()) if n_e > 0 else 0
     vls_out = np.full((n_e, n_shots_max, n_pixels), np.nan, dtype=np.float64)
     gmd_out = np.full((n_e, n_shots_max),            np.nan, dtype=np.float64)
-    for i, (A, G) in enumerate(zip(vls_shots, gmd_shots)):
+    gmd_tunnel_out = np.full((n_e, n_shots_max),     np.nan, dtype=np.float64)
+    for i, (A, G, Gt) in enumerate(zip(vls_shots, gmd_shots, gmd_tunnel_shots)):
         n = A.shape[0]
         if n > 0:
             vls_out[i, :n] = A
             gmd_out[i, :n] = G
+            gmd_tunnel_out[i, :n] = Gt
 
     # ------------------------------------------------------------------
     # Write output
@@ -438,6 +589,7 @@ def compute_static_xas(
     with h5py.File(output_h5, "w") as fout:
         fout.create_dataset("vls",              data=vls_out,     compression="gzip")
         fout.create_dataset("gmd",              data=gmd_out,     compression="gzip")
+        fout.create_dataset("gmd_tunnel",       data=gmd_tunnel_out, compression="gzip")
         fout.create_dataset("n_shots",          data=n_shots_arr)
         fout.create_dataset("nominal_energies", data=energies)
         fout.create_dataset("vls_pixels",
@@ -446,7 +598,10 @@ def compute_static_xas(
 
         fout.attrs["mode"]                    = "xas_static"
         fout.attrs["config"]                  = int(config)
-        fout.attrs["run_no"]                  = int(run_no)
+        fout.attrs["run_no"]                  = (
+            int(run_numbers[0]) if len(run_numbers) == 1
+            else np.asarray(run_numbers, dtype=np.int64)
+        )
         fout.attrs["raw_dir"]                 = str(raw_dir)
         fout.attrs["n_sections_detected"]     = int(n_detected)
         fout.attrs["n_sections_used"]         = int(n_e)
@@ -460,6 +615,11 @@ def compute_static_xas(
         fout.attrs["first_section_state"]     = first_section_state
         fout.attrs["shutter_index_path"]      = shutter_index_path
         fout.attrs["shutter_value_path"]      = shutter_value_path
+        fout.attrs["gmd_tunnel_present"]      = bool(gmd_tunnel_present)
+        if gmd_tunnel_index_path is not None:
+            fout.attrs["gmd_tunnel_index_path"] = gmd_tunnel_index_path
+        if gmd_tunnel_value_path is not None:
+            fout.attrs["gmd_tunnel_value_path"] = gmd_tunnel_value_path
         if config_path is not None:
             fout.attrs["config_path"] = str(config_path)
 
@@ -497,11 +657,11 @@ def main(argv=None) -> None:
             f"got {mode!r}."
         )
 
-    run_no = int(cfg.RUN_NO)
+    run_no = _normalize_run_numbers(cfg.RUN_NO)
     if args.output is None:
         import config as path_config
         out_dir = Path(path_config.COMBINED_DIR).parent / "xas_static"
-        out = out_dir / f"run{run_no}_static_xas.h5"
+        out = out_dir / f"{_run_label(run_no)}_static_xas.h5"
     else:
         out = args.output
 
