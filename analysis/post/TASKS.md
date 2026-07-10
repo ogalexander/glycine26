@@ -149,6 +149,32 @@ volumes overlap (coincident signal ⇒ shared volume).
 
 ---
 
+## 6b. Scaled partial covariance (e–e on KE axis)  ◐  *(scaffold ready)*
+**Notebook:** `analysis/post/ee_covariance_ke_scaled_partial.ipynb`
+**Objective:** Plot the electron–electron covariance on a KE axis (Task-1
+TOF→KE calibration) and test how scaling the GMD common-mode subtraction —
+`pCov(α) = Cov(D,D) − α·Cov(D,G)Cov(D,G)ᵀ/Var(G)` with α chosen to
+minimise the residual in an a-priori-uncorrelated region of the map —
+changes the covariance map shape relative to the standard α = 1 partial.
+
+**Data:** any config-1 aggregates H5 (defaults to the glycine 272.0 eV
+delay-scan aggregates) + the Task-1 calibration JSON.
+
+**Subtasks:**
+- [x] ☑ Notebook scaffold: KE mapping (Jacobian-corrected density),
+      closed-form α* per GMD bin, α scan, map comparisons.
+- [ ] ☐ Choose the a-priori-uncorrelated KE rectangles from the raw map
+      (placeholder `(30–60) × (150–250)` eV currently).
+- [ ] ☐ Run on real aggregates; interpret α* vs GMD bin (α*>1 ⇒
+      under-subtraction / nonlinear GMD response).
+
+**Notes:**
+- Depends on Task 1's persisted calibration
+  (`analysis/post/calibration/etof_tof_to_ke_argon_nozzle_in.json`).
+- Same machinery applies to i–i and e–i covariance if useful.
+
+---
+
 ## 7. Train uniformity of pulse energy & spectrum (VLS)  ☐
 **Notebook:** `analysis/post/train_uniformity_vls.ipynb`
 **Objective:** Verify the per-bunch pulse-energy distribution and the
