@@ -17,6 +17,8 @@ Output H5 layout (default: <processed/xas_static>/run<N>_static_xas.h5):
     /nominal_energies  (N_E,)                    float64  eV
     /vls_pixels        (n_pixels,)               int64    source-pixel indices
     /section_bg        (N_E, m_bunches, n_pixels) float64 per-section bg
+    /ml/*              compact per-shot identity, GMD-channel, feature,
+                       and QC datasets aligned to the /vls flatten order
     attrs:  mode='xas_static', config, run_no, vls_crop_roi,
             vls_bunch_roll, signal_bunch_range, bg_bunch_range,
             n_sections_detected, n_sections_used,
@@ -68,6 +70,212 @@ _GMD_TUNNEL_VALUE_CANDIDATES = (
     "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/value",
     "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/tunnel/value",
 )
+_GMD_HALL_INDEX_CANDIDATES = (
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/index",
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/hall/index",
+)
+_GMD_HALL_VALUE_CANDIDATES = (
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/value",
+    "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/hall/value",
+)
+
+_UNDULATOR_K_PATHS = [
+    f"/Electron Diagnostic/Undulator setting/SASE{i:02d} k value"
+    for i in range(2, 14)
+]
+_UNDULATOR_GAP_PATH_CANDIDATES = {
+    i: (
+        f"/Electron Diagnostic/Undulator setting/SASE{i:02d} gap",
+        f"/FL2/Electron Diagnostic/Undulator setting/SASE{i:02d} gap",
+    )
+    for i in range(2, 14)
+}
+_SET_WAVELENGTH_1 = "/Electron Diagnostic/Undulator setting/set wavelength 1"
+_SET_WAVELENGTH_2 = "/Electron Diagnostic/Undulator setting/set wavelength 2"
+_GAP_ERROR = "/Electron Diagnostic/Undulator setting/gap error"
+_ATTENUATOR_PRESSURE = "/FL2/Beamlines/Attenuator/pressure"
+_OPIS_MEAN_PHOTON_ENERGY = "/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy"
+_OPIS_MEAN_WAVELENGTH = "/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean wavelength"
+_OPIS_NUMBER_ANALYSED_BUNCH = (
+    "/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/number of analysed bunch"
+)
+
+_SLOW_SCALAR_FEATURE_PATHS = {
+    "attenuator_gas_type": "/FL2/Beamlines/Attenuator/gas type",
+    "filter_position_1": "/FL2/Beamlines/Filters/position filter 1",
+    "filter_position_2": "/FL2/Beamlines/Filters/position filter 2",
+    "filter_fundamental_transmission_wheel_1": (
+        "/FL2/Beamlines/Filters/fundamental transmission filter wheel 1"
+    ),
+    "filter_fundamental_transmission_wheel_2": (
+        "/FL2/Beamlines/Filters/fundamental transmission filter wheel 2"
+    ),
+    "filter_third_harmonic_transmission_wheel_1": (
+        "/FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 1"
+    ),
+    "filter_third_harmonic_transmission_wheel_2": (
+        "/FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 2"
+    ),
+    "tunnel_aperture1_horizontal": (
+        "/FL2/Beamlines/Tunnel Apertures/position aperture1 horizontal"
+    ),
+    "tunnel_aperture1_vertical": (
+        "/FL2/Beamlines/Tunnel Apertures/position aperture1 vertical"
+    ),
+    "tunnel_aperture2_horizontal": (
+        "/FL2/Beamlines/Tunnel Apertures/position aperture2 horizontal"
+    ),
+    "tunnel_aperture2_vertical": (
+        "/FL2/Beamlines/Tunnel Apertures/position aperture2 vertical"
+    ),
+    "hall_aperture3_horizontal": (
+        "/FL2/Beamlines/Hall Apertures/position aperture3 horizontal"
+    ),
+    "hall_aperture3_vertical": (
+        "/FL2/Beamlines/Hall Apertures/position aperture3 vertical"
+    ),
+    "hall_aperture4_horizontal": (
+        "/FL2/Beamlines/Hall Apertures/position aperture4 horizontal"
+    ),
+    "hall_aperture4_vertical": (
+        "/FL2/Beamlines/Hall Apertures/position aperture4 vertical"
+    ),
+    "hall_aperture5_horizontal": (
+        "/FL2/Beamlines/Hall Apertures/position aperture5 horizontal"
+    ),
+    "hall_aperture5_vertical": (
+        "/FL2/Beamlines/Hall Apertures/position aperture5 vertical"
+    ),
+    "hall_aperture6_horizontal": (
+        "/FL2/Beamlines/Hall Apertures/position aperture6 horizontal"
+    ),
+    "hall_aperture6_vertical": (
+        "/FL2/Beamlines/Hall Apertures/position aperture6 vertical"
+    ),
+    "tunnel_mirror1_horizontal": "/FL2/Beamlines/Tunnel Mirrors/position Mirror1 horizontal",
+    "tunnel_mirror1_vertical": "/FL2/Beamlines/Tunnel Mirrors/position Mirror1 vertical",
+    "tunnel_mirror1_roll": "/FL2/Beamlines/Tunnel Mirrors/position Mirror1 roll",
+    "tunnel_mirror1_rotation": "/FL2/Beamlines/Tunnel Mirrors/position Mirror1 rotation",
+    "tunnel_mirror2_horizontal": "/FL2/Beamlines/Tunnel Mirrors/position Mirror2 horizontal",
+    "tunnel_mirror2_vertical": "/FL2/Beamlines/Tunnel Mirrors/position Mirror2 vertical",
+    "tunnel_mirror2_roll": "/FL2/Beamlines/Tunnel Mirrors/position Mirror2 roll",
+    "tunnel_mirror2_rotation": "/FL2/Beamlines/Tunnel Mirrors/position Mirror2 rotation",
+    "hall_mirror_fl20m3_horizontal": (
+        "/FL2/Beamlines/Hall Mirrors/position FL20M3 horizontal"
+    ),
+    "hall_mirror_fl20m3_vertical": (
+        "/FL2/Beamlines/Hall Mirrors/position FL20M3 vertical"
+    ),
+    "hall_mirror_fl20m3_rotation": (
+        "/FL2/Beamlines/Hall Mirrors/position  FL20M3 rotation"
+    ),
+    "hall_mirror_kaos_premirror_vertical": (
+        "/FL2/Beamlines/Hall Mirrors/position KAOS premirror vertical"
+    ),
+    "fl26_pgas1_bl_8_3_pressure_mbar": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/"
+        "OPCUA.fbPGas1_BL_8_3.fPressureMBar"
+    ),
+    "fl26_pgas2_bl_8_3_pressure_mbar": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/"
+        "OPCUA.fbPGas2_BL_8_3.fPressureMBar"
+    ),
+    "fl26_bl5_1_pressure": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/"
+        "OPCUA.stUHVG_BL_5_1.fPressure"
+    ),
+    "fl26_hg0_pressure_mbar": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.HG0/"
+        "OPCUA.fbUHVG_HG_0_1.fPressureMBar"
+    ),
+    "fl26_js0_pressure_mbar": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS0/"
+        "OPCUA.fbUHVG_JS_0_1.fPressureMBar"
+    ),
+    "fl26_js3_1_pressure": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/"
+        "OPCUA.stUHVG_JS_3_1.fPressure"
+    ),
+    "fl26_valve_bl1_closed": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/"
+        "OPCUA.fbV_BL_1.bClosed"
+    ),
+    "fl26_valve_bl1_open": (
+        "/uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/"
+        "OPCUA.fbV_BL_1.bOpen"
+    ),
+}
+
+# Edit this list to control which compact ML features are written into
+# processed H5 /ml/features. Removing a name here means the feature will not be
+# available for local ML training unless compute_static_xas.py is rerun.
+ML_FEATURE_SPECS = [
+    {"name": "gmd_hall_ch0_intensity", "unit": "au", "role": "predictor"},
+    {"name": "gmd_hall_ch2_x", "unit": "mm", "role": "predictor"},
+    {"name": "gmd_hall_ch3_y", "unit": "mm", "role": "predictor"},
+    {"name": "gmd_hall_ch4_intensity_sigma", "unit": "au", "role": "predictor"},
+    {"name": "gmd_tunnel_ch0_intensity", "unit": "au", "role": "predictor"},
+    {"name": "gmd_tunnel_ch2_x", "unit": "mm", "role": "predictor"},
+    {"name": "gmd_tunnel_ch3_y", "unit": "mm", "role": "predictor"},
+    {"name": "gmd_tunnel_ch4_intensity_sigma", "unit": "au", "role": "predictor"},
+    {"name": "undulator_gap_mean", "unit": "mm", "role": "candidate"},
+    {"name": "undulator_gap_std", "unit": "mm", "role": "candidate"},
+    {"name": "undulator_gap_slope", "unit": "mm/segment", "role": "candidate"},
+    {"name": "undulator_k_mean", "unit": "", "role": "predictor"},
+    {"name": "undulator_k_std", "unit": "", "role": "predictor"},
+    {"name": "undulator_k_slope", "unit": "", "role": "predictor"},
+    {"name": "attenuator_pressure", "unit": "mbar", "role": "predictor"},
+    {"name": "attenuator_gas_type", "unit": "code", "role": "candidate"},
+    {"name": "opis_mean_photon_energy", "unit": "eV", "role": "predictor"},
+    {"name": "opis_mean_wavelength", "unit": "nm", "role": "candidate"},
+    {"name": "opis_number_analysed_bunch", "unit": "count", "role": "qc"},
+    {"name": "nominal_energy", "unit": "eV", "role": "leakage_check"},
+    {"name": "set_wavelength_1", "unit": "nm", "role": "leakage_check"},
+    {"name": "set_wavelength_2", "unit": "nm", "role": "leakage_check"},
+    {"name": "filter_position_1", "unit": "code", "role": "candidate"},
+    {"name": "filter_position_2", "unit": "code", "role": "candidate"},
+    {"name": "filter_fundamental_transmission_wheel_1", "unit": "code", "role": "candidate"},
+    {"name": "filter_fundamental_transmission_wheel_2", "unit": "code", "role": "candidate"},
+    {"name": "filter_third_harmonic_transmission_wheel_1", "unit": "code", "role": "candidate"},
+    {"name": "filter_third_harmonic_transmission_wheel_2", "unit": "code", "role": "candidate"},
+    {"name": "tunnel_aperture1_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_aperture1_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_aperture2_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_aperture2_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture3_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture3_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture4_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture4_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture5_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture5_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture6_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "hall_aperture6_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_mirror1_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_mirror1_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_mirror1_roll", "unit": "mrad", "role": "candidate"},
+    {"name": "tunnel_mirror1_rotation", "unit": "mrad", "role": "candidate"},
+    {"name": "tunnel_mirror2_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_mirror2_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "tunnel_mirror2_roll", "unit": "mrad", "role": "candidate"},
+    {"name": "tunnel_mirror2_rotation", "unit": "mrad", "role": "candidate"},
+    {"name": "hall_mirror_fl20m3_horizontal", "unit": "mm", "role": "candidate"},
+    {"name": "hall_mirror_fl20m3_vertical", "unit": "mm", "role": "candidate"},
+    {"name": "hall_mirror_fl20m3_rotation", "unit": "mrad", "role": "candidate"},
+    {"name": "hall_mirror_kaos_premirror_vertical", "unit": "raw", "role": "candidate"},
+    {"name": "fl26_pgas1_bl_8_3_pressure_mbar", "unit": "mbar", "role": "candidate"},
+    {"name": "fl26_pgas2_bl_8_3_pressure_mbar", "unit": "mbar", "role": "candidate"},
+    {"name": "fl26_bl5_1_pressure", "unit": "pressure", "role": "candidate"},
+    {"name": "fl26_hg0_pressure_mbar", "unit": "mbar", "role": "candidate"},
+    {"name": "fl26_js0_pressure_mbar", "unit": "mbar", "role": "candidate"},
+    {"name": "fl26_js3_1_pressure", "unit": "pressure", "role": "candidate"},
+    {"name": "fl26_valve_bl1_closed", "unit": "bool", "role": "qc"},
+    {"name": "fl26_valve_bl1_open", "unit": "bool", "role": "qc"},
+    {"name": "gmd_hall_ch7_tss", "unit": "", "role": "qc"},
+    {"name": "gmd_tunnel_ch7_tss", "unit": "", "role": "qc"},
+    {"name": "gap_error", "unit": "", "role": "qc"},
+    {"name": "shutter_value", "unit": "", "role": "qc"},
+    {"name": "qc_finite_vls", "unit": "bool", "role": "qc"},
+]
 
 # Config MODE strings accepted by both this script and
 # compute_xas_aggregates. The two pipelines share inputs and
@@ -254,6 +462,223 @@ def _read_aligned_pulse_gmd(
     return out, index_path, value_path
 
 
+def _read_aligned_pulse_gmd_channels(
+    h5_paths,
+    index_candidates,
+    value_candidates,
+    master_tID: np.ndarray,
+    train_length: int,
+    *,
+    n_channels: int = 8,
+):
+    """
+    Align all pulse-resolved GMD channels to ``master_tID``.
+
+    The returned array has shape ``(n_master_trains, train_length, n_channels)``
+    so the second axis can be sliced by raw GMD bunch number.
+    """
+    index_path = value_path = None
+    for fp in h5_paths:
+        with h5py.File(fp, "r") as f:
+            if index_path is None:
+                for p in index_candidates:
+                    if p in f:
+                        index_path = p
+                        break
+            if value_path is None:
+                for p in value_candidates:
+                    if p in f:
+                        value_path = p
+                        break
+        if index_path is not None and value_path is not None:
+            break
+
+    if index_path is None or value_path is None:
+        return None, index_path, value_path
+
+    out = np.full(
+        (master_tID.shape[0], int(train_length), int(n_channels)),
+        np.nan,
+        dtype=np.float32,
+    )
+    for fp in h5_paths:
+        with h5py.File(fp, "r") as f:
+            if index_path not in f or value_path not in f:
+                continue
+            src_idx = f[index_path][...]
+            val = f[value_path]
+            if val.ndim == 3:
+                n_ch = min(val.shape[1], n_channels)
+                m = min(val.shape[2], train_length)
+                src_val = np.asarray(val[:, :n_ch, :m], dtype=np.float32)
+                src_val = np.moveaxis(src_val, 1, 2)  # train, bunch, channel
+            elif val.ndim == 2:
+                n_ch = 1
+                m = min(val.shape[1], train_length)
+                src_val = np.asarray(val[:, :m, None], dtype=np.float32)
+            elif val.ndim == 1:
+                n_ch = 1
+                m = 1
+                src_val = np.asarray(val[:, None, None], dtype=np.float32)
+            else:
+                continue
+            matched, src_pos = data_loading._align_by_tID(src_idx, master_tID)
+            if matched.any():
+                out[matched, :m, :n_ch] = src_val[src_pos]
+    return out, index_path, value_path
+
+
+def _read_previous_value_scalar(
+    h5_paths,
+    base_path: str,
+    master_tID: np.ndarray,
+) -> np.ndarray:
+    """
+    Align sparse train-indexed scalar data by previous-value hold.
+
+    Missing paths or non-scalar values return an all-NaN vector.
+    """
+    idx_parts, val_parts = [], []
+    idx_path = base_path.rstrip("/") + "/index"
+    val_path = base_path.rstrip("/") + "/value"
+    for fp in h5_paths:
+        with h5py.File(fp, "r") as f:
+            if idx_path not in f or val_path not in f:
+                continue
+            v = np.asarray(f[val_path][...])
+            if v.ndim != 1 or v.dtype.kind not in ("b", "i", "u", "f"):
+                continue
+            idx_parts.append(np.asarray(f[idx_path][...]).reshape(-1))
+            val_parts.append(v.astype(np.float64))
+    out = np.full(master_tID.shape, np.nan, dtype=np.float64)
+    if not idx_parts:
+        return out
+    src_idx = np.concatenate(idx_parts)
+    src_val = np.concatenate(val_parts)
+    order = np.argsort(src_idx, kind="mergesort")
+    src_idx = src_idx[order]
+    src_val = src_val[order]
+    pos = np.searchsorted(src_idx, master_tID, side="right") - 1
+    valid = pos >= 0
+    out[valid] = src_val[pos[valid]]
+    return out
+
+
+def _read_previous_value_scalar_candidates(
+    h5_paths,
+    base_paths,
+    master_tID: np.ndarray,
+) -> np.ndarray:
+    """Read the first candidate scalar path that exists and has finite data."""
+    for base_path in base_paths:
+        values = _read_previous_value_scalar(h5_paths, base_path, master_tID)
+        if np.any(np.isfinite(values)):
+            return values
+    return np.full(master_tID.shape, np.nan, dtype=np.float64)
+
+
+def _safe_linear_slope(y: np.ndarray) -> np.ndarray:
+    """Slope over the second axis, NaN when fewer than two values are finite."""
+    x = np.arange(y.shape[1], dtype=np.float64)
+    x = x - np.nanmean(x)
+    out = np.full(y.shape[0], np.nan, dtype=np.float64)
+    finite = np.isfinite(y)
+    for i in range(y.shape[0]):
+        ok = finite[i]
+        if np.sum(ok) < 2:
+            continue
+        xi = x[ok]
+        yi = y[i, ok]
+        denom = np.sum((xi - np.mean(xi)) ** 2)
+        if denom > 0:
+            out[i] = np.sum((xi - np.mean(xi)) * (yi - np.mean(yi))) / denom
+    return out
+
+
+def _resolve_ml_feature_specs(feature_names: Optional[list[str]] = None) -> list[dict[str, str]]:
+    """Return ML feature specs in the requested order."""
+    if feature_names is None:
+        return [dict(spec) for spec in ML_FEATURE_SPECS]
+    by_name = {spec["name"]: spec for spec in ML_FEATURE_SPECS}
+    missing = [name for name in feature_names if name not in by_name]
+    if missing:
+        available = ", ".join(by_name)
+        raise ValueError(
+            "Unknown ML feature name(s): "
+            + ", ".join(missing)
+            + f". Available names: {available}"
+        )
+    return [dict(by_name[name]) for name in feature_names]
+
+
+def _build_feature_block(
+    *,
+    nominal_energy: float,
+    shutter_value: np.ndarray,
+    gmd_hall_block: np.ndarray,
+    gmd_tunnel_block: np.ndarray,
+    train_scalar: dict[str, np.ndarray],
+    finite_vls: np.ndarray,
+    feature_specs: list[dict[str, str]],
+) -> tuple[np.ndarray, list[str], list[str], list[str]]:
+    """Create the compact ML feature matrix for one flattened section."""
+    n_shots = gmd_hall_block.shape[0]
+    k_cols = [train_scalar[name] for name in train_scalar if name.startswith("sase_k_")]
+    k_values = np.column_stack(k_cols) if k_cols else np.empty((n_shots, 0), dtype=np.float64)
+    k_mean = np.nanmean(k_values, axis=1) if k_values.size else np.full(n_shots, np.nan)
+    k_std = np.nanstd(k_values, axis=1) if k_values.size else np.full(n_shots, np.nan)
+    k_slope = _safe_linear_slope(k_values) if k_values.size else np.full(n_shots, np.nan)
+    gap_cols = [train_scalar[name] for name in train_scalar if name.startswith("sase_gap_")]
+    gap_values = (
+        np.column_stack(gap_cols) if gap_cols else np.empty((n_shots, 0), dtype=np.float64)
+    )
+    gap_mean = np.nanmean(gap_values, axis=1) if gap_values.size else np.full(n_shots, np.nan)
+    gap_std = np.nanstd(gap_values, axis=1) if gap_values.size else np.full(n_shots, np.nan)
+    gap_slope = _safe_linear_slope(gap_values) if gap_values.size else np.full(n_shots, np.nan)
+
+    available = {
+        "gmd_hall_ch0_intensity": gmd_hall_block[:, 0],
+        "gmd_hall_ch2_x": gmd_hall_block[:, 2],
+        "gmd_hall_ch3_y": gmd_hall_block[:, 3],
+        "gmd_hall_ch4_intensity_sigma": gmd_hall_block[:, 4],
+        "gmd_tunnel_ch0_intensity": gmd_tunnel_block[:, 0],
+        "gmd_tunnel_ch2_x": gmd_tunnel_block[:, 2],
+        "gmd_tunnel_ch3_y": gmd_tunnel_block[:, 3],
+        "gmd_tunnel_ch4_intensity_sigma": gmd_tunnel_block[:, 4],
+        "undulator_gap_mean": gap_mean,
+        "undulator_gap_std": gap_std,
+        "undulator_gap_slope": gap_slope,
+        "undulator_k_mean": k_mean,
+        "undulator_k_std": k_std,
+        "undulator_k_slope": k_slope,
+        "attenuator_pressure": train_scalar["attenuator_pressure"],
+        "opis_mean_photon_energy": train_scalar["opis_mean_photon_energy"],
+        "nominal_energy": np.full(n_shots, float(nominal_energy), dtype=np.float64),
+        "set_wavelength_1": train_scalar["set_wavelength_1"],
+        "set_wavelength_2": train_scalar["set_wavelength_2"],
+        "gmd_hall_ch7_tss": gmd_hall_block[:, 7],
+        "gmd_tunnel_ch7_tss": gmd_tunnel_block[:, 7],
+        "gap_error": train_scalar["gap_error"],
+        "shutter_value": shutter_value,
+        "qc_finite_vls": finite_vls.astype(np.float64),
+    }
+    for name in _SLOW_SCALAR_FEATURE_PATHS:
+        if name in train_scalar:
+            available[name] = train_scalar[name]
+    names = [spec["name"] for spec in feature_specs]
+    missing = [name for name in names if name not in available]
+    if missing:
+        raise RuntimeError(f"ML feature specs reference unavailable columns: {missing}")
+    units = [spec.get("unit", "") for spec in feature_specs]
+    roles = [spec.get("role", "predictor") for spec in feature_specs]
+    cols = [available[name] for name in names]
+    if cols:
+        features = np.column_stack(cols).astype(np.float32)
+    else:
+        features = np.empty((n_shots, 0), dtype=np.float32)
+    return features, names, units, roles
+
+
 def _contiguous_true_blocks(mask: np.ndarray):
     """Return [(start, stop), ...] half-open intervals for True runs."""
     m = np.asarray(mask, dtype=bool)
@@ -355,6 +780,7 @@ def compute_static_xas(
     signal_bunch_range: Tuple[int, int],
     bg_bunch_range: Tuple[int, int],
     vls_bunch_roll: int = 0,
+    gmd_bunch_start: int = 0,
     config: int = 2,
     raw_dir=None,
     max_files: Optional[int] = None,
@@ -364,6 +790,7 @@ def compute_static_xas(
     train_rate_hz: float = 10.0,
     transition_trim_seconds: float = 3.0,
     first_section_state: str = "open",
+    ml_feature_names: Optional[list[str]] = None,
     config_path=None,
     verbose: bool = True,
 ) -> None:
@@ -392,6 +819,9 @@ def compute_static_xas(
         after the pixel crop, aligning the VLS bunch coordinate with
         the GMD bunch coordinate. ``signal_bunch_range`` and
         ``bg_bunch_range`` apply in the rolled frame.
+    gmd_bunch_start : int
+        Raw GMD bunch index corresponding to ``signal_bunch_range[0]``.
+        The ML feature group stores this explicit VLS→GMD mapping.
     config : int
         Must be 2 (xas_static is config-2 only).
     raw_dir : Path, optional
@@ -401,6 +831,9 @@ def compute_static_xas(
     shutter_index_path, shutter_value_path : str
     train_rate_hz, transition_trim_seconds : float
     first_section_state : "open" | "closed"
+    ml_feature_names : list[str], optional
+        Optional subset/order of ``ML_FEATURE_SPECS`` names to write under
+        ``/ml/features``. ``None`` writes all default compact features.
     config_path : Path, optional  (recorded as a provenance attribute)
     verbose : bool
     """
@@ -420,6 +853,8 @@ def compute_static_xas(
     sig_b0, sig_b1 = int(signal_bunch_range[0]), int(signal_bunch_range[1])
     bg_b0,  bg_b1  = int(bg_bunch_range[0]),     int(bg_bunch_range[1])
     vls_bunch_roll = int(vls_bunch_roll)
+    gmd_b0 = int(gmd_bunch_start)
+    gmd_b1 = gmd_b0 + (sig_b1 - sig_b0)
 
     first_section_state = str(first_section_state).strip().lower()
     if first_section_state not in ("open", "closed"):
@@ -438,20 +873,26 @@ def compute_static_xas(
     log(f"VLS ROI            : [{roi_min}, {roi_max}) = {n_pixels} pixels")
     log(f"VLS bunch roll     : {vls_bunch_roll}")
     log(f"signal bunches     : [{sig_b0}, {sig_b1})")
+    log(f"GMD signal bunches : [{gmd_b0}, {gmd_b1})")
     log(f"bg bunches         : [{bg_b0}, {bg_b1})")
 
     # ------------------------------------------------------------------
     # Load full run (gmd + vls), crop, per-train baseline subtraction
     # ------------------------------------------------------------------
-    data = _concat_experiment_data(
+    data_parts = [
+        data_loading.load_raw_h5(
+            run, config=2, raw_dir=raw_dir,
+            train_length=train_length, max_files=max_files,
+        )
+        for run in run_numbers
+    ]
+    train_run_id = np.concatenate(
         [
-            data_loading.load_raw_h5(
-                run, config=2, raw_dir=raw_dir,
-                train_length=train_length, max_files=max_files,
-            )
-            for run in run_numbers
+            np.full(part.tID.shape, int(run), dtype=np.int64)
+            for part, run in zip(data_parts, run_numbers)
         ]
     )
+    data = _concat_experiment_data(data_parts)
     if data.vls is None:
         raise RuntimeError("load_raw_h5 returned no VLS data for this run.")
 
@@ -483,6 +924,73 @@ def compute_static_xas(
         log("GMD tunnel         : not found; /gmd_tunnel will be NaN-filled")
     else:
         log(f"GMD tunnel         : {gmd_tunnel_value_path}")
+
+    gmd_feature_length = max(m, gmd_b1)
+    gmd_hall_channels, gmd_hall_index_path, gmd_hall_value_path = _read_aligned_pulse_gmd_channels(
+        h5_paths,
+        _GMD_HALL_INDEX_CANDIDATES,
+        _GMD_HALL_VALUE_CANDIDATES,
+        data.tID,
+        gmd_feature_length,
+        n_channels=8,
+    )
+    if gmd_hall_channels is None:
+        gmd_hall_channels = np.full((n_trains, gmd_feature_length, 8), np.nan, dtype=np.float32)
+        gmd_hall_channels[:, :m, 0] = gmd.astype(np.float32)
+        log("GMD hall channels  : not found; channel 0 filled from compatibility GMD")
+    else:
+        log(f"GMD hall channels  : {gmd_hall_value_path}")
+
+    gmd_tunnel_channels, gmd_tunnel_ch_index_path, gmd_tunnel_ch_value_path = _read_aligned_pulse_gmd_channels(
+        h5_paths,
+        _GMD_TUNNEL_INDEX_CANDIDATES,
+        _GMD_TUNNEL_VALUE_CANDIDATES,
+        data.tID,
+        gmd_feature_length,
+        n_channels=8,
+    )
+    if gmd_tunnel_channels is None:
+        gmd_tunnel_channels = np.full((n_trains, gmd_feature_length, 8), np.nan, dtype=np.float32)
+        log("GMD tunnel channels: not found; /ml/gmd_tunnel_channels will be NaN-filled")
+    else:
+        log(f"GMD tunnel channels: {gmd_tunnel_ch_value_path}")
+
+    train_scalars = {
+        f"sase_k_{i:02d}": _read_previous_value_scalar(
+            h5_paths, f"/Electron Diagnostic/Undulator setting/SASE{i:02d} k value", data.tID,
+        )
+        for i in range(2, 14)
+    }
+    train_scalars.update(
+        {
+            f"sase_gap_{i:02d}": _read_previous_value_scalar_candidates(
+                h5_paths, _UNDULATOR_GAP_PATH_CANDIDATES[i], data.tID,
+            )
+            for i in range(2, 14)
+        }
+    )
+    train_scalars.update(
+        {
+            "set_wavelength_1": _read_previous_value_scalar(h5_paths, _SET_WAVELENGTH_1, data.tID),
+            "set_wavelength_2": _read_previous_value_scalar(h5_paths, _SET_WAVELENGTH_2, data.tID),
+            "gap_error": _read_previous_value_scalar(h5_paths, _GAP_ERROR, data.tID),
+            "attenuator_pressure": _read_previous_value_scalar(h5_paths, _ATTENUATOR_PRESSURE, data.tID),
+            "opis_mean_photon_energy": np.asarray(data.mpe, dtype=np.float64),
+            "opis_mean_wavelength": _read_previous_value_scalar(
+                h5_paths, _OPIS_MEAN_WAVELENGTH, data.tID,
+            ),
+            "opis_number_analysed_bunch": _read_previous_value_scalar(
+                h5_paths, _OPIS_NUMBER_ANALYSED_BUNCH, data.tID,
+            ),
+        }
+    )
+    train_scalars.update(
+        {
+            name: _read_previous_value_scalar(h5_paths, path, data.tID)
+            for name, path in _SLOW_SCALAR_FEATURE_PATHS.items()
+        }
+    )
+    ml_feature_specs = _resolve_ml_feature_specs(ml_feature_names)
 
     # ------------------------------------------------------------------
     # Shutter section detection
@@ -520,6 +1028,19 @@ def compute_static_xas(
     vls_shots: list[np.ndarray] = []
     gmd_shots: list[np.ndarray] = []
     gmd_tunnel_shots: list[np.ndarray] = []
+    train_id_shots: list[np.ndarray] = []
+    run_id_shots: list[np.ndarray] = []
+    section_index_shots: list[np.ndarray] = []
+    vls_bunch_index_shots: list[np.ndarray] = []
+    gmd_bunch_index_shots: list[np.ndarray] = []
+    nominal_energy_shots: list[np.ndarray] = []
+    gmd_hall_channel_shots: list[np.ndarray] = []
+    gmd_tunnel_channel_shots: list[np.ndarray] = []
+    feature_shots: list[np.ndarray] = []
+    qc_ok_shots: list[np.ndarray] = []
+    feature_names = [spec["name"] for spec in ml_feature_specs]
+    feature_units = [spec.get("unit", "") for spec in ml_feature_specs]
+    feature_roles = [spec.get("role", "predictor") for spec in ml_feature_specs]
     n_shots_arr = np.zeros(n_e, dtype=np.int64)
 
     log(f"collecting shots over {n_e} sections...")
@@ -534,6 +1055,17 @@ def compute_static_xas(
             vls_shots.append(np.empty((0, n_pixels), dtype=np.float64))
             gmd_shots.append(np.empty(0, dtype=np.float64))
             gmd_tunnel_shots.append(np.empty(0, dtype=np.float64))
+            train_id_shots.append(np.empty(0, dtype=np.int64))
+            run_id_shots.append(np.empty(0, dtype=np.int64))
+            section_index_shots.append(np.empty(0, dtype=np.int32))
+            vls_bunch_index_shots.append(np.empty(0, dtype=np.int16))
+            gmd_bunch_index_shots.append(np.empty(0, dtype=np.int16))
+            nominal_energy_shots.append(np.empty(0, dtype=np.float64))
+            gmd_hall_channel_shots.append(np.empty((0, 8), dtype=np.float32))
+            gmd_tunnel_channel_shots.append(np.empty((0, 8), dtype=np.float32))
+            n_features = len(feature_names)
+            feature_shots.append(np.empty((0, n_features), dtype=np.float32))
+            qc_ok_shots.append(np.empty(0, dtype=bool))
             continue
 
         sec_closed_idx = _preceding_closed_indices(
@@ -553,15 +1085,67 @@ def compute_static_xas(
         )
         G_block = gmd[sec_open_idx, sig_b0:sig_b1]              # (n_sec, n_sig)
         G_tunnel_block = gmd_tunnel[sec_open_idx, sig_b0:sig_b1]
+        H_channel_block = gmd_hall_channels[sec_open_idx, gmd_b0:gmd_b1, :]
+        T_channel_block = gmd_tunnel_channels[sec_open_idx, gmd_b0:gmd_b1, :]
 
         A_flat = A_block.reshape(-1, n_pixels)
         G_flat = G_block.reshape(-1)
         G_tunnel_flat = G_tunnel_block.reshape(-1)
+        H_channel_flat = H_channel_block.reshape(-1, 8)
+        T_channel_flat = T_channel_block.reshape(-1, 8)
+
+        n_sig = sig_b1 - sig_b0
+        train_id_flat = np.repeat(data.tID[sec_open_idx].astype(np.int64), n_sig)
+        run_id_flat = np.repeat(train_run_id[sec_open_idx].astype(np.int64), n_sig)
+        section_index_flat = np.full(A_flat.shape[0], i, dtype=np.int32)
+        vls_bunch_flat = np.tile(
+            np.arange(sig_b0, sig_b1, dtype=np.int16), sec_open_idx.size,
+        )
+        gmd_bunch_flat = np.tile(
+            np.arange(gmd_b0, gmd_b1, dtype=np.int16), sec_open_idx.size,
+        )
+        nominal_energy_flat = np.full(A_flat.shape[0], energies[i], dtype=np.float64)
+        finite_vls_flat = np.all(np.isfinite(A_flat), axis=1)
+        train_scalar_flat = {
+            name: np.repeat(np.asarray(values)[sec_open_idx], n_sig)
+            for name, values in train_scalars.items()
+        }
+        shutter_flat = np.repeat(shutter[sec_open_idx], n_sig)
+        features, names, units, roles = _build_feature_block(
+            nominal_energy=float(energies[i]),
+            shutter_value=shutter_flat,
+            gmd_hall_block=H_channel_flat,
+            gmd_tunnel_block=T_channel_flat,
+            train_scalar=train_scalar_flat,
+            finite_vls=finite_vls_flat,
+            feature_specs=ml_feature_specs,
+        )
+        if feature_names != names or feature_units != units or feature_roles != roles:
+            raise RuntimeError("internal error: ML feature columns changed between sections")
+        hall_tss_ok = (~np.isfinite(H_channel_flat[:, 7])) | (H_channel_flat[:, 7] == 0)
+        tunnel_tss_ok = (~np.isfinite(T_channel_flat[:, 7])) | (T_channel_flat[:, 7] == 0)
+        qc_ok = (
+            finite_vls_flat
+            & np.isfinite(G_flat)
+            & np.isfinite(H_channel_flat[:, 0])
+            & hall_tss_ok
+            & tunnel_tss_ok
+        )
 
         n_shots_arr[i] = A_flat.shape[0]
         vls_shots.append(A_flat)
         gmd_shots.append(G_flat)
         gmd_tunnel_shots.append(G_tunnel_flat)
+        train_id_shots.append(train_id_flat)
+        run_id_shots.append(run_id_flat)
+        section_index_shots.append(section_index_flat)
+        vls_bunch_index_shots.append(vls_bunch_flat)
+        gmd_bunch_index_shots.append(gmd_bunch_flat)
+        nominal_energy_shots.append(nominal_energy_flat)
+        gmd_hall_channel_shots.append(H_channel_flat.astype(np.float32, copy=False))
+        gmd_tunnel_channel_shots.append(T_channel_flat.astype(np.float32, copy=False))
+        feature_shots.append(features)
+        qc_ok_shots.append(qc_ok)
         log(f"  section {i:>3d} (E={energies[i]:.2f} eV): "
             f"open trains={sec_open_idx.size:>4d}  "
             f"bg trains={sec_closed_idx.size:>4d}  "
@@ -574,12 +1158,40 @@ def compute_static_xas(
     vls_out = np.full((n_e, n_shots_max, n_pixels), np.nan, dtype=np.float64)
     gmd_out = np.full((n_e, n_shots_max),            np.nan, dtype=np.float64)
     gmd_tunnel_out = np.full((n_e, n_shots_max),     np.nan, dtype=np.float64)
+    n_features = len(feature_names)
+    ml_train_id_out = np.full((n_e, n_shots_max), -1, dtype=np.int64)
+    ml_run_id_out = np.full((n_e, n_shots_max), -1, dtype=np.int64)
+    ml_section_index_out = np.full((n_e, n_shots_max), -1, dtype=np.int32)
+    ml_vls_bunch_index_out = np.full((n_e, n_shots_max), -1, dtype=np.int16)
+    ml_gmd_bunch_index_out = np.full((n_e, n_shots_max), -1, dtype=np.int16)
+    ml_nominal_energy_out = np.full((n_e, n_shots_max), np.nan, dtype=np.float64)
+    ml_gmd_hall_channels_out = np.full(
+        (n_e, n_shots_max, 8), np.nan, dtype=np.float32,
+    )
+    ml_gmd_tunnel_channels_out = np.full(
+        (n_e, n_shots_max, 8), np.nan, dtype=np.float32,
+    )
+    ml_features_out = np.full(
+        (n_e, n_shots_max, n_features), np.nan, dtype=np.float32,
+    )
+    ml_qc_ok_out = np.zeros((n_e, n_shots_max), dtype=bool)
+
     for i, (A, G, Gt) in enumerate(zip(vls_shots, gmd_shots, gmd_tunnel_shots)):
         n = A.shape[0]
         if n > 0:
             vls_out[i, :n] = A
             gmd_out[i, :n] = G
             gmd_tunnel_out[i, :n] = Gt
+            ml_train_id_out[i, :n] = train_id_shots[i]
+            ml_run_id_out[i, :n] = run_id_shots[i]
+            ml_section_index_out[i, :n] = section_index_shots[i]
+            ml_vls_bunch_index_out[i, :n] = vls_bunch_index_shots[i]
+            ml_gmd_bunch_index_out[i, :n] = gmd_bunch_index_shots[i]
+            ml_nominal_energy_out[i, :n] = nominal_energy_shots[i]
+            ml_gmd_hall_channels_out[i, :n, :] = gmd_hall_channel_shots[i]
+            ml_gmd_tunnel_channels_out[i, :n, :] = gmd_tunnel_channel_shots[i]
+            ml_features_out[i, :n, :] = feature_shots[i]
+            ml_qc_ok_out[i, :n] = qc_ok_shots[i]
 
     # ------------------------------------------------------------------
     # Write output
@@ -596,7 +1208,58 @@ def compute_static_xas(
                             data=np.arange(roi_min, roi_max, dtype=np.int64))
         fout.create_dataset("section_bg",       data=section_bg,  compression="gzip")
 
+        ml = fout.create_group("ml")
+        ml.create_dataset("train_id", data=ml_train_id_out, compression="gzip")
+        ml.create_dataset("run_id", data=ml_run_id_out, compression="gzip")
+        ml.create_dataset("section_index", data=ml_section_index_out, compression="gzip")
+        ml.create_dataset("vls_bunch_index", data=ml_vls_bunch_index_out, compression="gzip")
+        ml.create_dataset("gmd_bunch_index", data=ml_gmd_bunch_index_out, compression="gzip")
+        ml.create_dataset("nominal_energy", data=ml_nominal_energy_out, compression="gzip")
+        ml.create_dataset(
+            "gmd_hall_channels", data=ml_gmd_hall_channels_out, compression="gzip",
+        )
+        ml.create_dataset(
+            "gmd_tunnel_channels", data=ml_gmd_tunnel_channels_out, compression="gzip",
+        )
+        ml.create_dataset("features", data=ml_features_out, compression="gzip")
+        ml.create_dataset("qc_ok", data=ml_qc_ok_out, compression="gzip")
+        str_dtype = h5py.string_dtype(encoding="utf-8")
+        ml.create_dataset(
+            "feature_names",
+            data=np.asarray(feature_names or [], dtype=object),
+            dtype=str_dtype,
+        )
+        ml.create_dataset(
+            "feature_units",
+            data=np.asarray(feature_units or [], dtype=object),
+            dtype=str_dtype,
+        )
+        ml.create_dataset(
+            "feature_roles",
+            data=np.asarray(feature_roles or [], dtype=object),
+            dtype=str_dtype,
+        )
+        ml.attrs["schema_version"] = "1.0"
+        ml.attrs["description"] = (
+            "Compact per-shot ML contract aligned to root /vls flatten order."
+        )
+        ml.attrs["gmd_bunch_start"] = int(gmd_b0)
+        ml.attrs["gmd_bunch_range"] = np.asarray([gmd_b0, gmd_b1], dtype=np.int64)
+        ml.attrs["feature_source"] = (
+            "GMD hall/tunnel channels, reduced undulator K, attenuator pressure, "
+            "OPIS mean photon energy, setpoints, and QC flags."
+        )
+        if gmd_hall_index_path is not None:
+            ml.attrs["gmd_hall_index_path"] = gmd_hall_index_path
+        if gmd_hall_value_path is not None:
+            ml.attrs["gmd_hall_value_path"] = gmd_hall_value_path
+        if gmd_tunnel_ch_index_path is not None:
+            ml.attrs["gmd_tunnel_index_path"] = gmd_tunnel_ch_index_path
+        if gmd_tunnel_ch_value_path is not None:
+            ml.attrs["gmd_tunnel_value_path"] = gmd_tunnel_ch_value_path
+
         fout.attrs["mode"]                    = "xas_static"
+        fout.attrs["ml_schema_version"]       = "1.0"
         fout.attrs["config"]                  = int(config)
         fout.attrs["run_no"]                  = (
             int(run_numbers[0]) if len(run_numbers) == 1
@@ -608,6 +1271,8 @@ def compute_static_xas(
         fout.attrs["vls_crop_roi"]            = np.asarray([roi_min, roi_max], dtype=np.int64)
         fout.attrs["vls_bunch_roll"]          = int(vls_bunch_roll)
         fout.attrs["signal_bunch_range"]      = np.asarray([sig_b0, sig_b1], dtype=np.int64)
+        fout.attrs["gmd_bunch_start"]         = int(gmd_b0)
+        fout.attrs["gmd_signal_bunch_range"]  = np.asarray([gmd_b0, gmd_b1], dtype=np.int64)
         fout.attrs["bg_bunch_range"]          = np.asarray([bg_b0, bg_b1],   dtype=np.int64)
         fout.attrs["train_rate_hz"]           = float(train_rate_hz)
         fout.attrs["transition_trim_seconds"] = float(transition_trim_seconds)
@@ -673,6 +1338,7 @@ def main(argv=None) -> None:
         signal_bunch_range=tuple(cfg.SIGNAL_BUNCH_RANGE),
         bg_bunch_range=tuple(cfg.BG_BUNCH_RANGE),
         vls_bunch_roll=int(getattr(cfg, "VLS_BUNCH_ROLL", 0)),
+        gmd_bunch_start=int(getattr(cfg, "GMD_BUNCH_START", 0)),
         config=int(getattr(cfg, "CONFIG", 2)),
         raw_dir=getattr(cfg, "RAW_DIR", None),
         max_files=getattr(cfg, "MAX_FILES", None),
@@ -684,6 +1350,7 @@ def main(argv=None) -> None:
         train_rate_hz=float(getattr(cfg, "TRAIN_RATE_HZ", 10.0)),
         transition_trim_seconds=float(getattr(cfg, "TRANSITION_TRIM_SECONDS", 3.0)),
         first_section_state=str(getattr(cfg, "FIRST_SECTION_STATE", "open")),
+        ml_feature_names=getattr(cfg, "ML_FEATURE_NAMES", None),
         config_path=args.config_path,
     )
 

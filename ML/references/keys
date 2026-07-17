@@ -1,0 +1,1656 @@
+# Raw H5 key inventory
+# Source file: 11022188/raw/hdf/online-0/fl2user1/FLASH2_USER1_main_run58780_file1_20260603T100002.1.h5
+# Generated from the raw H5 tree with h5py; references/keys is not hand-edited.
+# Groups: 949
+# Datasets: 700
+# Parameter groups with index/value datasets: 349
+
+Electron Diagnostic/
+Electron Diagnostic/Undulator setting/
+Electron Diagnostic/Undulator setting/SASE02 gap/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE02 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE02 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE02 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE02 k value/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE02 k value/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE03 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE03 k value/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE03 k value/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE04 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE04 k value/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE04 k value/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE05 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE05 k value/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE05 k value/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE06 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE06 k value/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE06 k value/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE07 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE07 k value/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE07 k value/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE08 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE08 k value/index  shape=(64,)  dtype=uint32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE08 k value/value  shape=(64,)  dtype=float32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE09 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE09 k value/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE09 k value/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE10 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE10 k value/index  shape=(64,)  dtype=uint32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE10 k value/value  shape=(64,)  dtype=float32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE11 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE11 k value/index  shape=(64,)  dtype=uint32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE11 k value/value  shape=(64,)  dtype=float32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE12 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE12 k value/index  shape=(64,)  dtype=uint32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE12 k value/value  shape=(64,)  dtype=float32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE13 k value/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/SASE13 k value/index  shape=(66,)  dtype=uint32  chunks=(66,)  compression=gzip
+Electron Diagnostic/Undulator setting/SASE13 k value/value  shape=(66,)  dtype=float32  chunks=(66,)  compression=gzip
+Electron Diagnostic/Undulator setting/afterburner gap/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/afterburner gap/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+Electron Diagnostic/Undulator setting/afterburner gap/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+Electron Diagnostic/Undulator setting/afterburner shift/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/afterburner shift/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+Electron Diagnostic/Undulator setting/afterburner shift/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+Electron Diagnostic/Undulator setting/gap error/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/gap error/index  shape=(64,)  dtype=uint32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/gap error/value  shape=(64,)  dtype=float32  chunks=(64,)  compression=gzip
+Electron Diagnostic/Undulator setting/set wavelength 1/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/set wavelength 1/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+Electron Diagnostic/Undulator setting/set wavelength 1/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+Electron Diagnostic/Undulator setting/set wavelength 2/  [PARAM index/value]
+Electron Diagnostic/Undulator setting/set wavelength 2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+Electron Diagnostic/Undulator setting/set wavelength 2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/
+FL1/Beamlines/
+FL1/Beamlines/Attenuator/
+FL1/Beamlines/Attenuator/pressure aux/  [PARAM index/value]
+FL1/Beamlines/Attenuator/pressure aux/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Beamlines/Attenuator/pressure aux/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/Electron Diagnostic/
+FL1/Electron Diagnostic/Bunch charge/
+FL1/Electron Diagnostic/Bunch charge/at gun/  [PARAM index/value]
+FL1/Electron Diagnostic/Bunch charge/at gun/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+FL1/Electron Diagnostic/Bunch charge/at gun/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+FL1/Experiment/
+FL1/Experiment/BL1/
+FL1/Experiment/BL1/ADQ412 GHz ADC/
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 3/
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 3/delay/  [PARAM index/value]
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 3/delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 3/delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 5/
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 5/delay/  [PARAM index/value]
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 5/delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL1/ADQ412 GHz ADC/Backplane trigger 5/delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL1/CAMP/
+FL1/Experiment/BL1/CAMP/Even Lavie Valve/
+FL1/Experiment/BL1/CAMP/Even Lavie Valve/jet delay/  [PARAM index/value]
+FL1/Experiment/BL1/CAMP/Even Lavie Valve/jet delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL1/CAMP/Even Lavie Valve/jet delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL2/
+FL1/Experiment/BL2/ADQ412 GHz ADC/
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 3/
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 3/delay/  [PARAM index/value]
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 3/delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 3/delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 5/
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 5/delay/  [PARAM index/value]
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 5/delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Experiment/BL2/ADQ412 GHz ADC/Backplane trigger 5/delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/Photon Diagnostic/
+FL1/Photon Diagnostic/GMD/
+FL1/Photon Diagnostic/GMD/Expert stuff/
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/Keithley/
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/Keithley/K6517 OUTPUT/  [PARAM index/value]
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/Keithley/K6517 OUTPUT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/Keithley/K6517 OUTPUT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/Keithley/K6517 RANGE.CODE/  [PARAM index/value]
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/Keithley/K6517 RANGE.CODE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL1/Photon Diagnostic/GMD/Expert stuff/TUNNEL/Keithley/K6517 RANGE.CODE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/
+FL2/Beamlines/
+FL2/Beamlines/Attenuator/
+FL2/Beamlines/Attenuator/gas type/  [PARAM index/value]
+FL2/Beamlines/Attenuator/gas type/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Attenuator/gas type/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Attenuator/pressure/  [PARAM index/value]
+FL2/Beamlines/Attenuator/pressure/index  shape=(411,)  dtype=uint32  chunks=(411,)  compression=gzip
+FL2/Beamlines/Attenuator/pressure/value  shape=(411,)  dtype=float32  chunks=(411,)  compression=gzip
+FL2/Beamlines/Fast Shutter/
+FL2/Beamlines/Fast Shutter/shutter/  [PARAM index/value]
+FL2/Beamlines/Fast Shutter/shutter/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+FL2/Beamlines/Fast Shutter/shutter/value  shape=(4513, 100)  dtype=float32  chunks=(283, 13)  compression=gzip
+FL2/Beamlines/Filters/
+FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 1/  [PARAM index/value]
+FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 1/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 1/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 2/  [PARAM index/value]
+FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/3rd harmonic transmission filter wheel 2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/fundamental transmission filter wheel 1/  [PARAM index/value]
+FL2/Beamlines/Filters/fundamental transmission filter wheel 1/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/fundamental transmission filter wheel 1/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/fundamental transmission filter wheel 2/  [PARAM index/value]
+FL2/Beamlines/Filters/fundamental transmission filter wheel 2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/fundamental transmission filter wheel 2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/position filter 1/  [PARAM index/value]
+FL2/Beamlines/Filters/position filter 1/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/position filter 1/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/position filter 2/  [PARAM index/value]
+FL2/Beamlines/Filters/position filter 2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Filters/position filter 2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/
+FL2/Beamlines/Hall Apertures/position aperture3 horizontal/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture3 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture3 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture3 vertical/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture3 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture3 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture4 horizontal/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture4 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture4 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture4 vertical/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture4 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture4 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture5 horizontal/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture5 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture5 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture5 vertical/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture5 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture5 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture6 horizontal/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture6 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture6 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture6 vertical/  [PARAM index/value]
+FL2/Beamlines/Hall Apertures/position aperture6 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Apertures/position aperture6 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/
+FL2/Beamlines/Hall Mirrors/position  FL20M3 rotation/  [PARAM index/value]
+FL2/Beamlines/Hall Mirrors/position  FL20M3 rotation/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/position  FL20M3 rotation/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/position FL20M3 horizontal/  [PARAM index/value]
+FL2/Beamlines/Hall Mirrors/position FL20M3 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/position FL20M3 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/position FL20M3 vertical/  [PARAM index/value]
+FL2/Beamlines/Hall Mirrors/position FL20M3 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/position FL20M3 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/position KAOS premirror vertical/  [PARAM index/value]
+FL2/Beamlines/Hall Mirrors/position KAOS premirror vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Hall Mirrors/position KAOS premirror vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Photon Shutter/
+FL2/Beamlines/Photon Shutter/status PS0/  [PARAM index/value]
+FL2/Beamlines/Photon Shutter/status PS0/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Photon Shutter/status PS0/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Photon Shutter/status PS1/  [PARAM index/value]
+FL2/Beamlines/Photon Shutter/status PS1/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Photon Shutter/status PS1/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Photon Shutter/status PS2/  [PARAM index/value]
+FL2/Beamlines/Photon Shutter/status PS2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Photon Shutter/status PS2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/
+FL2/Beamlines/Tunnel Apertures/position aperture1 horizontal/  [PARAM index/value]
+FL2/Beamlines/Tunnel Apertures/position aperture1 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/position aperture1 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/position aperture1 vertical/  [PARAM index/value]
+FL2/Beamlines/Tunnel Apertures/position aperture1 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/position aperture1 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/position aperture2 horizontal/  [PARAM index/value]
+FL2/Beamlines/Tunnel Apertures/position aperture2 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/position aperture2 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/position aperture2 vertical/  [PARAM index/value]
+FL2/Beamlines/Tunnel Apertures/position aperture2 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Apertures/position aperture2 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 horizontal/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 roll/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 roll/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 roll/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 rotation/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 rotation/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 rotation/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 vertical/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror1 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 horizontal/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 horizontal/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 horizontal/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 roll/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 roll/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 roll/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 rotation/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 rotation/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 rotation/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 vertical/  [PARAM index/value]
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 vertical/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Beamlines/Tunnel Mirrors/position Mirror2 vertical/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Electron Diagnostic/
+FL2/Electron Diagnostic/Undulator setting/
+FL2/Electron Diagnostic/Undulator setting/SASE03 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE03 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE03 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE04 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE04 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE04 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE05 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE05 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE05 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE06 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE06 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE06 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE07 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE07 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE07 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE08 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE08 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE08 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE09 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE09 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE09 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE10 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE10 gap/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE10 gap/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE11 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE11 gap/index  shape=(64,)  dtype=uint32  chunks=(64,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE11 gap/value  shape=(64,)  dtype=float32  chunks=(64,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE12 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE12 gap/index  shape=(64,)  dtype=uint32  chunks=(64,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE12 gap/value  shape=(64,)  dtype=float32  chunks=(64,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE13 gap/  [PARAM index/value]
+FL2/Electron Diagnostic/Undulator setting/SASE13 gap/index  shape=(66,)  dtype=uint32  chunks=(66,)  compression=gzip
+FL2/Electron Diagnostic/Undulator setting/SASE13 gap/value  shape=(66,)  dtype=float32  chunks=(66,)  compression=gzip
+FL2/Experiment/
+FL2/Experiment/FL24/
+FL2/Experiment/FL24/User store/
+FL2/Experiment/FL24/User store/value.01/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.01/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.01/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.02/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.02/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.02/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.03/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.03/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.03/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.04/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.04/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.04/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.05/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.05/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.05/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.06/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.06/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.06/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.07/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.07/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.07/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.08/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.08/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.08/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.09/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.09/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.09/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.10/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.10/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.10/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.11/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.11/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.11/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.12/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.12/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.12/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.13/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.13/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.13/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.14/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.14/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.14/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.15/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.15/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.15/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.16/  [PARAM index/value]
+FL2/Experiment/FL24/User store/value.16/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/FL24/User store/value.16/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/MTCA-EXP1/
+FL2/Experiment/MTCA-EXP1/ADQ412 GHz ADC/
+FL2/Experiment/MTCA-EXP1/ADQ412 GHz ADC/Expert stuff/
+FL2/Experiment/MTCA-EXP1/ADQ412 GHz ADC/Expert stuff/ADC trigger ADQ412/  [PARAM index/value]
+FL2/Experiment/MTCA-EXP1/ADQ412 GHz ADC/Expert stuff/ADC trigger ADQ412/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/MTCA-EXP1/ADQ412 GHz ADC/Expert stuff/ADC trigger ADQ412/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Experiment/MTCA-EXP1/SIS8300 100MHz ADC/
+FL2/Experiment/MTCA-EXP1/SIS8300 100MHz ADC/Expert stuff/
+FL2/Experiment/MTCA-EXP1/SIS8300 100MHz ADC/Expert stuff/ADC trigger SIS8300/  [PARAM index/value]
+FL2/Experiment/MTCA-EXP1/SIS8300 100MHz ADC/Expert stuff/ADC trigger SIS8300/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Experiment/MTCA-EXP1/SIS8300 100MHz ADC/Expert stuff/ADC trigger SIS8300/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/
+FL2/Photon Diagnostic/GMD/
+FL2/Photon Diagnostic/GMD/Average beam position/
+FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average beam position/position tunnel horizontal/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Average beam position/position tunnel horizontal/index  shape=(482,)  dtype=uint32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average beam position/position tunnel horizontal/value  shape=(482,)  dtype=float32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average beam position/position tunnel vertical/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Average beam position/position tunnel vertical/index  shape=(482,)  dtype=uint32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average beam position/position tunnel vertical/value  shape=(482,)  dtype=float32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average energy/
+FL2/Photon Diagnostic/GMD/Average energy/energy hall/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Average energy/energy hall/index  shape=(487,)  dtype=uint32  chunks=(487,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average energy/energy hall/value  shape=(487,)  dtype=float32  chunks=(487,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average energy/energy tunnel/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Average energy/energy tunnel/index  shape=(469,)  dtype=uint32  chunks=(469,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Average energy/energy tunnel/value  shape=(469,)  dtype=float32  chunks=(469,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.HALL/
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.HALL/IX.SUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.HALL/IX.SUM/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.HALL/IX.SUM/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.HALL/IY.SUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.HALL/IY.SUM/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.HALL/IY.SUM/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.TUNNEL/
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.TUNNEL/IX.SUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.TUNNEL/IX.SUM/index  shape=(482,)  dtype=uint32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.TUNNEL/IX.SUM/value  shape=(482,)  dtype=float32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.TUNNEL/IY.SUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.TUNNEL/IY.SUM/index  shape=(482,)  dtype=uint32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/Beam position/FL2.TUNNEL/IY.SUM/value  shape=(482,)  dtype=float32  chunks=(482,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/FL2.HALL.K2700/
+FL2/Photon Diagnostic/GMD/Expert stuff/FL2.HALL.K2700/CH01/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/FL2.HALL.K2700/CH01/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/FL2.HALL.K2700/CH01/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH02/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH02/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH02/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH03/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH03/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH03/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH04/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH04/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH04/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH05/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH05/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.K2700/CH05/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.LEFT/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.LEFT/OUTPUT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.LEFT/OUTPUT/index  shape=(491,)  dtype=uint32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.LEFT/OUTPUT/value  shape=(491,)  dtype=float32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.LEFT/RANGE.CODE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.LEFT/RANGE.CODE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.LEFT/RANGE.CODE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.RIGHT/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.RIGHT/OUTPUT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.RIGHT/OUTPUT/index  shape=(491,)  dtype=uint32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.RIGHT/OUTPUT/value  shape=(491,)  dtype=float32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.RIGHT/RANGE.CODE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.RIGHT/RANGE.CODE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.HALL.RIGHT/RANGE.CODE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH01/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH01/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH01/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH02/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH02/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH02/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH03/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH03/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH03/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH04/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH04/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH04/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH05/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH05/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.K2700/CH05/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.LEFT/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.LEFT/OUTPUT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.LEFT/OUTPUT/index  shape=(491,)  dtype=uint32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.LEFT/OUTPUT/value  shape=(491,)  dtype=float32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.LEFT/RANGE.CODE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.LEFT/RANGE.CODE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.LEFT/RANGE.CODE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.RIGHT/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.RIGHT/OUTPUT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.RIGHT/OUTPUT/index  shape=(491,)  dtype=uint32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.RIGHT/OUTPUT/value  shape=(491,)  dtype=float32  chunks=(491,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.RIGHT/RANGE.CODE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.RIGHT/RANGE.CODE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.CURRENT/FL2.TUNNEL.RIGHT/RANGE.CODE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/BIT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/BIT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/BIT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/DIN.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/DIN.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/DIN.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/DOT.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/DOT.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/DOT.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/GASID/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/GASID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/GASID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/PRI.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/PRI.NUM/index  shape=(133,)  dtype=uint32  chunks=(133,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/PRI.NUM/value  shape=(133,)  dtype=float32  chunks=(133,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/PRS.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/PRS.NUM/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.HALL.XGMD/PRS.NUM/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/BIT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/BIT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/BIT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DIN.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DIN.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DIN.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DOT.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DOT.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DOT.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/GASID/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/GASID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/GASID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRI.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRI.NUM/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRI.NUM/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRS.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRS.NUM/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRS.NUM/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.HALL.XGMD/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.COMPAT.ID/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.COMPAT.ID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.COMPAT.ID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.TYPE.ID/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.TYPE.ID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.TYPE.ID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.COMPAT.ID/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.COMPAT.ID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.COMPAT.ID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.TYPE.ID/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.TYPE.ID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.TYPE.ID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CROSS.INTERPOLATED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CROSS.INTERPOLATED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CROSS.INTERPOLATED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CROSS.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CROSS.USED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CROSS.USED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.1/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.1/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.1/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.2/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.2/index  shape=(490,)  dtype=uint32  chunks=(490,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.2/value  shape=(490,)  dtype=float32  chunks=(490,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.SUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.SUM/index  shape=(486,)  dtype=uint32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/CURRENT.SUM/value  shape=(486,)  dtype=float32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GAMMA.INTERPOLATED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GAMMA.INTERPOLATED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GAMMA.INTERPOLATED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GAMMA.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GAMMA.USED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GAMMA.USED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GASTYPE.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GASTYPE.USED/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GASTYPE.USED/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GMD.ERROR/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GMD.ERROR/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/GMD.ERROR/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/NUMBEROFBUNCHES.FILTERED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/NUMBEROFBUNCHES.FILTERED/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/NUMBEROFBUNCHES.FILTERED/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.CONVERSION/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.CONVERSION/index  shape=(103,)  dtype=uint32  chunks=(103,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.CONVERSION/value  shape=(103,)  dtype=float32  chunks=(103,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.UJ.SIGMA/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.UJ.SIGMA/index  shape=(486,)  dtype=uint32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.UJ.SIGMA/value  shape=(486,)  dtype=float32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W/index  shape=(486,)  dtype=uint32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W/value  shape=(486,)  dtype=float32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.SIGMA/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.SIGMA/index  shape=(486,)  dtype=uint32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.SIGMA/value  shape=(486,)  dtype=float32  chunks=(486,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.STATE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.STATE/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.STATE/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PRESSURE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PRESSURE/index  shape=(65,)  dtype=uint32  chunks=(65,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/PRESSURE/value  shape=(65,)  dtype=float32  chunks=(65,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/ROUGH.PRESSURE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/ROUGH.PRESSURE/index  shape=(133,)  dtype=uint32  chunks=(133,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/ROUGH.PRESSURE/value  shape=(133,)  dtype=float32  chunks=(133,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/WAVELENGTH.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/WAVELENGTH.USED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.HALL/WAVELENGTH.USED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.INTERPOLATED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.INTERPOLATED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.INTERPOLATED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.USED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.USED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.1/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.1/index  shape=(490,)  dtype=uint32  chunks=(490,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.1/value  shape=(490,)  dtype=float32  chunks=(490,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.2/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.2/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.2/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.SUM/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.SUM/index  shape=(470,)  dtype=uint32  chunks=(470,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.SUM/value  shape=(470,)  dtype=float32  chunks=(470,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.INTERPOLATED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.INTERPOLATED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.INTERPOLATED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.USED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.USED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GASTYPE.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GASTYPE.USED/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GASTYPE.USED/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GMD.ERROR/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GMD.ERROR/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/GMD.ERROR/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/NUMBEROFBUNCHES.FILTERED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/NUMBEROFBUNCHES.FILTERED/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/NUMBEROFBUNCHES.FILTERED/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.CONVERSION/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.CONVERSION/index  shape=(111,)  dtype=uint32  chunks=(111,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.CONVERSION/value  shape=(111,)  dtype=float32  chunks=(111,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.UJ.SIGMA/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.UJ.SIGMA/index  shape=(469,)  dtype=uint32  chunks=(469,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.UJ.SIGMA/value  shape=(469,)  dtype=float32  chunks=(469,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W/index  shape=(469,)  dtype=uint32  chunks=(469,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W/value  shape=(469,)  dtype=float32  chunks=(469,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.SIGMA/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.SIGMA/index  shape=(470,)  dtype=uint32  chunks=(470,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.SIGMA/value  shape=(470,)  dtype=float32  chunks=(470,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.STATE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.STATE/index  shape=(66,)  dtype=uint32  chunks=(66,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.STATE/value  shape=(66,)  dtype=float32  chunks=(66,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PRESSURE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PRESSURE/index  shape=(73,)  dtype=uint32  chunks=(73,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/PRESSURE/value  shape=(73,)  dtype=float32  chunks=(73,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/ROUGH.PRESSURE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/ROUGH.PRESSURE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/ROUGH.PRESSURE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/WAVELENGTH.USED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/WAVELENGTH.USED/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PHOTONFLUX/FL2.TUNNEL/WAVELENGTH.USED/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/DCR/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/DCR/index  shape=(69,)  dtype=uint32  chunks=(69,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/DCR/value  shape=(69,)  dtype=float32  chunks=(69,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/GAS.TYPE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/GAS.TYPE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/GAS.TYPE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE/index  shape=(95,)  dtype=uint32  chunks=(95,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE/value  shape=(95,)  dtype=float32  chunks=(95,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE.FILTERED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE.FILTERED/index  shape=(67,)  dtype=uint32  chunks=(67,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE.FILTERED/value  shape=(67,)  dtype=float32  chunks=(67,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RD/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RD/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RD/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RDs/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RDs/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RDs/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RSP/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RSP/index  shape=(122,)  dtype=uint32  chunks=(122,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.HALL.SRG/RSP/value  shape=(122,)  dtype=float32  chunks=(122,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/DCR/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/DCR/index  shape=(77,)  dtype=uint32  chunks=(77,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/DCR/value  shape=(77,)  dtype=float32  chunks=(77,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/GAS.TYPE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/GAS.TYPE/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/GAS.TYPE/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE/index  shape=(100,)  dtype=uint32  chunks=(100,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE/value  shape=(100,)  dtype=float32  chunks=(100,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE.FILTERED/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE.FILTERED/index  shape=(73,)  dtype=uint32  chunks=(73,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE.FILTERED/value  shape=(73,)  dtype=float32  chunks=(73,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RD/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RD/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RD/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RDs/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RDs/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RDs/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RSP/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RSP/index  shape=(108,)  dtype=uint32  chunks=(108,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Expert stuff/XGM.PRESSURE/FL2.TUNNEL.SRG/RSP/value  shape=(108,)  dtype=float32  chunks=(108,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Pulse resolved energy/
+FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/value  shape=(4513, 8, 30)  dtype=float32  chunks=(565, 2, 8)  compression=gzip
+FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/value  shape=(4513, 8, 30)  dtype=float32  chunks=(565, 2, 8)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/
+FL2/Photon Diagnostic/GMD/Two color operation/pulse energy colour 1/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Two color operation/pulse energy colour 1/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/pulse energy colour 1/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/pulse energy colour 2/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Two color operation/pulse energy colour 2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/pulse energy colour 2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/wavelength colour 1/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Two color operation/wavelength colour 1/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/wavelength colour 1/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/wavelength colour 2/  [PARAM index/value]
+FL2/Photon Diagnostic/GMD/Two color operation/wavelength colour 2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/GMD/Two color operation/wavelength colour 2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/check iteration interval/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/check iteration interval/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/check iteration interval/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/check routines active/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/check routines active/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/check routines active/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF1 general ErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF1 general ErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF1 general ErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF1 general WrnStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF1 general WrnStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF1 general WrnStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF2 general ErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF2 general ErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF2 general ErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF2 general WrnStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF2 general WrnStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF2 general WrnStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF3 general ErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF3 general ErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF3 general ErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF3 general WrnStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF3 general WrnStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF3 general WrnStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF4 general ErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF4 general ErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF4 general ErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF4 general WrnStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF4 general WrnStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/eTOF4 general WrnStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/fixed prompt positions/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/fixed prompt positions/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/fixed prompt positions/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/hv for ROI setting/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/hv for ROI setting/index  shape=(68,)  dtype=uint32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/hv for ROI setting/value  shape=(68,)  dtype=float32  chunks=(68,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/run control status/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/run control status/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/General operation parameters/run control status/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/BIT/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/BIT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/BIT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.BIT2/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.BIT2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.BIT2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.BIT5/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.BIT5/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.BIT5/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/GASID/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/GASID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/GASID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRI.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRI.NUM/index  shape=(179,)  dtype=uint32  chunks=(179,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRI.NUM/value  shape=(179,)  dtype=float32  chunks=(179,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRS.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRS.NUM/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRS.NUM/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/VAP/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/VAP/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/VAP/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/BIT/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/BIT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/BIT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.BIT2/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.BIT2/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.BIT2/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.BIT5/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.BIT5/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.BIT5/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.INT/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.INT/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.INT/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/GASID/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/GASID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/GASID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRI.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRI.NUM/index  shape=(224,)  dtype=uint32  chunks=(224,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRI.NUM/value  shape=(224,)  dtype=float32  chunks=(224,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRS.NUM/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRS.NUM/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRS.NUM/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/VAP/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/VAP/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/VAP/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.COMPAT.ID/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.COMPAT.ID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.COMPAT.ID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.TYPE.ID/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.TYPE.ID/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.TYPE.ID/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF1 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF1 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF1 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF1 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF1 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF1 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF2 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF2 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF2 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF2 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF2 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF2 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF3 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF3 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF3 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF3 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF3 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF3 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF4 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF4 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF4 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF4 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF4 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF4 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF5 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF5 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF5 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF5 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF5 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/PEF5 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/prompt position/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/prompt position/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 analysis/prompt position/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/MCP HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/MCP HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/MCP HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/Ret HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/Ret HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/Ret HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/Ret nominal set/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/Ret nominal set/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF1 voltages/Ret nominal set/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF1 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF1 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF1 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF1 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF1 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF1 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF2 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF2 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF2 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF2 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF2 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF2 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF3 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF3 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF3 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF3 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF3 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF3 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF4 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF4 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF4 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF4 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF4 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF4 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF5 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF5 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF5 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF5 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF5 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/PEF5 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/prompt position/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/prompt position/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 analysis/prompt position/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/MCP HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/MCP HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/MCP HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/Ret HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/Ret HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/Ret HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/Ret nominal set/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/Ret nominal set/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF2 voltages/Ret nominal set/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF1 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF1 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF1 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF1 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF1 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF1 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF2 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF2 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF2 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF2 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF2 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF2 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF3 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF3 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF3 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF3 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF3 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF3 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF4 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF4 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF4 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF4 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF4 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF4 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF5 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF5 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF5 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF5 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF5 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/PEF5 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/prompt position/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/prompt position/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 analysis/prompt position/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/MCP HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/MCP HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/MCP HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/Ret HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/Ret HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/Ret HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/Ret nominal set/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/Ret nominal set/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF3 voltages/Ret nominal set/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF1 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF1 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF1 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF1 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF1 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF1 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF2 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF2 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF2 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF2 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF2 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF2 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF3 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF3 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF3 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF3 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF3 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF3 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF4 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF4 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF4 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF4 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF4 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF4 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF5 tof/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF5 tof/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF5 tof/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF5 wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF5 wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/PEF5 wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/prompt position/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/prompt position/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 analysis/prompt position/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/MCP HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/MCP HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/MCP HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/Ret HV WrnErrStatus/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/Ret HV WrnErrStatus/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/Ret HV WrnErrStatus/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/Ret nominal set/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/Ret nominal set/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Expert stuff/eTOF4 voltages/Ret nominal set/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/average-buffer size/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/average-buffer size/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/average-buffer size/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/beam position x/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/beam position x/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/beam position x/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/beam position y/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/beam position y/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/beam position y/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean wavelength/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean wavelength/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean wavelength/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/number of analysed bunch/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/number of analysed bunch/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/number of analysed bunch/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 3/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 3/delay/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 3/delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 3/delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 5/
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 5/delay/  [PARAM index/value]
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 5/delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Raw data/Backplane trigger 5/delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/
+FL2/Support Infrastructure/Gotthard/
+FL2/Support Infrastructure/Gotthard/delay/  [PARAM index/value]
+FL2/Support Infrastructure/Gotthard/delay/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/delay/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/exposure/  [PARAM index/value]
+FL2/Support Infrastructure/Gotthard/exposure/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/exposure/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/frames/  [PARAM index/value]
+FL2/Support Infrastructure/Gotthard/frames/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/frames/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/images/  [PARAM index/value]
+FL2/Support Infrastructure/Gotthard/images/index  shape=(4330,)  dtype=uint32  chunks=(2165,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/images/value  shape=(4330, 110, 1280)  dtype=uint16  chunks=(1, 110, 1280)  compression=gzip
+FL2/Support Infrastructure/Gotthard/period/  [PARAM index/value]
+FL2/Support Infrastructure/Gotthard/period/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+FL2/Support Infrastructure/Gotthard/period/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+Timing/
+Timing/bunch pattern/  [PARAM index/value]
+Timing/bunch pattern/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+Timing/bunch pattern/value  shape=(4513, 7222)  dtype=float32  chunks=(71, 226)  compression=gzip
+Timing/event ID/  [PARAM index/value]
+Timing/event ID/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+Timing/event ID/value  shape=(4513,)  dtype=int64  chunks=(1129,)  compression=gzip
+Timing/set number of bunches flash1/  [PARAM index/value]
+Timing/set number of bunches flash1/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+Timing/set number of bunches flash1/time  shape=(4513,)  dtype=float64  chunks=(1129,)  compression=gzip
+Timing/set number of bunches flash1/value  shape=(4513, 4)  dtype=float32  chunks=(1129, 2)  compression=gzip
+Timing/set number of bunches flash2/  [PARAM index/value]
+Timing/set number of bunches flash2/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+Timing/set number of bunches flash2/time  shape=(4513,)  dtype=float64  chunks=(1129,)  compression=gzip
+Timing/set number of bunches flash2/value  shape=(4513, 4)  dtype=float32  chunks=(1129, 2)  compression=gzip
+Timing/set repetition rate flash1/  [PARAM index/value]
+Timing/set repetition rate flash1/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+Timing/set repetition rate flash1/value  shape=(4513,)  dtype=float64  chunks=(1129,)  compression=gzip
+Timing/set repetition rate flash2/  [PARAM index/value]
+Timing/set repetition rate flash2/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+Timing/set repetition rate flash2/value  shape=(4513,)  dtype=float64  chunks=(1129,)  compression=gzip
+uncategorised/
+uncategorised/FLASH.DAQ/
+uncategorised/FLASH.DAQ/FL2USER1.DAQ.FSM/
+uncategorised/FLASH.DAQ/FL2USER1.DAQ.FSM/RT.RT/
+uncategorised/FLASH.DAQ/FL2USER1.DAQ.FSM/RT.RT/Z_POS/  [PARAM index/value]
+uncategorised/FLASH.DAQ/FL2USER1.DAQ.FSM/RT.RT/Z_POS/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.DAQ/FL2USER1.DAQ.FSM/RT.RT/Z_POS/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EV.MASK/  [PARAM index/value]
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EV.MASK/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EV.MASK/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EVENTS/  [PARAM index/value]
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EVENTS/index  shape=(492,)  dtype=uint32  chunks=(492,)  compression=gzip
+uncategorised/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EVENTS/value  shape=(492,)  dtype=float32  chunks=(492,)  compression=gzip
+uncategorised/FLASH.DIAG/
+uncategorised/FLASH.DIAG/TIMINGINFO/
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.1.NATIVE/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.1.NATIVE/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.1.NATIVE/value  shape=(4513, 4)  dtype=float32  chunks=(1129, 2)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.2.NATIVE/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.2.NATIVE/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.2.NATIVE/value  shape=(4513, 4)  dtype=float32  chunks=(1129, 2)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.3.NATIVE/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.3.NATIVE/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.3.NATIVE/value  shape=(4513, 4)  dtype=float32  chunks=(1129, 2)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_PATTERN_NATIVE/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_PATTERN_NATIVE/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_PATTERN_NATIVE/value  shape=(4513,)  dtype=int32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.REP_RATE_KHZ.3/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.REP_RATE_KHZ.3/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.REP_RATE_KHZ.3/value  shape=(4513,)  dtype=float64  chunks=(1129,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/
+uncategorised/FLASH.DIAG/TOROID/18FL2EXTR/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/18FL2EXTR/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/18FL2EXTR/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/1FL0UBC2/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/1FL0UBC2/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/1FL0UBC2/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/1FL1DIAG/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/1FL1DIAG/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/1FL1DIAG/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/4FL0EXTR/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/4FL0EXTR/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/4FL0EXTR/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/4FL1LOLA/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/4FL1LOLA/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/4FL1LOLA/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/4FL2EXTR/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/4FL2EXTR/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/4FL2EXTR/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/6FL1DIAG/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/6FL1DIAG/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/6FL1DIAG/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/8FL0DBC1/  [PARAM index/value]
+uncategorised/FLASH.DIAG/TOROID/8FL0DBC1/index  shape=(4513,)  dtype=uint32  chunks=(2257,)  compression=gzip
+uncategorised/FLASH.DIAG/TOROID/8FL0DBC1/value  shape=(4513, 802)  dtype=float32  chunks=(142, 51)  compression=gzip
+uncategorised/FLASH.FEL/
+uncategorised/FLASH.FEL/FL24.MOTOR/
+uncategorised/FLASH.FEL/FL24.MOTOR/MOTOR3.MOT1/
+uncategorised/FLASH.FEL/FL24.MOTOR/MOTOR3.MOT1/FODOMETER/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL24.MOTOR/MOTOR3.MOT1/FODOMETER/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL24.MOTOR/MOTOR3.MOT1/FODOMETER/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas1_BL_8_3.fPressureMBar/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas1_BL_8_3.fPressureMBar/index  shape=(444,)  dtype=uint32  chunks=(444,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas1_BL_8_3.fPressureMBar/value  shape=(444,)  dtype=float32  chunks=(444,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas2_BL_8_3.fPressureMBar/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas2_BL_8_3.fPressureMBar/index  shape=(301,)  dtype=uint32  chunks=(301,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas2_BL_8_3.fPressureMBar/value  shape=(301,)  dtype=float32  chunks=(301,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bClosed/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bClosed/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bClosed/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bOpen/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bOpen/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bOpen/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_1.fPressure/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_1.fPressure/index  shape=(409,)  dtype=uint32  chunks=(409,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_1.fPressure/value  shape=(409,)  dtype=float32  chunks=(409,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_2.fPressure/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_2.fPressure/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_2.fPressure/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_3.fPressure/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_3.fPressure/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_3.fPressure/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_4.fPressure/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_4.fPressure/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_4.fPressure/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL78/
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL78/OPCUA.fbUHVG_BL_8_1.fPressureMBar/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL78/OPCUA.fbUHVG_BL_8_1.fPressureMBar/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.BL78/OPCUA.fbUHVG_BL_8_1.fPressureMBar/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.HG0/
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.HG0/OPCUA.fbUHVG_HG_0_1.fPressureMBar/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.HG0/OPCUA.fbUHVG_HG_0_1.fPressureMBar/index  shape=(360,)  dtype=uint32  chunks=(360,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.HG0/OPCUA.fbUHVG_HG_0_1.fPressureMBar/value  shape=(360,)  dtype=float32  chunks=(360,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS0/
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS0/OPCUA.fbUHVG_JS_0_1.fPressureMBar/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS0/OPCUA.fbUHVG_JS_0_1.fPressureMBar/index  shape=(450,)  dtype=uint32  chunks=(450,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS0/OPCUA.fbUHVG_JS_0_1.fPressureMBar/value  shape=(450,)  dtype=float32  chunks=(450,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_1.fPressure/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_1.fPressure/index  shape=(410,)  dtype=uint32  chunks=(410,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_1.fPressure/value  shape=(410,)  dtype=float32  chunks=(410,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_2.fPressure/  [PARAM index/value]
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_2.fPressure/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_2.fPressure/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.DELAY/  [PARAM index/value]
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.DELAY/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.DELAY/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.FDELAY/  [PARAM index/value]
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.FDELAY/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.FDELAY/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.DELAY/  [PARAM index/value]
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.DELAY/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.DELAY/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.FDELAY/  [PARAM index/value]
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.FDELAY/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.FDELAY/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/
+uncategorised/FLASH.UTIL/STORE/
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL370/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL370/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL370/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL371/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL371/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL371/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL372/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL372/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL372/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL373/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL373/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL373/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL374/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL374/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL374/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL375/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL375/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL375/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL376/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL376/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL376/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL377/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL377/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL377/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL378/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL378/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL378/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL379/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL379/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL379/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL470/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL470/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL470/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL471/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL471/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL471/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL472/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL472/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL472/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL473/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL473/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL473/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL474/  [PARAM index/value]
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL474/index  shape=(62,)  dtype=uint32  chunks=(62,)  compression=gzip
+uncategorised/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL474/value  shape=(62,)  dtype=float32  chunks=(62,)  compression=gzip
+zraw/
+zraw/FLASH.DAQ/
+zraw/FLASH.DAQ/FL2USER1.DAQ.FSM/
+zraw/FLASH.DAQ/FL2USER1.DAQ.FSM/RT.RT/
+zraw/FLASH.DAQ/FL2USER1.DAQ.FSM/RT.RT/Z_POS/
+zraw/FLASH.DAQ/FL2USER1.DISTRIBUTOR/
+zraw/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/
+zraw/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EV.MASK/
+zraw/FLASH.DAQ/FL2USER1.DISTRIBUTOR/DAQ.EXP/EVB.EVENTS/
+zraw/FLASH.DIAG/
+zraw/FLASH.DIAG/TIMINGINFO/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.1.NATIVE/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.2.NATIVE/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH.POSITION.3.NATIVE/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.2/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_PATTERN/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_PATTERN_NATIVE/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.EVENT_ID_NATIVE/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.REP_RATE_KHZ.1/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.REP_RATE_KHZ.2/
+zraw/FLASH.DIAG/TIMINGINFO/TIME1.REP_RATE_KHZ.3/
+zraw/FLASH.DIAG/TOROID/
+zraw/FLASH.DIAG/TOROID/18FL2EXTR/
+zraw/FLASH.DIAG/TOROID/1FL0UBC2/
+zraw/FLASH.DIAG/TOROID/1FL1DIAG/
+zraw/FLASH.DIAG/TOROID/3GUN/
+zraw/FLASH.DIAG/TOROID/4FL0EXTR/
+zraw/FLASH.DIAG/TOROID/4FL1LOLA/
+zraw/FLASH.DIAG/TOROID/4FL2EXTR/
+zraw/FLASH.DIAG/TOROID/6FL1DIAG/
+zraw/FLASH.DIAG/TOROID/8FL0DBC1/
+zraw/FLASH.EXP/
+zraw/FLASH.EXP/USER.STORE.FL24/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.01/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.02/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.03/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.04/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.05/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.06/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.07/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.08/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.09/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.10/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.11/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.12/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.13/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.14/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.15/
+zraw/FLASH.EXP/USER.STORE.FL24/FL24/VAL.16/
+zraw/FLASH.FEL/
+zraw/FLASH.FEL/ADC.SIS.FL2FS/
+zraw/FLASH.FEL/ADC.SIS.FL2FS/FL20.SHUTTER/
+zraw/FLASH.FEL/ATT.GAS_DOSING/
+zraw/FLASH.FEL/ATT.GAS_DOSING/FL2.HALL/
+zraw/FLASH.FEL/ATT.GAS_DOSING/FL2.HALL/PRESSURE/
+zraw/FLASH.FEL/FILTERWHEEL/
+zraw/FLASH.FEL/FILTERWHEEL/BL.FL20.0/
+zraw/FLASH.FEL/FILTERWHEEL/BL.FL20.0/FW.CURRENT.TRANS/
+zraw/FLASH.FEL/FILTERWHEEL/BL.FL20.0/FW.CURRENT.TRANS.3RD/
+zraw/FLASH.FEL/FILTERWHEEL/BL.FL20.1/
+zraw/FLASH.FEL/FILTERWHEEL/BL.FL20.1/FW.CURRENT.TRANS/
+zraw/FLASH.FEL/FILTERWHEEL/BL.FL20.1/FW.CURRENT.TRANS.3RD/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE10/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE10/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE11/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE11/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE12/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE12/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE13/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE13/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE2/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE2/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE3/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE3/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE4/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE4/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE5/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE5/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE6/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE6/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE7/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE7/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE8/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE8/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE9/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FL2SASE9/K.ACTUAL/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FLASH2/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FLASH2/GAP.ERROR/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FLASH2.COLOR1/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FLASH2.COLOR1/WAVELENGTH/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FLASH2.COLOR2/
+zraw/FLASH.FEL/FL2.WAVELENGTHCONTROL/FLASH2.COLOR2/WAVELENGTH/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR1.MOT1/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR1.MOT1/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR1.MOT2/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR1.MOT2/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR1.MOT3/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR1.MOT3/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR2.MOT1/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR2.MOT1/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR2.MOT2/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR2.MOT2/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR2.MOT3/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR2.MOT3/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR3.MOT3/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR3.MOT3/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR4.MOT3/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR4.MOT3/FPOS/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR5.MOT3/
+zraw/FLASH.FEL/FL20H.PH.MOTOR/MOTOR5.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR1.MOT1/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR1.MOT1/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR1.MOT2/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR1.MOT2/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR1.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR1.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR2.MOT1/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR2.MOT1/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR2.MOT2/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR2.MOT2/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR2.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR2.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR3.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR3.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR4.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR4.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR5.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR5.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR6.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR6.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR7.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR7.MOT3/FPOS/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR8.MOT3/
+zraw/FLASH.FEL/FL20T.PH.MOTOR/MOTOR8.MOT3/FPOS/
+zraw/FLASH.FEL/FL24.MOTOR/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR1.MOT1/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR1.MOT1/FPOS/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR2.MOT1/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR2.MOT1/FPOS/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR3.MOT1/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR3.MOT1/FODOMETER/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR3.MOT1/FPOS/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR4.MOT1/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR4.MOT1/FPOS/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR8.MOT3/
+zraw/FLASH.FEL/FL24.MOTOR/MOTOR8.MOT3/FPOS/
+zraw/FLASH.FEL/FL26.VACUUM/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas1_BL_8_3.fPressureMBar/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbPGas2_BL_8_3.fPressureMBar/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bClosed/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BEAMLINE/OPCUA.fbV_BL_1.bOpen/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BL5/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_1.fPressure/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_2.fPressure/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_3.fPressure/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BL5/OPCUA.stUHVG_BL_5_4.fPressure/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BL78/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.BL78/OPCUA.fbUHVG_BL_8_1.fPressureMBar/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.HG0/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.HG0/OPCUA.fbUHVG_HG_0_1.fPressureMBar/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.JS0/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.JS0/OPCUA.fbUHVG_JS_0_1.fPressureMBar/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.JS3/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_1.fPressure/
+zraw/FLASH.FEL/FL26.VACUUM/REMI.JS3/OPCUA.stUHVG_JS_3_2.fPressure/
+zraw/FLASH.FEL/GOTTHARD/
+zraw/FLASH.FEL/GOTTHARD/FL2/
+zraw/FLASH.FEL/GOTTHARD/FL2/DETECTOR.EXPOSURE/
+zraw/FLASH.FEL/GOTTHARD/FL2/DETECTOR.FRAMES/
+zraw/FLASH.FEL/GOTTHARD/FL2/DETECTOR.PERIOD/
+zraw/FLASH.FEL/GOTTHARD/FL2/DETECTOR.TRIG.DELAY/
+zraw/FLASH.FEL/TIMER/
+zraw/FLASH.FEL/TIMER/EXP1/
+zraw/FLASH.FEL/TIMER/EXP1/BACK.TRG3.DELAY/
+zraw/FLASH.FEL/TIMER/EXP1/BACK.TRG5.DELAY/
+zraw/FLASH.FEL/TIMER/EXP1/RTM.TRG6.DELAY/
+zraw/FLASH.FEL/TIMER/EXP2/
+zraw/FLASH.FEL/TIMER/EXP2/BACK.TRG3.DELAY/
+zraw/FLASH.FEL/TIMER/EXP2/BACK.TRG5.DELAY/
+zraw/FLASH.FEL/TIMER/F2OPIS1/
+zraw/FLASH.FEL/TIMER/F2OPIS1/BACK.TRG3.DELAY/
+zraw/FLASH.FEL/TIMER/F2OPIS1/BACK.TRG5.DELAY/
+zraw/FLASH.FEL/TIMER/F2PPLASERA/
+zraw/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.DELAY/
+zraw/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG1.FDELAY/
+zraw/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.DELAY/
+zraw/FLASH.FEL/TIMER/F2PPLASERA/FRONT.TRG2.FDELAY/
+zraw/FLASH.FEL/TIMER/FL2EXP1/
+zraw/FLASH.FEL/TIMER/FL2EXP1/BACK.TRG3.DELAY/
+zraw/FLASH.FEL/TIMER/FL2EXP1/BACK.TRG5.DELAY/
+zraw/FLASH.FEL/XGM.CURRENT/
+zraw/FLASH.FEL/XGM.CURRENT/FL1.TUNNEL.K6517/
+zraw/FLASH.FEL/XGM.CURRENT/FL1.TUNNEL.K6517/OUTPUT/
+zraw/FLASH.FEL/XGM.CURRENT/FL1.TUNNEL.K6517/RANGE.CODE/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.K2700/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.K2700/CH01/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.K2700/CH02/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.K2700/CH03/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.K2700/CH04/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.K2700/CH05/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.LEFT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.LEFT/OUTPUT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.LEFT/RANGE.CODE/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.RIGHT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.RIGHT/OUTPUT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.HALL.RIGHT/RANGE.CODE/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.K2700/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.K2700/CH01/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.K2700/CH02/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.K2700/CH03/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.K2700/CH04/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.K2700/CH05/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.LEFT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.LEFT/OUTPUT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.LEFT/RANGE.CODE/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.RIGHT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.RIGHT/OUTPUT/
+zraw/FLASH.FEL/XGM.CURRENT/FL2.TUNNEL.RIGHT/RANGE.CODE/
+zraw/FLASH.FEL/XGM.GAS_DOSING/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL1.ATTENUATOR.AUX/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL1.ATTENUATOR.AUX/PRI.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.HALL.XGMD/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.HALL.XGMD/BIT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.HALL.XGMD/DIN.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.HALL.XGMD/DOT.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.HALL.XGMD/GASID/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.HALL.XGMD/PRI.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.HALL.XGMD/PRS.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/BIT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.BIT2/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DIN.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.BIT5/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/DOT.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/GASID/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRI.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/PRS.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS1/VAP.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/BIT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.BIT2/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DIN.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.BIT5/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/DOT.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/GASID/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRI.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/PRS.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.OPIS2/VAP.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/BIT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DIN.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/DOT.INT/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/GASID/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRI.NUM/
+zraw/FLASH.FEL/XGM.GAS_DOSING/FL2.TUNNEL.XGMD/PRS.NUM/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.HALL.ATT/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.HALL.ATT/GAS.TYPE.ID/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.HALL.XGMD/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.COMPAT.ID/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.HALL.XGMD/GAS.TYPE.ID/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.COMPAT.ID/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.TUNNEL.OPIS/GAS.TYPE.ID/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.COMPAT.ID/
+zraw/FLASH.FEL/XGM.GAS_SUPPLY/FL2.TUNNEL.XGMD/GAS.TYPE.ID/
+zraw/FLASH.FEL/XGM.INTENSITY/
+zraw/FLASH.FEL/XGM.INTENSITY/FL2.HALL/
+zraw/FLASH.FEL/XGM.INTENSITY/FL2.TUNNEL/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/CROSS.INTERPOLATED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/CROSS.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/CURRENT.1/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/CURRENT.2/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/CURRENT.SUM/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/GAMMA.INTERPOLATED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/GAMMA.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/GASTYPE.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/GMD.ERROR/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/NUMBEROFBUNCHES.FILTERED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.CONVERSION/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.UJ/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.UJ.SIGMA/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.SIGMA/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/PHOTONFLUX.W.STATE/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/PRESSURE/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/ROUGH.PRESSURE/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.HALL/WAVELENGTH.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.INTERPOLATED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/CROSS.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.1/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.2/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/CURRENT.SUM/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.INTERPOLATED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/GAMMA.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/GASTYPE.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/GMD.ERROR/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/NUMBEROFBUNCHES.FILTERED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.CONVERSION/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.UJ/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.UJ.SIGMA/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.SIGMA/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/PHOTONFLUX.W.STATE/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/PRESSURE/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/ROUGH.PRESSURE/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TUNNEL/WAVELENGTH.USED/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TWO_COLOURS/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TWO_COLOURS/PULSEENERGY1/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TWO_COLOURS/PULSEENERGY2/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TWO_COLOURS/WAVELENGTH1/
+zraw/FLASH.FEL/XGM.PHOTONFLUX/FL2.TWO_COLOURS/WAVELENGTH2/
+zraw/FLASH.FEL/XGM.POSMON/
+zraw/FLASH.FEL/XGM.POSMON/FL2.HALL/
+zraw/FLASH.FEL/XGM.POSMON/FL2.HALL/IX.POS/
+zraw/FLASH.FEL/XGM.POSMON/FL2.HALL/IX.SUM/
+zraw/FLASH.FEL/XGM.POSMON/FL2.HALL/IY.POS/
+zraw/FLASH.FEL/XGM.POSMON/FL2.HALL/IY.SUM/
+zraw/FLASH.FEL/XGM.POSMON/FL2.TUNNEL/
+zraw/FLASH.FEL/XGM.POSMON/FL2.TUNNEL/IX.POS/
+zraw/FLASH.FEL/XGM.POSMON/FL2.TUNNEL/IX.SUM/
+zraw/FLASH.FEL/XGM.POSMON/FL2.TUNNEL/IY.POS/
+zraw/FLASH.FEL/XGM.POSMON/FL2.TUNNEL/IY.SUM/
+zraw/FLASH.FEL/XGM.PRESSURE/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/DCR/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/GAS.TYPE/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/PRESSURE.FILTERED/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/RD/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/RDs/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.HALL.SRG/RSP/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/DCR/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/GAS.TYPE/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/PRESSURE.FILTERED/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/RD/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/RDs/
+zraw/FLASH.FEL/XGM.PRESSURE/FL2.TUNNEL.SRG/RSP/
+zraw/FLASH.UTIL/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2BURN/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2BURN/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2BURN/ISTWERT.SHIFT/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE10/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE10/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE11/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE11/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE12/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE12/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE13/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE13/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE2/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE2/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE3/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE3/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE4/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE4/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE5/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE5/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE6/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE6/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE7/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE7/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE8/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE8/GAP/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE9/
+zraw/FLASH.UTIL/FL2.UND.MOTOR/FL2SASE9/GAP/
+zraw/FLASH.UTIL/FL2.VACUUM.COMPONENTS/
+zraw/FLASH.UTIL/FL2.VACUUM.COMPONENTS/FL20.PS0/
+zraw/FLASH.UTIL/FL2.VACUUM.COMPONENTS/FL20.PS0/VALUE/
+zraw/FLASH.UTIL/FL2.VACUUM.COMPONENTS/FL20.PS1/
+zraw/FLASH.UTIL/FL2.VACUUM.COMPONENTS/FL20.PS1/VALUE/
+zraw/FLASH.UTIL/FL2.VACUUM.COMPONENTS/FL20.PS2/
+zraw/FLASH.UTIL/FL2.VACUUM.COMPONENTS/FL20.PS2/VALUE/
+zraw/FLASH.UTIL/STORE/
+zraw/FLASH.UTIL/STORE/FL2.FLOATS/
+zraw/FLASH.UTIL/STORE/FL2.FLOATS/VAL.60/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL000/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL002/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL004/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL006/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL008/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL010/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL012/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL014/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL016/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL018/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL020/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL022/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL024/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL026/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL028/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL030/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL032/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL034/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL036/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL038/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL040/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL042/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL048/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL049/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL100/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL102/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL104/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL106/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL108/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL110/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL112/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL114/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL116/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL118/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL120/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL122/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL124/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL126/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL128/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL130/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL132/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL134/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL136/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL138/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL140/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL142/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL144/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL146/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL200/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL201/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL202/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL220/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL230/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL231/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL232/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL233/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL234/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL235/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL236/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL237/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL238/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL251/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL252/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL253/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL254/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL294/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL295/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL296/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL297/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL304/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL305/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL306/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL307/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL310/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL370/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL371/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL372/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL373/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL374/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL375/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL376/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL377/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL378/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL379/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL470/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL471/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL472/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL473/
+zraw/FLASH.UTIL/STORE/FL2.TUNNEL.OPIS/VAL474/

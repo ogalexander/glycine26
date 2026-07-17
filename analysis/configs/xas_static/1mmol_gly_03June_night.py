@@ -48,3 +48,34 @@ TRANSITION_TRIM_SECONDS = 3.0
 # Protocol prior: "open" means the scan begins with the shutter open,
 # so section 0 uses the first closed block as its background.
 FIRST_SECTION_STATE = "open"
+
+# ML feature names written to /ml/features. Edit this list before rerunning
+# compute_static_xas.py if you want to save a smaller or reordered feature set.
+ML_FEATURE_NAMES = [
+    "gmd_hall_ch0_intensity",
+    "gmd_hall_ch2_x",
+    "gmd_hall_ch3_y",
+    "gmd_hall_ch4_intensity_sigma",
+    "gmd_tunnel_ch0_intensity",
+    "gmd_tunnel_ch2_x",
+    "gmd_tunnel_ch3_y",
+    "gmd_tunnel_ch4_intensity_sigma",
+    "gmd_hall_ch7_tss",
+    "gmd_tunnel_ch7_tss",
+    "set_wavelength_1",
+    "undulator_gap_mean",
+    "undulator_gap_std",
+    "undulator_gap_slope",
+    "gap_error",
+    "attenuator_pressure",
+    "attenuator_gas_type",
+    "fl26_pgas1_bl_8_3_pressure_mbar",
+    "fl26_pgas2_bl_8_3_pressure_mbar",
+    "fl26_bl5_1_pressure",
+    "fl26_hg0_pressure_mbar",
+    "fl26_js0_pressure_mbar",
+    "fl26_js3_1_pressure",
+    "fl26_valve_bl1_closed",
+    "fl26_valve_bl1_open",
+    "qc_finite_vls",
+]
