@@ -27,12 +27,12 @@ Output H5 layout (default: <processed/xas_static>/run<N>_static_xas.h5):
 
 Config file
 -----------
-Python module exposing: RUN_NO, NOMINAL_ENERGIES, CROP_ROI,
-SIGNAL_BUNCH_RANGE, BG_BUNCH_RANGE, CONFIG=2, plus optional shutter /
-trim knobs. No GMD_EDGES needed. ``MODE`` may be any of ``"xas"``,
-``"xas_scan"``, or ``"xas_static"``. The same config file also drives
-``compute_xas_aggregates.py``; that script consumes the extra
-GMD-binning fields when present. See ``analysis/configs/xas_static/``
+Python module exposing: RUN_NO, CROP_ROI, SIGNAL_BUNCH_RANGE,
+BG_BUNCH_RANGE, CONFIG=2, plus either NOMINAL_ENERGIES or
+SECTION_ENERGY_SOURCE. No GMD_EDGES needed. ``MODE`` may be any of
+``"xas"``, ``"xas_scan"``, or ``"xas_static"``. The same config file
+also drives ``compute_xas_aggregates.py``; that script consumes the
+extra GMD-binning fields when present. See ``analysis/configs/xas_static/``
 and ``analysis/configs/aggregates_example_xas.py``.
 
 CLI
@@ -63,6 +63,7 @@ __all__ = ["compute_static_xas", "main"]
 _DEFAULT_SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"
 _DEFAULT_SHUTTER_VALUE_PATH = "/FL2/Beamlines/Fast Shutter/shutter/value"
 _MAD_TO_SIGMA_NORMAL = 1.4826
+_HC_EV_NM = 1239.8419843320026
 
 _GMD_TUNNEL_INDEX_CANDIDATES = (
     "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index",
@@ -809,6 +810,80 @@ def _preceding_closed_indices(
     return np.arange(ps, pe, dtype=np.int64)
 
 
+def _section_energies_from_source(
+    *,
+    section_energy_source: str,
+    nominal_energies: Optional[np.ndarray],
+    open_blocks,
+    train_scalars: dict,
+    is_open_raw: np.ndarray,
+    valid_mask: np.ndarray,
+    energy_round_decimals: Optional[int],
+) -> tuple[np.ndarray, dict]:
+    """
+    Build one photon-energy value per detected open section.
+
+    ``set_wavelength_*`` values are read as wavelength in nm and converted with
+    E[eV] = hc / wavelength[nm]. When a wavelength source is selected, the
+    converted value is treated as the section photon-energy axis.
+    """
+    source = str(section_energy_source).strip().lower()
+    if source in ("config", "nominal", "nominal_energies"):
+        if nominal_energies is None or nominal_energies.size == 0:
+            raise ValueError("NOMINAL_ENERGIES is required when SECTION_ENERGY_SOURCE='config'.")
+        energies = np.asarray(nominal_energies, dtype=np.float64).ravel()
+        return energies, {
+            "source": "config",
+            "source_unit": "eV",
+            "raw_eV": energies.copy(),
+            "source_values": energies.copy(),
+            "round_decimals": -1,
+        }
+
+    source_to_unit = {
+        "set_wavelength_1": "nm",
+        "set_wavelength_2": "nm",
+        "opis_mean_wavelength": "nm",
+        "opis_mean_photon_energy": "eV",
+    }
+    if source not in source_to_unit:
+        allowed = ", ".join(["config", *source_to_unit])
+        raise ValueError(f"unknown SECTION_ENERGY_SOURCE={section_energy_source!r}; allowed: {allowed}")
+    if source not in train_scalars:
+        raise KeyError(f"{source!r} is not available in train_scalars.")
+
+    values_by_train = np.asarray(train_scalars[source], dtype=np.float64)
+    section_values = np.full(len(open_blocks), np.nan, dtype=np.float64)
+    raw_e = np.full(len(open_blocks), np.nan, dtype=np.float64)
+    for i, (s, e) in enumerate(open_blocks):
+        mask = np.zeros(valid_mask.shape[0], dtype=bool)
+        mask[s:e] = True
+        mask &= is_open_raw & valid_mask
+        vals = values_by_train[mask]
+        vals = vals[np.isfinite(vals) & (vals > 0)]
+        if vals.size == 0:
+            raise RuntimeError(f"section {i}: no finite positive {source} values.")
+        section_values[i] = float(np.nanmedian(vals))
+        if source_to_unit[source] == "nm":
+            raw_e[i] = _HC_EV_NM / section_values[i]
+        else:
+            raw_e[i] = section_values[i]
+
+    energies = raw_e.copy()
+    if energy_round_decimals is not None:
+        energies = np.round(energies, int(energy_round_decimals))
+
+    return energies.astype(np.float64, copy=False), {
+        "source": source,
+        "source_unit": source_to_unit[source],
+        "raw_eV": raw_e,
+        "source_values": section_values,
+        "round_decimals": (
+            int(energy_round_decimals) if energy_round_decimals is not None else -1
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -817,7 +892,7 @@ def compute_static_xas(
     output_h5,
     *,
     run_no,
-    nominal_energies,
+    nominal_energies=None,
     crop_roi: Tuple[int, int],
     signal_bunch_range: Tuple[int, int],
     bg_bunch_range: Tuple[int, int],
@@ -833,6 +908,8 @@ def compute_static_xas(
     transition_trim_seconds: float = 3.0,
     first_section_state: str = "open",
     ml_feature_names: Optional[list[str]] = None,
+    section_energy_source: str = "config",
+    section_energy_round_decimals: Optional[int] = None,
     config_path=None,
     verbose: bool = True,
 ) -> None:
@@ -848,8 +925,9 @@ def compute_static_xas(
     ----------
     output_h5 : str or Path
     run_no : int or sequence of int
-    nominal_energies : array-like
-        Energies (eV) assigned to detected sections by index.
+    nominal_energies : array-like, optional
+        Energies (eV) assigned to detected sections by index when
+        ``section_energy_source='config'``.
     crop_roi : (int, int)
         Half-open VLS pixel ROI.
     signal_bunch_range : (int, int)
@@ -875,6 +953,10 @@ def compute_static_xas(
     ml_feature_names : list[str], optional
         Optional subset/order of ``ML_FEATURE_SPECS`` names to write under
         ``/ml/features``. ``None`` writes all default compact features.
+    section_energy_source : str
+        ``"config"`` uses ``nominal_energies``. ``"set_wavelength_1"`` derives
+        one section energy from the median undulator set wavelength in each
+        open section and treats the converted value as the photon-energy axis.
     config_path : Path, optional  (recorded as a provenance attribute)
     verbose : bool
     """
@@ -888,7 +970,10 @@ def compute_static_xas(
     if not run_numbers:
         raise ValueError("run_no must contain at least one run number.")
 
-    nominal_energies = np.asarray(nominal_energies, dtype=np.float64).ravel()
+    if nominal_energies is None:
+        nominal_energies_arr = None
+    else:
+        nominal_energies_arr = np.asarray(nominal_energies, dtype=np.float64).ravel()
     roi_min, roi_max = int(crop_roi[0]), int(crop_roi[1])
     n_pixels = roi_max - roi_min
     sig_b0, sig_b1 = int(signal_bunch_range[0]), int(signal_bunch_range[1])
@@ -909,8 +994,13 @@ def compute_static_xas(
 
     log(f"run                : {_run_label(run_numbers)}")
     log(f"raw dir            : {raw_dir}")
-    log(f"nominal energies   : {nominal_energies.size}  "
-        f"({nominal_energies[0]:.2f} .. {nominal_energies[-1]:.2f} eV)")
+    if str(section_energy_source).strip().lower() in ("config", "nominal", "nominal_energies"):
+        if nominal_energies_arr is None or nominal_energies_arr.size == 0:
+            raise ValueError("NOMINAL_ENERGIES is required when SECTION_ENERGY_SOURCE='config'.")
+        log(f"nominal energies   : {nominal_energies_arr.size}  "
+            f"({nominal_energies_arr[0]:.2f} .. {nominal_energies_arr[-1]:.2f} eV)")
+    else:
+        log(f"section energies   : from {section_energy_source}")
     log(f"VLS ROI            : [{roi_min}, {roi_max}) = {n_pixels} pixels")
     log(f"VLS bunch roll     : {vls_bunch_roll}")
     log(f"signal bunches     : [{sig_b0}, {sig_b1})")
@@ -1056,13 +1146,26 @@ def compute_static_xas(
     if not closed_blocks:
         raise RuntimeError("No closed-shutter sections detected.")
 
+    section_energies, section_energy_meta = _section_energies_from_source(
+        section_energy_source=section_energy_source,
+        nominal_energies=nominal_energies_arr,
+        open_blocks=open_blocks,
+        train_scalars=train_scalars,
+        is_open_raw=is_open_raw,
+        valid_mask=valid_mask,
+        energy_round_decimals=section_energy_round_decimals,
+    )
+
     n_detected  = len(open_blocks)
-    n_e = min(n_detected, nominal_energies.size)
-    if n_detected != nominal_energies.size:
+    n_e = min(n_detected, section_energies.size)
+    if n_detected != section_energies.size:
         log(f"warning: detected {n_detected} open sections vs "
-            f"{nominal_energies.size} nominal energies; using leading {n_e}.")
+            f"{section_energies.size} section energies; using leading {n_e}.")
     open_blocks      = open_blocks[:n_e]
-    energies         = nominal_energies[:n_e]
+    energies         = section_energies[:n_e]
+    log(f"section energies   : {energies.size}  "
+        f"({energies[0]:.2f} .. {energies[-1]:.2f} eV), "
+        f"source={section_energy_meta['source']}")
     first_closed_idx = np.arange(
         closed_blocks[0][0], closed_blocks[0][1], dtype=np.int64,
     )
@@ -1257,6 +1360,14 @@ def compute_static_xas(
         fout.create_dataset("gmd_tunnel",       data=gmd_tunnel_out, compression="gzip")
         fout.create_dataset("n_shots",          data=n_shots_arr)
         fout.create_dataset("nominal_energies", data=energies)
+        fout.create_dataset(
+            "section_energy_source_values",
+            data=np.asarray(section_energy_meta["source_values"][:n_e], dtype=np.float64),
+        )
+        fout.create_dataset(
+            "section_energy_raw_eV",
+            data=np.asarray(section_energy_meta["raw_eV"][:n_e], dtype=np.float64),
+        )
         fout.create_dataset("vls_pixels",
                             data=np.arange(roi_min, roi_max, dtype=np.int64))
         fout.create_dataset("section_bg",       data=section_bg,  compression="gzip")
@@ -1337,6 +1448,14 @@ def compute_static_xas(
         fout.attrs["raw_dir"]                 = str(raw_dir)
         fout.attrs["n_sections_detected"]     = int(n_detected)
         fout.attrs["n_sections_used"]         = int(n_e)
+        fout.attrs["section_energy_source"]   = str(section_energy_meta["source"])
+        fout.attrs["section_energy_source_unit"] = str(section_energy_meta["source_unit"])
+        fout.attrs["section_energy_round_decimals"] = int(section_energy_meta["round_decimals"])
+        fout.attrs["section_energy_conversion"] = (
+            f"E_eV = {_HC_EV_NM:.13g} / wavelength_nm"
+            if section_energy_meta["source_unit"] == "nm"
+            else "source values already in eV"
+        )
         fout.attrs["vls_crop_roi"]            = np.asarray([roi_min, roi_max], dtype=np.int64)
         fout.attrs["vls_bunch_roll"]          = int(vls_bunch_roll)
         fout.attrs["signal_bunch_range"]      = np.asarray([sig_b0, sig_b1], dtype=np.int64)
@@ -1373,8 +1492,9 @@ def main(argv=None) -> None:
     )
     parser.add_argument(
         "config_path", type=Path,
-        help="Config module exposing RUN_NO, NOMINAL_ENERGIES, CROP_ROI, "
-             "SIGNAL_BUNCH_RANGE, BG_BUNCH_RANGE, CONFIG=2.",
+        help="Config module exposing RUN_NO, CROP_ROI, SIGNAL_BUNCH_RANGE, "
+             "BG_BUNCH_RANGE, CONFIG=2, plus either NOMINAL_ENERGIES or "
+             "SECTION_ENERGY_SOURCE.",
     )
     parser.add_argument(
         "-o", "--output", type=Path, default=None,
@@ -1404,7 +1524,7 @@ def main(argv=None) -> None:
     compute_static_xas(
         output_h5=out,
         run_no=run_no,
-        nominal_energies=np.asarray(cfg.NOMINAL_ENERGIES, dtype=float),
+        nominal_energies=getattr(cfg, "NOMINAL_ENERGIES", None),
         crop_roi=tuple(cfg.CROP_ROI),
         signal_bunch_range=tuple(cfg.SIGNAL_BUNCH_RANGE),
         bg_bunch_range=tuple(cfg.BG_BUNCH_RANGE),
@@ -1422,6 +1542,8 @@ def main(argv=None) -> None:
         transition_trim_seconds=float(getattr(cfg, "TRANSITION_TRIM_SECONDS", 3.0)),
         first_section_state=str(getattr(cfg, "FIRST_SECTION_STATE", "open")),
         ml_feature_names=getattr(cfg, "ML_FEATURE_NAMES", None),
+        section_energy_source=str(getattr(cfg, "SECTION_ENERGY_SOURCE", "config")),
+        section_energy_round_decimals=getattr(cfg, "SECTION_ENERGY_ROUND_DECIMALS", None),
         config_path=args.config_path,
     )
 

@@ -10,7 +10,6 @@ Run with:
     python analysis/scripts/compute_static_xas.py \
         analysis/configs/xas_static/5mmol_gly_03June_night.py [-o OUT.h5]
 """
-import numpy as np
 
 # Identify the scan.
 RUN_NO  = 58794
@@ -20,8 +19,12 @@ MODE    = "xas_static"
 # Read at most this many raw H5 files (None = all).
 MAX_FILES = None
 
-# Nominal photon energies (eV) assigned to detected sections by index.
-NOMINAL_ENERGIES = np.arange(286.0, 270.0 - 0.25, -0.5)
+# Section photon energies are derived from the median undulator
+# ``set_wavelength_1`` value in each detected open section:
+# E[eV] = 1239.841984 / wavelength[nm].
+SECTION_ENERGY_SOURCE = "set_wavelength_1"
+SECTION_ENERGY_ROUND_DECIMALS = 3
+NOMINAL_ENERGIES = None
 
 # VLS pixel ROI (half-open). Applied before any background subtraction.
 CROP_ROI = (450, 650)
