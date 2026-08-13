@@ -19,6 +19,7 @@ CROP_ROI = (450, 650)
 #   BG_BUNCH_RANGE     : non-signal bunches used for per-train baseline.
 SIGNAL_BUNCH_RANGE = (10, 40)
 BG_BUNCH_RANGE     = (50, 100)
+GMD_BUNCH_START    = 0
 
 # Fast shutter dataset paths.
 SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"

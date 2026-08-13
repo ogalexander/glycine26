@@ -27,9 +27,9 @@ NOMINAL_ENERGIES = np.arange(286.0, 270.0 - 0.25, -0.5)
 CROP_ROI = (450, 650)
 
 # Cyclic shift (np.roll) of the VLS bunch axis applied right after the
-# pixel crop, so the VLS bunch index matches the GMD bunch index. The
-# bunch ranges below are interpreted in the rolled frame.
+# pixel crop. VLS bunch 10 maps to raw GMD bunch 0 for this run.
 VLS_BUNCH_ROLL = 0
+GMD_BUNCH_START = 0
 
 # Bunch ranges (half-open).
 #   SIGNAL_BUNCH_RANGE : bunches overlapping the GMD acquisition window.

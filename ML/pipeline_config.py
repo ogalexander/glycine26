@@ -24,12 +24,33 @@ MAX_REFERENCE_SHOTS = None
 MAX_SAMPLE_SHOTS = None
 
 # Row filtering. GMD is a quality/binning feature here, not the absorbance
-# normalization target.
+# normalization target. Extra ML-only QC/TSS gates are off by default so the
+# absorbance plots match the traditional notebook filter stack.
 VLS_PEAK_THRESHOLD = 1000.0
 GMD_MIN_THRESHOLD = None
-GMD_MAX_THRESHOLD = None
-REJECT_TSS_FLAGS = True
-REQUIRE_QC_OK = True
+GMD_MAX_THRESHOLD = 10.0
+REJECT_TSS_FLAGS = False
+REQUIRE_QC_OK = False
+
+# Match the traditional static-XAS notebook defaults for actual-energy binning.
+CENTER_METHOD = "com"
+CENTER_HALF_WINDOW = 5
+CENTER_CHUNK_SIZE = 50_000
+PROXY_PIXEL_BIN_WIDTH = 1.0
+REJECT_DOUBLE_PEAKS = False
+PEAKFIND_BASELINE_Q = 0.15
+PEAKFIND_SG_WINDOW = 9
+PEAKFIND_SG_POLY = 2
+DOUBLE_PEAK_KWARGS = {
+    "min_distance_px": 3,
+    "max_distance_px": 17,
+    "min_prom_sigma": 2.5,
+    "min_height_sigma": 2.0,
+    "min_rel_peak_height": 0.35,
+    "min_second_ratio": 0.05,
+    "min_bridge_drop": 0.015,
+    "min_split_sigma": 0.75,
+}
 
 # Feature selection. leakage_check features include nominal energy and
 # set-wavelength settings. They are useful for this multi-energy scan, but the
@@ -59,18 +80,21 @@ SELECTED_FEATURE_NAMES = None
 # ]
 
 # Spectrum preprocessing for the reference target and transmitted spectra.
-BASELINE_QUANTILE = 0.05
-CLIP_NEGATIVE = True
+# Defaults follow the traditional notebook for absorbance: use processed VLS
+# spectra directly, without per-shot baseline subtraction or area normalization.
+BASELINE_QUANTILE = None
+PREPROCESS_CLIP_NEGATIVE = False
+AREA_NORMALIZE_SPECTRA = False
 NORMALIZATION_EPS = 1e-12
 
-# Split policy for reference data.
-VALIDATION_FRACTION = 0.2
-SPLIT_MIN_RUNS_FOR_RUN_SPLIT = 2
+# Random split policy for reference data.
+TRAIN_FRACTION = 0.70
+VALIDATION_FRACTION = 0.15
+TEST_FRACTION = 0.15
 
 # PCA-score MLP.
 SEED = 42
-PCA_VARIANCE = 0.995
-PCA_MAX_COMPONENTS = 20
+PCA_COMPONENTS = 20
 HIDDEN_LAYERS = [64, 64, 32]
 EPOCHS = 128
 BATCH_SIZE = 256
@@ -82,13 +106,14 @@ GMD_EDGES = np.arange(0.0, 11.0, 1.0)
 NOMINAL_ENERGY_DECIMALS = 6
 ABSORBANCE_EPS = 1e-9
 ABSORBANCE_PIXEL_ROI = None
+INTENSITY_CLIP_NEGATIVE = True
 
-# Optional actual-energy conversion. Disabled by default because nominal-energy
-# binning is the primary static-XAS ML contract.
-MAKE_ACTUAL_ENERGY_ABSORBANCE = False
-ACTUAL_ENERGY_PIXEL_BIN_WIDTH = 2.0
-CALIBRATION_PIXEL = 590.0
-CALIBRATION_ENERGY_EV = 270.0
+# Optional actual-energy conversion. Uses the same center-pixel and bin-width
+# convention as the traditional static-XAS notebook.
+MAKE_ACTUAL_ENERGY_ABSORBANCE = True
+ACTUAL_ENERGY_PIXEL_BIN_WIDTH = PROXY_PIXEL_BIN_WIDTH
+CALIBRATION_PIXEL = 524.0
+CALIBRATION_ENERGY_EV = 284.2
 PIXEL_TO_ENERGY_RANGE_EV = (260.0, 290.0)
 
 
