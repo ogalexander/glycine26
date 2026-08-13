@@ -11,12 +11,13 @@ visualisation.
 
 Output H5 layout (default: <processed/xas_static>/run<N>_static_xas.h5):
     /vls               (N_E, N_shots, n_pixels)  float64, NaN-padded
-    /gmd               (N_E, N_shots)            float64, NaN-padded, hall
-    /gmd_tunnel        (N_E, N_shots)            float64, NaN-padded
+    /gmd               (N_E, N_shots)            float64, NaN-padded, mapped hall ch0
+    /gmd_tunnel        (N_E, N_shots)            float64, NaN-padded, mapped tunnel ch0
     /n_shots           (N_E,)                    int64
     /nominal_energies  (N_E,)                    float64  eV
     /vls_pixels        (n_pixels,)               int64    source-pixel indices
     /section_bg        (N_E, m_bunches, n_pixels) float64 per-section bg
+    /noise/*           global raw-background VLS noise, one value per VLS pixel
     /ml/*              compact per-shot identity, GMD-channel, feature,
                        and QC datasets aligned to the /vls flatten order
     attrs:  mode='xas_static', config, run_no, vls_crop_roi,
@@ -61,6 +62,7 @@ __all__ = ["compute_static_xas", "main"]
 
 _DEFAULT_SHUTTER_INDEX_PATH = "/FL2/Beamlines/Fast Shutter/shutter/index"
 _DEFAULT_SHUTTER_VALUE_PATH = "/FL2/Beamlines/Fast Shutter/shutter/value"
+_MAD_TO_SIGMA_NORMAL = 1.4826
 
 _GMD_TUNNEL_INDEX_CANDIDATES = (
     "/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index",
@@ -595,6 +597,46 @@ def _safe_linear_slope(y: np.ndarray) -> np.ndarray:
     return out
 
 
+def _global_vls_background_noise(
+    vls: np.ndarray,
+    bg_b0: int,
+    bg_b1: int,
+) -> dict[str, np.ndarray | int | float]:
+    """Robust global raw-background noise per cropped VLS pixel.
+
+    The input must be raw VLS after crop/optional bunch roll and before any
+    background subtraction.  All background bunches from all trains are pooled.
+    """
+
+    arr = np.asarray(vls)
+    if arr.ndim != 3:
+        raise ValueError("vls must have shape (n_trains, n_bunches, n_pixels)")
+    if not np.issubdtype(arr.dtype, np.number):
+        raise TypeError("vls must be numeric")
+    n_bunches = arr.shape[1]
+    if not (0 <= int(bg_b0) < int(bg_b1) <= n_bunches):
+        raise ValueError(
+            f"background bunch range [{bg_b0}, {bg_b1}) is outside [0, {n_bunches})"
+        )
+
+    bg = arr[:, int(bg_b0):int(bg_b1), :]
+    flat = bg.reshape(-1, arr.shape[2])
+    median = np.nanmedian(flat, axis=0)
+    abs_dev = np.abs(flat - median[None, :])
+    mad = np.nanmedian(abs_dev, axis=0)
+    sigma = _MAD_TO_SIGMA_NORMAL * mad
+    n_finite = np.sum(np.isfinite(flat), axis=0).astype(np.int64)
+    return {
+        "median": median.astype(np.float64, copy=False),
+        "mad": mad.astype(np.float64, copy=False),
+        "sigma": sigma.astype(np.float64, copy=False),
+        "n_finite": n_finite,
+        "n_background_bunches": int(bg_b1) - int(bg_b0),
+        "n_trains": int(arr.shape[0]),
+        "mad_scale": float(_MAD_TO_SIGMA_NORMAL),
+    }
+
+
 def _resolve_ml_feature_specs(feature_names: Optional[list[str]] = None) -> list[dict[str, str]]:
     """Return ML feature specs in the requested order."""
     if feature_names is None:
@@ -816,9 +858,8 @@ def compute_static_xas(
         Half-open bunch range for per-train baseline subtraction.
     vls_bunch_roll : int
         Cyclic shift (``np.roll``) applied to the VLS bunch axis right
-        after the pixel crop, aligning the VLS bunch coordinate with
-        the GMD bunch coordinate. ``signal_bunch_range`` and
-        ``bg_bunch_range`` apply in the rolled frame.
+        after the pixel crop. ``signal_bunch_range`` and
+        ``bg_bunch_range`` apply in the rolled VLS frame.
     gmd_bunch_start : int
         Raw GMD bunch index corresponding to ``signal_bunch_range[0]``.
         The ML feature group stores this explicit VLS→GMD mapping.
@@ -903,6 +944,10 @@ def compute_static_xas(
         raise ValueError(f"signal_bunch_range {signal_bunch_range} not within [0, {m}].")
     if not (0 <= bg_b0 < bg_b1 <= m):
         raise ValueError(f"bg_bunch_range {bg_bunch_range} not within [0, {m}].")
+    vls_bg_noise = _global_vls_background_noise(data.vls, bg_b0, bg_b1)
+    finite_sigma = vls_bg_noise["sigma"][np.isfinite(vls_bg_noise["sigma"])]
+    sigma_msg = f"{np.nanmedian(finite_sigma):.3g}" if finite_sigma.size else "nan"
+    log(f"raw VLS bg sigma   : global MAD, median pixel sigma={sigma_msg}")
     data = data.auto_subtract_background_trainwise((bg_b0, bg_b1))
 
     vls = np.asarray(data.vls, dtype=np.float64)   # (n_trains, m, n_pixels)
@@ -951,7 +996,8 @@ def compute_static_xas(
     )
     if gmd_tunnel_channels is None:
         gmd_tunnel_channels = np.full((n_trains, gmd_feature_length, 8), np.nan, dtype=np.float32)
-        log("GMD tunnel channels: not found; /ml/gmd_tunnel_channels will be NaN-filled")
+        gmd_tunnel_channels[:, :m, 0] = gmd_tunnel.astype(np.float32)
+        log("GMD tunnel channels: not found; channel 0 filled from compatibility tunnel GMD")
     else:
         log(f"GMD tunnel channels: {gmd_tunnel_ch_value_path}")
 
@@ -1083,10 +1129,17 @@ def compute_static_xas(
             vls[sec_open_idx][:, sig_b0:sig_b1, :]
             - bg2d[None, sig_b0:sig_b1, :]
         )
-        G_block = gmd[sec_open_idx, sig_b0:sig_b1]              # (n_sec, n_sig)
-        G_tunnel_block = gmd_tunnel[sec_open_idx, sig_b0:sig_b1]
+        # Root /gmd is written from this explicit raw-GMD bunch window, not
+        # from the VLS signal-bunch indices.
         H_channel_block = gmd_hall_channels[sec_open_idx, gmd_b0:gmd_b1, :]
         T_channel_block = gmd_tunnel_channels[sec_open_idx, gmd_b0:gmd_b1, :]
+        if H_channel_block.shape[1] != (sig_b1 - sig_b0):
+            raise RuntimeError(
+                f"section {i}: GMD slice [{gmd_b0}, {gmd_b1}) has "
+                f"{H_channel_block.shape[1]} bunches, expected {sig_b1 - sig_b0}."
+            )
+        G_block = H_channel_block[:, :, 0].astype(np.float64, copy=False)
+        G_tunnel_block = T_channel_block[:, :, 0].astype(np.float64, copy=False)
 
         A_flat = A_block.reshape(-1, n_pixels)
         G_flat = G_block.reshape(-1)
@@ -1208,6 +1261,22 @@ def compute_static_xas(
                             data=np.arange(roi_min, roi_max, dtype=np.int64))
         fout.create_dataset("section_bg",       data=section_bg,  compression="gzip")
 
+        noise = fout.create_group("noise")
+        noise.create_dataset("vls_bg_median_global", data=vls_bg_noise["median"])
+        noise.create_dataset("vls_bg_mad_global", data=vls_bg_noise["mad"])
+        noise.create_dataset("vls_bg_sigma_global", data=vls_bg_noise["sigma"])
+        noise.create_dataset("vls_bg_n_finite", data=vls_bg_noise["n_finite"])
+        noise.attrs["schema_version"] = "1.0"
+        noise.attrs["source"] = (
+            "raw VLS after crop and optional bunch roll, before train-wise "
+            "and per-section background subtraction"
+        )
+        noise.attrs["method"] = "sigma = 1.4826 * MAD over all train x background-bunch samples"
+        noise.attrs["bg_bunch_range"] = np.asarray([bg_b0, bg_b1], dtype=np.int64)
+        noise.attrs["n_background_bunches"] = int(vls_bg_noise["n_background_bunches"])
+        noise.attrs["n_trains"] = int(vls_bg_noise["n_trains"])
+        noise.attrs["mad_scale"] = float(vls_bg_noise["mad_scale"])
+
         ml = fout.create_group("ml")
         ml.create_dataset("train_id", data=ml_train_id_out, compression="gzip")
         ml.create_dataset("run_id", data=ml_run_id_out, compression="gzip")
@@ -1285,6 +1354,8 @@ def compute_static_xas(
             fout.attrs["gmd_tunnel_index_path"] = gmd_tunnel_index_path
         if gmd_tunnel_value_path is not None:
             fout.attrs["gmd_tunnel_value_path"] = gmd_tunnel_value_path
+        fout.attrs["gmd_source"]                = "ml/gmd_hall_channels[..., 0]"
+        fout.attrs["gmd_tunnel_source"]         = "ml/gmd_tunnel_channels[..., 0]"
         if config_path is not None:
             fout.attrs["config_path"] = str(config_path)
 
