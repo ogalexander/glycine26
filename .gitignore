@@ -4,6 +4,9 @@
 # Ignore the experiment folder (where all data is stored)
 11022188/
 
+# Ignore H5 data files
+*.h5
+
 # Ignor jupyter cache
 __pycache__/
 analysis/.ipynb_checkpoints/

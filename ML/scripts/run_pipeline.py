@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Run the processed-only glycine static-XAS ML pipeline."""
+"""Run hall-GMD full-spectrum virtual-reference ML for static XAS."""
 
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import sys
@@ -12,14 +11,28 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
-
 
 def _parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--name", default="", help="Results folder name; default is timestamp")
-    parser.add_argument("--reference", type=Path, default=None, help="Reference processed H5")
-    parser.add_argument("--sample", type=Path, default=None, help="Sample processed H5")
+    parser.add_argument("--name", default="", help="Results folder name")
+    parser.add_argument("--reference-good", type=Path, default=None, help="Reference good H5")
+    parser.add_argument("--sample-good", type=Path, default=None, help="Sample good H5")
+    parser.add_argument(
+        "--reference-processed",
+        type=Path,
+        default=None,
+        help="Reference processed H5 with /ml/features",
+    )
+    parser.add_argument(
+        "--sample-processed",
+        type=Path,
+        default=None,
+        help="Sample processed H5 with /ml/features",
+    )
+    parser.add_argument("--max-reference-shots", type=int, default=None)
+    parser.add_argument("--max-sample-shots", type=int, default=None)
     return parser.parse_args()
 
 
@@ -27,182 +40,187 @@ args = _parse_args()
 if args.name:
     os.environ["PIPELINE_RUN_NAME"] = args.name
 
+import pipeline_config as config
 import numpy as np
 import pandas as pd
 from joblib import dump
 from sklearn.preprocessing import StandardScaler
 
-import pipeline_config as config
 from static_xas_ml.absorbance import (
-    bin_absorbance_by_actual_pixel,
-    bin_absorbance_by_nominal,
-    shape_absorbance,
+    baseline_slope_rows,
+    bin_integrated_absorbance_by_energy,
+    bin_integrated_absorbance_by_nominal,
 )
 from static_xas_ml.data import (
     assert_matching_feature_schema,
+    load_good_ml_h5,
+    write_prediction_h5,
+)
+from static_xas_ml.features import (
     build_feature_matrix,
+    feature_coverage_rows,
     feature_manifest_rows,
-    filter_shots,
-    load_processed_ml_h5,
-    make_reference_split,
+    filter_table_rows,
     sanitize_selected_feature_columns,
     select_feature_columns,
-    subset_table,
 )
 from static_xas_ml.metrics import per_shot_errors, shape_error_table
-from static_xas_ml.model import build_mlp, fit_pca, predict_shapes, set_global_seed, train_mlp
+from static_xas_ml.model import build_mlp, fit_pca, predict_spectra, set_global_seed, train_mlp
 from static_xas_ml.plots import (
     plot_binned_absorbance,
     plot_error_histograms,
+    plot_feature_coverage,
     plot_pca_explained,
     plot_predicted_examples,
 )
-from static_xas_ml.preprocessing import preprocess_spectra, renormalize_shapes
+from static_xas_ml.splits import make_reference_energy_block_split
+
+
+def _mkdirs() -> None:
+    for path in (config.RESULTS_DIR, config.MODELS_DIR, config.METRICS_DIR, config.PLOTS_DIR):
+        path.mkdir(parents=True, exist_ok=True)
+
+
+def _jsonable(value):
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, (np.integer, np.floating)):
+        return value.item()
+    if isinstance(value, tuple):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, list):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    return value
 
 
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    path.write_text(json.dumps(_jsonable(payload), indent=2), encoding="utf-8")
 
 
-def _valid_shape_mask(shapes: np.ndarray) -> np.ndarray:
-    return np.all(np.isfinite(shapes), axis=1)
+def _require_inputs(paths: list[Path]) -> None:
+    missing = [str(path) for path in paths if not path.exists()]
+    if missing:
+        raise FileNotFoundError("Missing required input file(s): " + ", ".join(missing))
 
 
-def _load_pixel_to_energy():
-    module_path = ROOT.parent / "analysis" / "scripts" / "gotthard_energy_pixel_map.py"
-    spec = importlib.util.spec_from_file_location("gotthard_energy_pixel_map", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not import {module_path}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    cfg = mod.SpectrometerConfig()
-    cal = mod.CalibrationPoint(
-        pixel=float(config.CALIBRATION_PIXEL),
-        energy_eV=float(config.CALIBRATION_ENERGY_EV),
-    )
-    e_min, e_max = config.PIXEL_TO_ENERGY_RANGE_EV
+def _postprocess_prediction(spectra: np.ndarray) -> np.ndarray:
+    spectra = np.asarray(spectra, dtype=np.float32)
+    if config.MODEL_CLIP_NEGATIVE:
+        spectra = np.clip(spectra, 0.0, None)
+    return spectra.astype(np.float32)
 
-    def convert(pixels: np.ndarray) -> np.ndarray:
-        return mod.pixel_to_energy(
-            pixels,
-            cfg,
-            cal,
-            e_min=float(e_min),
-            e_max=float(e_max),
-        )
 
-    return convert
+def _mean_spectrum_baseline(y_train: np.ndarray, n_rows: int) -> np.ndarray:
+    mean_spectrum = np.nanmean(y_train, axis=0, keepdims=True).astype(np.float32)
+    return _postprocess_prediction(np.repeat(mean_spectrum, int(n_rows), axis=0))
 
 
 def main() -> None:
     os.environ["PYTHONHASHSEED"] = str(config.SEED)
     os.environ["TF_DETERMINISTIC_OPS"] = "1"
     set_global_seed(config.SEED)
+    _mkdirs()
 
-    for path in (config.RESULTS_DIR, config.MODELS_DIR, config.METRICS_DIR, config.PLOTS_DIR):
-        path.mkdir(parents=True, exist_ok=True)
+    reference_good = args.reference_good or config.REFERENCE_GOOD_H5
+    sample_good = args.sample_good or config.SAMPLE_GOOD_H5
+    reference_processed = args.reference_processed or config.REFERENCE_PROCESSED_H5
+    sample_processed = args.sample_processed or config.SAMPLE_PROCESSED_H5
+    max_reference = args.max_reference_shots or config.MAX_REFERENCE_SHOTS
+    max_sample = args.max_sample_shots or config.MAX_SAMPLE_SHOTS
 
-    reference_path = args.reference or config.REFERENCE_H5
-    sample_path = args.sample or config.SAMPLE_H5
-    print(f"Pipeline run : {config.RESULTS_DIR.name}")
-    print(f"Reference    : {reference_path}")
-    print(f"Sample       : {sample_path}")
-    print(f"Results dir  : {config.RESULTS_DIR}")
+    _require_inputs([reference_good, sample_good, reference_processed, sample_processed])
+    print(f"Pipeline run       : {config.RESULTS_DIR.name}")
+    print(f"GMD source         : {config.GMD_SOURCE}")
+    print(f"Correction axis    : {config.CORRECTION_AXIS}")
+    print(f"Reference good     : {reference_good}")
+    print(f"Reference processed: {reference_processed}")
+    print(f"Sample good        : {sample_good}")
+    print(f"Sample processed   : {sample_processed}")
+    print(f"Results dir        : {config.RESULTS_DIR}")
 
-    reference = load_processed_ml_h5(reference_path, max_shots=config.MAX_REFERENCE_SHOTS)
-    sample = load_processed_ml_h5(sample_path, max_shots=config.MAX_SAMPLE_SHOTS)
+    reference = load_good_ml_h5(
+        reference_good,
+        reference_processed,
+        correction_axis=config.CORRECTION_AXIS,
+        gmd_source=config.GMD_SOURCE,
+        max_shots=max_reference,
+    )
+    sample = load_good_ml_h5(
+        sample_good,
+        sample_processed,
+        correction_axis=config.CORRECTION_AXIS,
+        gmd_source=config.GMD_SOURCE,
+        max_shots=max_sample,
+    )
     assert_matching_feature_schema(reference, sample)
 
     selected_columns = select_feature_columns(
         reference.feature_names,
         reference.feature_roles,
-        include_leakage=config.INCLUDE_LEAKAGE_FEATURES,
         selected_feature_names=config.SELECTED_FEATURE_NAMES,
     )
     selected_columns, dropped_features = sanitize_selected_feature_columns(
-        reference, sample, selected_columns,
+        reference,
+        sample,
+        selected_columns,
     )
 
-    ref_filtered, ref_counts = filter_shots(
+    reference, ref_counts = filter_table_rows(
         reference,
         selected_columns=selected_columns,
-        vls_peak_threshold=config.VLS_PEAK_THRESHOLD,
         gmd_min_threshold=config.GMD_MIN_THRESHOLD,
         gmd_max_threshold=config.GMD_MAX_THRESHOLD,
         require_qc_ok=config.REQUIRE_QC_OK,
-        reject_tss_flags=config.REJECT_TSS_FLAGS,
     )
-    sample_filtered, sample_counts = filter_shots(
+    sample, sample_counts = filter_table_rows(
         sample,
         selected_columns=selected_columns,
-        vls_peak_threshold=config.VLS_PEAK_THRESHOLD,
         gmd_min_threshold=config.GMD_MIN_THRESHOLD,
         gmd_max_threshold=config.GMD_MAX_THRESHOLD,
         require_qc_ok=config.REQUIRE_QC_OK,
-        reject_tss_flags=config.REJECT_TSS_FLAGS,
     )
+    selected_columns, dropped_after_filter = sanitize_selected_feature_columns(
+        reference,
+        sample,
+        selected_columns,
+    )
+    dropped_features.extend(dropped_after_filter)
     pd.DataFrame(
         [
             {"run_type": "reference", **ref_counts},
             {"run_type": "sample", **sample_counts},
         ]
-    ).to_csv(config.METRICS_DIR / "filter_survival_counts.csv", index=False)
-    print(f"Reference kept: {ref_counts['kept_rows']} / {ref_counts['input_rows']}")
-    print(f"Sample kept   : {sample_counts['kept_rows']} / {sample_counts['input_rows']}")
+    ).to_csv(config.FILTER_SURVIVAL_CSV, index=False)
+    print(f"Reference kept     : {reference.n_rows:,} / {ref_counts['input_rows']:,}")
+    print(f"Sample kept        : {sample.n_rows:,} / {sample_counts['input_rows']:,}")
 
-    ref_shapes, ref_areas, _ = preprocess_spectra(
-        ref_filtered.spectra,
-        baseline_quantile=config.BASELINE_QUANTILE,
-        clip_negative=config.CLIP_NEGATIVE,
-        eps=config.NORMALIZATION_EPS,
-    )
-    ref_shape_ok = _valid_shape_mask(ref_shapes)
-    ref_filtered = subset_table(ref_filtered, ref_shape_ok)
-    ref_shapes = ref_shapes[ref_shape_ok]
-    ref_areas = ref_areas[ref_shape_ok]
-
-    sample_shapes, sample_areas, _ = preprocess_spectra(
-        sample_filtered.spectra,
-        baseline_quantile=config.BASELINE_QUANTILE,
-        clip_negative=config.CLIP_NEGATIVE,
-        eps=config.NORMALIZATION_EPS,
-    )
-    sample_shape_ok = _valid_shape_mask(sample_shapes)
-    sample_filtered = subset_table(sample_filtered, sample_shape_ok)
-    sample_shapes = sample_shapes[sample_shape_ok]
-    sample_areas = sample_areas[sample_shape_ok]
-
-    manifest = pd.DataFrame(
-        feature_manifest_rows(
-            reference.feature_names,
-            reference.feature_units,
-            reference.feature_roles,
-            selected_columns,
-        )
-    )
-    if dropped_features:
-        drop_df = pd.DataFrame({"dropped_feature_reason": dropped_features})
-        drop_df.to_csv(config.RESULTS_DIR / "dropped_features.csv", index=False)
-    manifest.to_csv(config.FEATURE_MANIFEST_CSV, index=False)
-
-    x_ref = build_feature_matrix(ref_filtered, selected_columns)
-    x_sample = build_feature_matrix(sample_filtered, selected_columns)
-    train_mask, val_mask, split_policy = make_reference_split(
-        ref_filtered,
+    train_mask, val_mask, test_mask, split_policy = make_reference_energy_block_split(
+        reference,
+        train_fraction=config.TRAIN_FRACTION,
         validation_fraction=config.VALIDATION_FRACTION,
-        min_runs_for_run_split=config.SPLIT_MIN_RUNS_FOR_RUN_SPLIT,
+        test_fraction=config.TEST_FRACTION,
+        energy_decimals=config.NOMINAL_ENERGY_DECIMALS,
     )
-    x_train, x_val = x_ref[train_mask], x_ref[val_mask]
-    y_train, y_val = ref_shapes[train_mask], ref_shapes[val_mask]
+    x_ref = build_feature_matrix(reference, selected_columns)
+    x_sample = build_feature_matrix(sample, selected_columns)
+    y_ref = reference.spectra.astype(np.float32)
+    y_sample = sample.spectra.astype(np.float32)
+
+    x_train, x_val, x_test = x_ref[train_mask], x_ref[val_mask], x_ref[test_mask]
+    y_train, y_val, y_test = y_ref[train_mask], y_ref[val_mask], y_ref[test_mask]
+
     scaler = StandardScaler()
     x_train_scaled = scaler.fit_transform(x_train)
     x_val_scaled = scaler.transform(x_val)
 
     pca, y_train_scores = fit_pca(
         y_train,
-        variance=config.PCA_VARIANCE,
-        max_components=config.PCA_MAX_COMPONENTS,
+        n_components=config.PCA_COMPONENTS,
         seed=config.SEED,
     )
     y_val_scores = pca.transform(y_val).astype(np.float32)
@@ -225,138 +243,214 @@ def main() -> None:
         patience=config.EARLY_STOPPING_PATIENCE,
     )
 
-    y_pred = predict_shapes(
-        mlp, scaler, pca, x_val, eps=config.NORMALIZATION_EPS,
+    y_val_pred = predict_spectra(
+        mlp,
+        scaler,
+        pca,
+        x_val,
+        clip_negative=config.MODEL_CLIP_NEGATIVE,
     )
-    mean_baseline = np.tile(np.nanmean(y_train, axis=0, keepdims=True), (y_val.shape[0], 1))
-    mean_baseline = renormalize_shapes(mean_baseline, eps=config.NORMALIZATION_EPS)
-    pca_recon = renormalize_shapes(
-        pca.inverse_transform(y_val_scores),
-        eps=config.NORMALIZATION_EPS,
+    y_test_pred = predict_spectra(
+        mlp,
+        scaler,
+        pca,
+        x_test,
+        clip_negative=config.MODEL_CLIP_NEGATIVE,
     )
+    val_mean_baseline = _mean_spectrum_baseline(y_train, y_val.shape[0])
+    test_mean_baseline = _mean_spectrum_baseline(y_train, y_test.shape[0])
+    val_pca_recon = _postprocess_prediction(pca.inverse_transform(y_val_scores))
+    y_test_scores = pca.transform(y_test).astype(np.float32)
+    test_pca_recon = _postprocess_prediction(pca.inverse_transform(y_test_scores))
+
     metrics_rows = [
-        shape_error_table(y_val, y_pred, pixel_axis=ref_filtered.vls_pixels, label="pca_mlp"),
         shape_error_table(
-            y_val, mean_baseline, pixel_axis=ref_filtered.vls_pixels, label="mean_shape_baseline",
+            y_val,
+            y_val_pred,
+            pixel_axis=reference.vls_pixels,
+            label="validation_pca_mlp",
         ),
         shape_error_table(
-            y_val, pca_recon, pixel_axis=ref_filtered.vls_pixels, label="pca_reconstruction_floor",
+            y_val,
+            val_mean_baseline,
+            pixel_axis=reference.vls_pixels,
+            label="validation_mean_spectrum_baseline",
+        ),
+        shape_error_table(
+            y_val,
+            val_pca_recon,
+            pixel_axis=reference.vls_pixels,
+            label="validation_pca_reconstruction_floor",
+        ),
+        shape_error_table(
+            y_test,
+            y_test_pred,
+            pixel_axis=reference.vls_pixels,
+            label="test_pca_mlp",
+        ),
+        shape_error_table(
+            y_test,
+            test_mean_baseline,
+            pixel_axis=reference.vls_pixels,
+            label="test_mean_spectrum_baseline",
+        ),
+        shape_error_table(
+            y_test,
+            test_pca_recon,
+            pixel_axis=reference.vls_pixels,
+            label="test_pca_reconstruction_floor",
         ),
     ]
     pd.DataFrame(metrics_rows).to_csv(config.HELDOUT_REFERENCE_METRICS_CSV, index=False)
 
-    leakage_rows = []
-    selected_roles = np.asarray(reference.feature_roles)[selected_columns]
-    leakage_local = np.where(selected_roles == "leakage_check")[0]
-    if config.RUN_LEAKAGE_ZEROING_CHECK and leakage_local.size:
-        x_val_zeroed = np.array(x_val, copy=True)
-        train_mean = np.nanmean(x_train, axis=0)
-        x_val_zeroed[:, leakage_local] = train_mean[leakage_local]
-        y_zeroed = predict_shapes(mlp, scaler, pca, x_val_zeroed, eps=config.NORMALIZATION_EPS)
-        leakage_rows.append(
-            shape_error_table(
-                y_val,
-                y_zeroed,
-                pixel_axis=ref_filtered.vls_pixels,
-                label="selected_leakage_features_zeroed",
-            )
+    test_errors = per_shot_errors(y_test, y_test_pred, pixel_axis=reference.vls_pixels)
+    pd.DataFrame(
+        {
+            **test_errors,
+            "train_id": reference.train_id[test_mask],
+            "nominal_energy": reference.nominal_energy[test_mask],
+            "gmd": reference.gmd[test_mask],
+            "section_index": reference.section_index[test_mask],
+        }
+    ).to_csv(config.HELDOUT_REFERENCE_PER_SHOT_CSV, index=False)
+
+    coverage = pd.DataFrame(
+        feature_coverage_rows(
+            reference,
+            sample,
+            selected_columns,
+            reference_mask=train_mask,
         )
-    else:
-        leakage_rows.append({"label": "not_run", "n_shots": int(y_val.shape[0])})
-    pd.DataFrame(leakage_rows).to_csv(config.LEAKAGE_ABLATION_METRICS_CSV, index=False)
+    )
+    coverage.to_csv(config.FEATURE_COVERAGE_CSV, index=False)
+
+    dropped_df = pd.DataFrame(dropped_features, columns=["feature_name", "reason"])
+    dropped_df.to_csv(config.DROPPED_FEATURES_CSV, index=False)
+    manifest = pd.DataFrame(
+        feature_manifest_rows(
+            reference.feature_names,
+            reference.feature_units,
+            reference.feature_roles,
+            selected_columns,
+            dropped_features=dropped_features,
+        )
+    )
+    manifest.to_csv(config.FEATURE_MANIFEST_CSV, index=False)
 
     mlp.save(config.MODEL_PATH)
     dump(scaler, config.SCALER_PATH)
     dump(pca, config.PCA_PATH)
     _write_json(
-        config.PREPROCESSING_JSON,
+        config.CONFIG_JSON,
         {
-            "baseline_quantile": config.BASELINE_QUANTILE,
-            "clip_negative": config.CLIP_NEGATIVE,
-            "normalization_eps": config.NORMALIZATION_EPS,
-            "split_policy": split_policy,
-            "pca_components": int(pca.n_components_),
-            "pca_explained_variance_sum": float(np.sum(pca.explained_variance_ratio_)),
+            "reference_run": config.REFERENCE_RUN,
+            "sample_run": config.SAMPLE_RUN,
+            "reference_good_h5": reference_good,
+            "sample_good_h5": sample_good,
+            "reference_processed_h5": reference_processed,
+            "sample_processed_h5": sample_processed,
+            "gmd_source": config.GMD_SOURCE,
+            "correction_axis": config.CORRECTION_AXIS,
             "selected_feature_names": [reference.feature_names[i] for i in selected_columns],
             "dropped_features": dropped_features,
-            "reference_h5": str(reference_path),
-            "sample_h5": str(sample_path),
+            "split_policy": split_policy,
+            "train_rows": int(np.sum(train_mask)),
+            "validation_rows": int(np.sum(val_mask)),
+            "test_rows": int(np.sum(test_mask)),
+            "pca_requested_components": config.PCA_COMPONENTS,
+            "pca_components": int(pca.n_components_),
+            "pca_explained_variance_sum": float(np.sum(pca.explained_variance_ratio_)),
+            "gmd_edges": np.asarray(config.GMD_EDGES, dtype=float),
+            "absorbance_order": "predict_per_shot_then_bin_mean_spectra_integrate_then_log10_ratio",
+            "model_clip_negative": config.MODEL_CLIP_NEGATIVE,
+            "intensity_clip_negative": config.INTENSITY_CLIP_NEGATIVE,
         },
     )
 
-    pred_i0_sample = predict_shapes(
-        mlp, scaler, pca, x_sample, eps=config.NORMALIZATION_EPS,
+    pred_i0_sample = predict_spectra(
+        mlp,
+        scaler,
+        pca,
+        x_sample,
+        clip_negative=config.MODEL_CLIP_NEGATIVE,
     )
-    absorbance_pixel = shape_absorbance(
-        sample_shapes,
+    write_prediction_h5(
+        config.PREDICTIONS_H5,
+        sample=sample,
+        predicted_i0_spectra=pred_i0_sample,
+    )
+
+    nominal_df = bin_integrated_absorbance_by_nominal(
+        y_sample,
         pred_i0_sample,
-        eps=config.ABSORBANCE_EPS,
-    )
-    nominal_df = bin_absorbance_by_nominal(
-        absorbance_pixel,
-        sample_filtered.nominal_energy,
-        sample_filtered.gmd,
-        pixel_axis=sample_filtered.vls_pixels,
+        sample.nominal_energy,
+        sample.gmd,
+        pixel_axis=sample.vls_pixels,
         gmd_edges=config.GMD_EDGES,
         pixel_roi=config.ABSORBANCE_PIXEL_ROI,
+        clip_negative=config.INTENSITY_CLIP_NEGATIVE,
+        eps=config.ABSORBANCE_EPS,
         energy_decimals=config.NOMINAL_ENERGY_DECIMALS,
     )
-    absorbance_tables = [nominal_df]
+    nominal_df.to_csv(config.BINNED_ABSORBANCE_NOMINAL_CSV, index=False)
 
-    if config.MAKE_ACTUAL_ENERGY_ABSORBANCE:
-        actual_df = bin_absorbance_by_actual_pixel(
-            absorbance_pixel,
-            sample_shapes,
-            sample_filtered.gmd,
-            pixel_axis=sample_filtered.vls_pixels,
-            gmd_edges=config.GMD_EDGES,
-            pixel_bin_width=config.ACTUAL_ENERGY_PIXEL_BIN_WIDTH,
-            pixel_to_energy=_load_pixel_to_energy(),
-            pixel_roi=config.ABSORBANCE_PIXEL_ROI,
-        )
-        absorbance_tables.append(actual_df)
-
-    binned_df = pd.concat(absorbance_tables, ignore_index=True)
-    binned_df.to_csv(config.BINNED_ABSORBANCE_METRICS_CSV, index=False)
-    np.savez_compressed(
-        config.RESULTS_DIR / "sample_ml_absorbance_arrays.npz",
-        absorbance_pixel=absorbance_pixel,
-        transmitted_shape=sample_shapes,
-        predicted_i0_shape=pred_i0_sample,
-        nominal_energy=sample_filtered.nominal_energy,
-        gmd=sample_filtered.gmd,
-        train_id=sample_filtered.train_id,
-        vls_bunch_index=sample_filtered.vls_bunch_index,
-        vls_pixels=sample_filtered.vls_pixels,
-        sample_areas=sample_areas,
-        reference_train_areas=ref_areas[train_mask],
+    converted_energy = np.array(sample.converted_energy_group, copy=True)
+    missing_converted_group = ~np.isfinite(converted_energy)
+    converted_energy[missing_converted_group] = sample.converted_energy[missing_converted_group]
+    converted_df = bin_integrated_absorbance_by_energy(
+        y_sample,
+        pred_i0_sample,
+        converted_energy,
+        sample.gmd,
+        pixel_axis=sample.vls_pixels,
+        gmd_edges=config.GMD_EDGES,
+        binning="converted_energy",
+        x_label="Converted photon energy (eV)",
+        energy_column="converted_energy_eV",
+        pixel_roi=config.ABSORBANCE_PIXEL_ROI,
+        clip_negative=config.INTENSITY_CLIP_NEGATIVE,
+        eps=config.ABSORBANCE_EPS,
+        energy_decimals=config.CONVERTED_ENERGY_DECIMALS,
     )
+    converted_df.to_csv(config.BINNED_ABSORBANCE_CONVERTED_CSV, index=False)
 
-    errors = per_shot_errors(y_val, y_pred, pixel_axis=ref_filtered.vls_pixels)
+    baseline_rows = baseline_slope_rows(
+        nominal_df,
+        energy_range=config.BASELINE_ENERGY_RANGE,
+        exclude_windows=config.BASELINE_EXCLUDE_WINDOWS,
+    ) + baseline_slope_rows(
+        converted_df,
+        energy_range=config.BASELINE_ENERGY_RANGE,
+        exclude_windows=config.BASELINE_EXCLUDE_WINDOWS,
+    )
+    pd.DataFrame(baseline_rows).to_csv(config.BASELINE_SLOPES_CSV, index=False)
+
     plot_pca_explained(pca, config.PLOTS_DIR / "pca_explained_variance.png")
     plot_predicted_examples(
-        ref_filtered.vls_pixels,
-        y_val,
-        y_pred,
+        reference.vls_pixels,
+        y_test,
+        y_test_pred,
         config.PLOTS_DIR / "heldout_reference_predicted_vs_true.png",
     )
-    plot_error_histograms(errors, config.PLOTS_DIR / "heldout_reference_error_histograms.png")
+    plot_error_histograms(test_errors, config.PLOTS_DIR / "heldout_reference_error_histograms.png")
+    plot_feature_coverage(coverage, config.PLOTS_DIR / "feature_coverage_reference_vs_sample.png")
     plot_binned_absorbance(
         nominal_df,
         config.PLOTS_DIR / "nominal_energy_binned_ml_absorbance.png",
-        title="Nominal-energy binned ML absorbance",
+        title="Hall-GMD binned ML absorbance vs nominal photon energy",
     )
-    if config.MAKE_ACTUAL_ENERGY_ABSORBANCE and len(absorbance_tables) > 1:
-        plot_binned_absorbance(
-            absorbance_tables[1],
-            config.PLOTS_DIR / "actual_energy_binned_ml_absorbance.png",
-            title="Actual-energy binned ML absorbance",
-        )
+    plot_binned_absorbance(
+        converted_df,
+        config.PLOTS_DIR / "converted_energy_binned_ml_absorbance.png",
+        title="Hall-GMD binned ML absorbance vs converted photon energy",
+    )
 
     print("\nPipeline complete.")
     print(f"Model              : {config.MODEL_PATH}")
+    print(f"Predicted spectra  : {config.PREDICTIONS_H5}")
     print(f"Held-out metrics   : {config.HELDOUT_REFERENCE_METRICS_CSV}")
-    print(f"Absorbance metrics : {config.BINNED_ABSORBANCE_METRICS_CSV}")
+    print(f"Nominal absorbance : {config.BINNED_ABSORBANCE_NOMINAL_CSV}")
+    print(f"Converted absorbance: {config.BINNED_ABSORBANCE_CONVERTED_CSV}")
 
 
 if __name__ == "__main__":

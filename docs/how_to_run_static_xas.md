@@ -4,7 +4,7 @@
 
 `compute_static_xas.py` processes a raw FLASH H5 photon-energy scan and
 saves **per-shot** (VLS, GMD) arrays — no GMD binning. GMD binning and all
-plots are done interactively in `xas_static.ipynb`.
+plots are done interactively in `analysis/notebooks/xas_static/`.
 
 ---
 
@@ -68,7 +68,7 @@ is created automatically if it does not exist.
 
 ## 3. Inspect results in the notebook
 
-Open `analysis/notebooks/xas_static.ipynb` and set:
+Open `analysis/notebooks/xas_static/xas_static_nominal_E.ipynb` and set:
 
 ```python
 RUN_NO   = 58793

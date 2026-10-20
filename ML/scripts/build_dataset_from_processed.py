@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build lightweight filtered NPZ caches from enriched processed H5 files."""
+"""Build shot-aligned good-ML NPZ caches for the virtual-reference pipeline."""
 
 from __future__ import annotations
 
@@ -10,92 +10,106 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 import numpy as np
 
 import pipeline_config as config
-from static_xas_ml.data import (
-    assert_matching_feature_schema,
+from static_xas_ml.data import assert_matching_feature_schema, load_good_ml_h5
+from static_xas_ml.features import (
     build_feature_matrix,
-    filter_shots,
-    load_processed_ml_h5,
+    filter_table_rows,
     sanitize_selected_feature_columns,
     select_feature_columns,
 )
-from static_xas_ml.preprocessing import preprocess_spectra
 
 
-def _build_one(path: Path, out_path: Path, *, max_shots: int | None, selected_columns):
-    table = load_processed_ml_h5(path, max_shots=max_shots)
-    filtered, counts = filter_shots(
-        table,
-        selected_columns=selected_columns,
-        vls_peak_threshold=config.VLS_PEAK_THRESHOLD,
-        gmd_min_threshold=config.GMD_MIN_THRESHOLD,
-        gmd_max_threshold=config.GMD_MAX_THRESHOLD,
-        require_qc_ok=config.REQUIRE_QC_OK,
-        reject_tss_flags=config.REJECT_TSS_FLAGS,
-    )
-    shapes, areas, baselines = preprocess_spectra(
-        filtered.spectra,
-        baseline_quantile=config.BASELINE_QUANTILE,
-        clip_negative=config.CLIP_NEGATIVE,
-        eps=config.NORMALIZATION_EPS,
-    )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+def _write_one(path: Path, table, selected_columns: np.ndarray, counts: dict[str, int]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
-        out_path,
-        x=build_feature_matrix(filtered, selected_columns),
-        spectra=filtered.spectra,
-        shapes=shapes,
-        areas=areas,
-        baselines=baselines,
-        gmd=filtered.gmd,
-        nominal_energy=filtered.nominal_energy,
-        train_id=filtered.train_id,
-        run_id=filtered.run_id,
-        vls_bunch_index=filtered.vls_bunch_index,
-        gmd_bunch_index=filtered.gmd_bunch_index,
-        vls_pixels=filtered.vls_pixels,
+        path,
+        x=build_feature_matrix(table, selected_columns),
+        spectra=table.spectra,
+        trans=table.trans,
+        gmd=table.gmd,
+        nominal_energy=table.nominal_energy,
+        converted_energy=table.converted_energy,
+        converted_energy_group=table.converted_energy_group,
+        converted_proxy_bin_index=table.converted_proxy_bin_index,
+        train_id=table.train_id,
+        run_id=table.run_id,
+        section_index=table.section_index,
+        source_shot_index=table.source_shot_index,
+        vls_bunch_index=table.vls_bunch_index,
+        gmd_bunch_index=table.gmd_bunch_index,
+        vls_pixels=table.vls_pixels,
         selected_columns=np.asarray(selected_columns, dtype=int),
         counts=np.asarray([counts["input_rows"], counts["kept_rows"], counts["dropped_rows"]]),
     )
-    print(f"{path.name}: {counts['kept_rows']} kept / {counts['input_rows']} input -> {out_path}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reference", type=Path, default=config.REFERENCE_H5)
-    parser.add_argument("--sample", type=Path, default=config.SAMPLE_H5)
+    parser.add_argument("--reference-good", type=Path, default=config.REFERENCE_GOOD_H5)
+    parser.add_argument("--sample-good", type=Path, default=config.SAMPLE_GOOD_H5)
+    parser.add_argument("--reference-processed", type=Path, default=config.REFERENCE_PROCESSED_H5)
+    parser.add_argument("--sample-processed", type=Path, default=config.SAMPLE_PROCESSED_H5)
     parser.add_argument("--out-dir", type=Path, default=config.RESULTS_DIR / "datasets")
+    parser.add_argument("--max-reference-shots", type=int, default=config.MAX_REFERENCE_SHOTS)
+    parser.add_argument("--max-sample-shots", type=int, default=config.MAX_SAMPLE_SHOTS)
     args = parser.parse_args()
 
-    reference = load_processed_ml_h5(args.reference, max_shots=config.MAX_REFERENCE_SHOTS)
-    sample = load_processed_ml_h5(args.sample, max_shots=config.MAX_SAMPLE_SHOTS)
+    reference = load_good_ml_h5(
+        args.reference_good,
+        args.reference_processed,
+        correction_axis=config.CORRECTION_AXIS,
+        gmd_source=config.GMD_SOURCE,
+        max_shots=args.max_reference_shots,
+    )
+    sample = load_good_ml_h5(
+        args.sample_good,
+        args.sample_processed,
+        correction_axis=config.CORRECTION_AXIS,
+        gmd_source=config.GMD_SOURCE,
+        max_shots=args.max_sample_shots,
+    )
     assert_matching_feature_schema(reference, sample)
     selected_columns = select_feature_columns(
         reference.feature_names,
         reference.feature_roles,
-        include_leakage=config.INCLUDE_LEAKAGE_FEATURES,
         selected_feature_names=config.SELECTED_FEATURE_NAMES,
     )
     selected_columns, dropped = sanitize_selected_feature_columns(reference, sample, selected_columns)
-    for message in dropped:
-        print(f"dropped feature: {message}")
+    for row in dropped:
+        print(f"dropped feature: {row['feature_name']}: {row['reason']}")
 
-    _build_one(
-        args.reference,
-        args.out_dir / "reference_filtered.npz",
-        max_shots=config.MAX_REFERENCE_SHOTS,
+    reference, ref_counts = filter_table_rows(
+        reference,
         selected_columns=selected_columns,
+        gmd_min_threshold=config.GMD_MIN_THRESHOLD,
+        gmd_max_threshold=config.GMD_MAX_THRESHOLD,
+        require_qc_ok=config.REQUIRE_QC_OK,
     )
-    _build_one(
-        args.sample,
-        args.out_dir / "sample_filtered.npz",
-        max_shots=config.MAX_SAMPLE_SHOTS,
+    sample, sample_counts = filter_table_rows(
+        sample,
         selected_columns=selected_columns,
+        gmd_min_threshold=config.GMD_MIN_THRESHOLD,
+        gmd_max_threshold=config.GMD_MAX_THRESHOLD,
+        require_qc_ok=config.REQUIRE_QC_OK,
     )
+    selected_columns, dropped_after_filter = sanitize_selected_feature_columns(
+        reference,
+        sample,
+        selected_columns,
+    )
+    for row in dropped_after_filter:
+        print(f"dropped after filter: {row['feature_name']}: {row['reason']}")
+    _write_one(args.out_dir / "reference_good_ml.npz", reference, selected_columns, ref_counts)
+    _write_one(args.out_dir / "sample_good_ml.npz", sample, selected_columns, sample_counts)
+    print(f"reference: {ref_counts['kept_rows']} kept / {ref_counts['input_rows']} input")
+    print(f"sample   : {sample_counts['kept_rows']} kept / {sample_counts['input_rows']} input")
+    print(f"wrote    : {args.out_dir}")
 
 
 if __name__ == "__main__":

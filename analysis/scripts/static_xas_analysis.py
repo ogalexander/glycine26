@@ -42,6 +42,7 @@ class StaticXASRun:
     vls_pixels: np.ndarray
     attrs: dict[str, Any]
     gmd_tunnel: Optional[np.ndarray] = None
+    gmd_source: str = "gmd"
 
     @property
     def n_energy(self) -> int:
@@ -126,7 +127,50 @@ class GmdBinnedAbsorbanceCurve:
 # ---------------------------------------------------------------------------
 
 
-def load_static_xas_run(path: str | Path, *, include_gmd_tunnel: bool = True) -> StaticXASRun:
+def read_hall_gmd_array(h5: h5py.File, *, prefer_mapped: bool = True) -> tuple[np.ndarray, str]:
+    """Read the analysis hall-GMD array from a processed static-XAS H5 file.
+
+    Enriched files store the explicitly mapped hall GMD under
+    ``/ml/gmd_hall_channels[..., 0]``.  Prefer that over root ``/gmd`` because
+    older root datasets can carry stale VLS-bunch indexing.
+    """
+
+    if prefer_mapped and "ml/gmd_hall_channels" in h5:
+        return h5["ml/gmd_hall_channels"][:, :, 0].astype(np.float64), "ml/gmd_hall_channels[..., 0]"
+    return h5["gmd"][...].astype(np.float64), "gmd"
+
+
+def read_hall_gmd_slice(
+    h5: h5py.File,
+    energy_index: int,
+    start: int,
+    stop: int,
+    *,
+    prefer_mapped: bool = True,
+) -> np.ndarray:
+    """Read a chunk of mapped hall GMD for one nominal-energy section."""
+
+    if prefer_mapped and "ml/gmd_hall_channels" in h5:
+        return h5["ml/gmd_hall_channels"][int(energy_index), int(start):int(stop), 0].astype(np.float64)
+    return h5["gmd"][int(energy_index), int(start):int(stop)].astype(np.float64)
+
+
+def read_tunnel_gmd_array(h5: h5py.File, *, prefer_mapped: bool = True) -> tuple[Optional[np.ndarray], Optional[str]]:
+    """Read the analysis tunnel-GMD array when present."""
+
+    if prefer_mapped and "ml/gmd_tunnel_channels" in h5:
+        return h5["ml/gmd_tunnel_channels"][:, :, 0].astype(np.float64), "ml/gmd_tunnel_channels[..., 0]"
+    if "gmd_tunnel" in h5:
+        return h5["gmd_tunnel"][...].astype(np.float64), "gmd_tunnel"
+    return None, None
+
+
+def load_static_xas_run(
+    path: str | Path,
+    *,
+    include_gmd_tunnel: bool = True,
+    prefer_mapped_gmd: bool = True,
+) -> StaticXASRun:
     """Load a processed static-XAS H5 file into memory."""
 
     p = Path(path)
@@ -135,16 +179,26 @@ def load_static_xas_run(path: str | Path, *, include_gmd_tunnel: bool = True) ->
         missing = [key for key in required if key not in f]
         if missing:
             raise KeyError(f"{p} is missing required dataset(s): {missing}")
-        gmd_tunnel = f["gmd_tunnel"][...] if include_gmd_tunnel and "gmd_tunnel" in f else None
+        gmd, gmd_source = read_hall_gmd_array(f, prefer_mapped=prefer_mapped_gmd)
+        gmd_tunnel, tunnel_source = (
+            read_tunnel_gmd_array(f, prefer_mapped=prefer_mapped_gmd)
+            if include_gmd_tunnel
+            else (None, None)
+        )
+        attrs = dict(f.attrs)
+        attrs["analysis_gmd_source"] = gmd_source
+        if tunnel_source is not None:
+            attrs["analysis_gmd_tunnel_source"] = tunnel_source
         return StaticXASRun(
             path=p,
             vls=f["vls"][...],
-            gmd=f["gmd"][...],
+            gmd=gmd,
             n_shots=f["n_shots"][...],
             nominal_energies=f["nominal_energies"][...],
             vls_pixels=f["vls_pixels"][...],
-            attrs=dict(f.attrs),
+            attrs=attrs,
             gmd_tunnel=gmd_tunnel,
+            gmd_source=gmd_source,
         )
 
 

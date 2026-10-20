@@ -255,7 +255,7 @@ def iter_energy_chunks(
                     "energy_index": ie,
                     "nominal_energy": float(energies[ie]),
                     "vls": h5["vls"][ie, start:stop, :],
-                    "gmd": h5["gmd"][ie, start:stop],
+                    "gmd": sxa.read_hall_gmd_slice(h5, ie, start, stop),
                     "pixels": pixels,
                 }
 

@@ -3,8 +3,10 @@
 __all__ = [
     "absorbance",
     "data",
+    "features",
     "metrics",
     "model",
     "plots",
     "preprocessing",
+    "splits",
 ]

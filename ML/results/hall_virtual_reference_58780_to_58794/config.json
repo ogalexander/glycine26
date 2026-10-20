@@ -1,0 +1,48 @@
+{
+  "reference_run": 58780,
+  "sample_run": 58794,
+  "reference_good_h5": "/Users/hukaiyu/Desktop/PhD/FLASH Beamtime 202605/glycine26/11022188/processed/xas_static/run58780_good_static_xas.h5",
+  "sample_good_h5": "/Users/hukaiyu/Desktop/PhD/FLASH Beamtime 202605/glycine26/11022188/processed/xas_static/run58794_good_static_xas.h5",
+  "reference_processed_h5": "/Users/hukaiyu/Desktop/PhD/FLASH Beamtime 202605/glycine26/11022188/processed/xas_static/run58780_static_xas.h5",
+  "sample_processed_h5": "/Users/hukaiyu/Desktop/PhD/FLASH Beamtime 202605/glycine26/11022188/processed/xas_static/run58794_static_xas.h5",
+  "gmd_source": "hall",
+  "correction_axis": "converted",
+  "selected_feature_names": [
+    "gmd_hall_ch0_intensity",
+    "gmd_hall_ch2_x",
+    "gmd_hall_ch4_intensity_sigma",
+    "set_wavelength_1",
+    "undulator_gap_mean",
+    "undulator_gap_std",
+    "undulator_gap_slope",
+    "attenuator_pressure"
+  ],
+  "dropped_features": [
+    {
+      "feature_name": "gmd_hall_ch3_y",
+      "reason": "constant in reference training source"
+    }
+  ],
+  "split_policy": "per_nominal_energy_contiguous_train_id_block_split",
+  "train_rows": 593542,
+  "validation_rows": 124624,
+  "test_rows": 125908,
+  "pca_requested_components": 20,
+  "pca_components": 20,
+  "pca_explained_variance_sum": 0.9960517218686799,
+  "gmd_edges": [
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0,
+    10.0
+  ],
+  "absorbance_order": "predict_per_shot_then_bin_mean_spectra_integrate_then_log10_ratio",
+  "model_clip_negative": true,
+  "intensity_clip_negative": true
+}

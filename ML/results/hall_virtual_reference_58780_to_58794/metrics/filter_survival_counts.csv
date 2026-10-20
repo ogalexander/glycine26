@@ -1,0 +1,3 @@
+run_type,input_rows,finite_spectrum_rows,finite_trans_rows,finite_gmd_rows,finite_energy_rows,finite_selected_feature_rows,kept_rows,dropped_rows
+reference,867784,867784,867784,867784,867784,867784,844074,23710
+sample,897048,897048,897048,897048,897048,897048,879823,17225

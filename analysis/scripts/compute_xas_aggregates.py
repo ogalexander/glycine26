@@ -10,9 +10,9 @@ and the GMD. The resulting H5 follows the ``AggregatesData`` layout
 defined in ``compute_aggregates.py``.
 
 Pixel ROI is applied first, then the VLS bunch axis is cyclically
-shifted by ``VLS_BUNCH_ROLL`` so its bunch coordinate aligns with the
-GMD bunch coordinate. Subsequent processing assumes both arrays share
-the same bunch indexing.
+shifted by ``VLS_BUNCH_ROLL``. VLS signal bunches are selected in this
+rolled coordinate; GMD is selected separately starting at
+``GMD_BUNCH_START`` so VLS bunch 10 can map to raw GMD bunch 0.
 
 The VLS is then background-subtracted in two steps:
 
@@ -27,8 +27,8 @@ The VLS is then background-subtracted in two steps:
    *immediately preceding* closed shutter section (after step 1) is
    subtracted from every train of the open section.
 
-Both VLS and GMD are then cropped to ``SIGNAL_BUNCH_RANGE`` on the now-
-aligned bunch axis.
+VLS is then cropped to ``SIGNAL_BUNCH_RANGE`` on the rolled axis, while
+GMD is cropped to ``[GMD_BUNCH_START, GMD_BUNCH_START + n_signal)``.
 
 Shots are then flattened over (train, signal_bunch), binned by GMD, and
 accumulated into ``A``, ``AtA``, ``AtG``, ``G``, ``GtG``, ``n_per_bin``
@@ -55,6 +55,8 @@ they appear. ``MODE`` may be any of ``"xas"``, ``"xas_scan"``, or
                           bunch coordinate. ``BG_BUNCH_RANGE`` and
                           ``SIGNAL_BUNCH_RANGE`` are interpreted in the
                           rolled frame.
+    GMD_BUNCH_START     : int — raw GMD bunch corresponding to
+                          ``SIGNAL_BUNCH_RANGE[0]`` (default 0)
     SIGNAL_BUNCH_RANGE  : (b0, b1) half-open bunch range that overlaps
                           the GMD acquisition window
     BG_BUNCH_RANGE      : (b0, b1) half-open bunch range used for the
@@ -301,6 +303,7 @@ def compute_xas_aggregates(
     signal_bunch_range: Tuple[int, int],
     bg_bunch_range: Tuple[int, int],
     vls_bunch_roll: int = 0,
+    gmd_bunch_start: int = 0,
     config: int = 2,
     raw_dir=None,
     max_files: Optional[int] = None,
@@ -346,6 +349,9 @@ def compute_xas_aggregates(
         with the GMD bunch coordinate when the Gotthard line index is
         offset from the FEL bunch index. ``signal_bunch_range`` and
         ``bg_bunch_range`` apply in the rolled frame.
+    gmd_bunch_start : int
+        Raw GMD bunch index corresponding to ``signal_bunch_range[0]``.
+        This may differ from the VLS bunch index after VLS-only rolling.
     config : int
         Must be 2 (xas_scan is config-2 only).
     raw_dir : Path, optional
@@ -388,6 +394,8 @@ def compute_xas_aggregates(
     sig_b0, sig_b1 = int(signal_bunch_range[0]), int(signal_bunch_range[1])
     bg_b0, bg_b1   = int(bg_bunch_range[0]),     int(bg_bunch_range[1])
     vls_bunch_roll = int(vls_bunch_roll)
+    gmd_b0 = int(gmd_bunch_start)
+    gmd_b1 = gmd_b0 + (sig_b1 - sig_b0)
 
     if raw_dir is None:
         import config as path_config
@@ -404,6 +412,7 @@ def compute_xas_aggregates(
     log(f"VLS ROI            : [{roi_min}, {roi_max}) = {n_pixels} pixels")
     log(f"VLS bunch roll     : {vls_bunch_roll}")
     log(f"signal bunches     : [{sig_b0}, {sig_b1})")
+    log(f"GMD signal bunches : [{gmd_b0}, {gmd_b1})")
     log(f"bg bunches         : [{bg_b0}, {bg_b1})")
 
     data = data_loading.load_raw_h5(
@@ -528,13 +537,19 @@ def compute_xas_aggregates(
         bg2d = np.nanmean(vls[sec_closed_idx, :, :], axis=0)   # (m, n_pixels)
         section_bg[i] = bg2d
 
-        # Apply the per-section background, then crop both VLS and GMD
-        # to the signal bunch range on the (now aligned) bunch axis.
+        # Apply the per-section background, then flatten matched VLS and GMD
+        # shots. VLS uses the rolled bunch coordinates; GMD uses its raw
+        # bunch coordinates starting at gmd_bunch_start.
         A_block = (
             vls[sec_open_idx][:, sig_b0:sig_b1, :]
             - bg2d[None, sig_b0:sig_b1, :]
         )                                                       # (n_sec, n_sig, n_pixels)
-        G_block = gmd[sec_open_idx, sig_b0:sig_b1]              # (n_sec, n_sig)
+        G_block = gmd[sec_open_idx, gmd_b0:gmd_b1]              # (n_sec, n_sig)
+        if G_block.shape[1] != (sig_b1 - sig_b0):
+            raise RuntimeError(
+                f"section {i}: GMD slice [{gmd_b0}, {gmd_b1}) has "
+                f"{G_block.shape[1]} bunches, expected {sig_b1 - sig_b0}."
+            )
 
         # Flatten over (train, bunch) -> shots.
         A_flat = A_block.reshape(-1, n_pixels)
@@ -630,6 +645,8 @@ def compute_xas_aggregates(
         fout.attrs["vls_crop_roi"]        = np.asarray([roi_min, roi_max], dtype=np.int64)
         fout.attrs["vls_bunch_roll"]      = int(vls_bunch_roll)
         fout.attrs["signal_bunch_range"]  = np.asarray([sig_b0, sig_b1], dtype=np.int64)
+        fout.attrs["gmd_bunch_start"]     = int(gmd_b0)
+        fout.attrs["gmd_signal_bunch_range"] = np.asarray([gmd_b0, gmd_b1], dtype=np.int64)
         fout.attrs["bg_bunch_range"]      = np.asarray([bg_b0, bg_b1], dtype=np.int64)
         fout.attrs["train_rate_hz"]       = float(train_rate_hz)
         fout.attrs["transition_trim_seconds"] = float(transition_trim_seconds)
@@ -704,6 +721,7 @@ def main(argv=None) -> None:
         signal_bunch_range=tuple(cfg.SIGNAL_BUNCH_RANGE),
         bg_bunch_range=tuple(cfg.BG_BUNCH_RANGE),
         vls_bunch_roll=int(getattr(cfg, "VLS_BUNCH_ROLL", 0)),
+        gmd_bunch_start=int(getattr(cfg, "GMD_BUNCH_START", 0)),
         config=int(getattr(cfg, "CONFIG", 2)),
         raw_dir=getattr(cfg, "RAW_DIR", None),
         max_files=getattr(cfg, "MAX_FILES", None),

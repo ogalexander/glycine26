@@ -1,4 +1,4 @@
-"""PCA-score MLP model for virtual incident spectra."""
+"""PCA-score MLP model for full-spectrum virtual incident spectra."""
 
 from __future__ import annotations
 
@@ -8,9 +8,6 @@ import random
 import numpy as np
 from sklearn.decomposition import PCA
 
-from .preprocessing import renormalize_shapes
-
-
 def set_global_seed(seed: int) -> None:
     os.environ["PYTHONHASHSEED"] = str(int(seed))
     random.seed(int(seed))
@@ -18,28 +15,18 @@ def set_global_seed(seed: int) -> None:
 
 
 def fit_pca(
-    y_train: np.ndarray,
+    y_train_spectra: np.ndarray,
     *,
-    variance: float = 0.995,
-    max_components: int = 20,
+    n_components: int = 20,
     seed: int = 42,
 ) -> tuple[PCA, np.ndarray]:
-    """Fit PCA on reference training shapes and return train scores."""
-    y_train = np.asarray(y_train, dtype=np.float32)
-    max_n = min(int(max_components), y_train.shape[0], y_train.shape[1])
+    """Fit a fixed-component PCA on reference training spectra and return train scores."""
+    y_train = np.asarray(y_train_spectra, dtype=np.float32)
+    max_n = min(int(n_components), y_train.shape[0], y_train.shape[1])
     if max_n < 1:
         raise ValueError("Need at least one sample and one pixel for PCA.")
 
-    full = PCA(n_components=max_n, svd_solver="full", random_state=int(seed))
-    full.fit(y_train)
-    if float(variance) < 1.0:
-        cumulative = np.cumsum(full.explained_variance_ratio_)
-        n_components = int(np.searchsorted(cumulative, float(variance)) + 1)
-    else:
-        n_components = max_n
-    n_components = min(max(1, n_components), max_n)
-
-    pca = PCA(n_components=n_components, svd_solver="full", random_state=int(seed))
+    pca = PCA(n_components=max_n, svd_solver="full", random_state=int(seed))
     scores = pca.fit_transform(y_train)
     return pca, scores.astype(np.float32)
 
@@ -99,8 +86,26 @@ def train_mlp(
     )
 
 
-def predict_shapes(model, scaler, pca: PCA, x: np.ndarray, *, eps: float = 1e-12) -> np.ndarray:
+def predict_spectra(
+    model,
+    scaler,
+    pca: PCA,
+    x: np.ndarray,
+    *,
+    clip_negative: bool = True,
+) -> np.ndarray:
+    """Predict full virtual-I0 spectra in the PCA basis."""
     x_scaled = scaler.transform(x)
     scores = model.predict(x_scaled, verbose=0)
     pred = pca.inverse_transform(scores)
-    return renormalize_shapes(pred, eps=eps)
+    pred = np.asarray(pred, dtype=np.float32)
+    if clip_negative:
+        pred = np.clip(pred, 0.0, None)
+    return pred.astype(np.float32)
+
+
+def predict_shapes(*args, **kwargs) -> np.ndarray:
+    """Backward-compatible alias for older notebooks."""
+    kwargs.pop("eps", None)
+    kwargs.pop("normalize_area", None)
+    return predict_spectra(*args, **kwargs)

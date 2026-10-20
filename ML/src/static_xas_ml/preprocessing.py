@@ -8,36 +8,41 @@ import numpy as np
 def preprocess_spectra(
     spectra: np.ndarray,
     *,
-    baseline_quantile: float = 0.05,
+    baseline_quantile: float | None = 0.05,
     clip_negative: bool = True,
+    normalize_area: bool = True,
     eps: float = 1e-12,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Baseline-correct and area-normalize spectra row by row.
+    Optionally baseline-correct, clip, and area-normalize spectra row by row.
 
     Returns
     -------
-    shapes, areas, baselines
-        ``shapes`` integrate to 1 over pixels for rows with positive area.
+    spectra_out, areas, baselines
+        If ``normalize_area`` is True, ``spectra_out`` integrates to 1 over
+        pixels for rows with positive area. Otherwise it is the corrected
+        spectrum in the same intensity units as the input.
     """
     spectra = np.asarray(spectra, dtype=np.float32)
     if spectra.ndim != 2:
         raise ValueError("spectra must be a 2D array (shots, pixels).")
-    baselines = np.nanquantile(spectra, float(baseline_quantile), axis=1)
+    if baseline_quantile is None:
+        baselines = np.zeros(spectra.shape[0], dtype=np.float32)
+    else:
+        baselines = np.nanquantile(spectra, float(baseline_quantile), axis=1)
     corrected = spectra - baselines[:, None]
     if clip_negative:
         corrected = np.clip(corrected, 0.0, None)
-    else:
-        row_min = np.nanmin(corrected, axis=1)
-        shift = np.where(row_min < 0.0, -row_min, 0.0)
-        corrected = corrected + shift[:, None]
     corrected = np.where(np.isfinite(corrected), corrected, 0.0)
     areas = np.sum(corrected, axis=1)
-    shapes = corrected / np.maximum(areas[:, None], float(eps))
-    bad = areas <= float(eps)
-    if np.any(bad):
-        shapes[bad] = np.nan
-    return shapes.astype(np.float32), areas.astype(np.float32), baselines.astype(np.float32)
+    if normalize_area:
+        spectra_out = corrected / np.maximum(areas[:, None], float(eps))
+        bad = areas <= float(eps)
+        if np.any(bad):
+            spectra_out[bad] = np.nan
+    else:
+        spectra_out = corrected
+    return spectra_out.astype(np.float32), areas.astype(np.float32), baselines.astype(np.float32)
 
 
 def renormalize_shapes(shapes: np.ndarray, *, eps: float = 1e-12) -> np.ndarray:
