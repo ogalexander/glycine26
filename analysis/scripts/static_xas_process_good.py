@@ -9,13 +9,16 @@ converted-energy coordinate to each occupied proxy bin.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
 import h5py
 import numpy as np
 import pandas as pd
+
+from gotthard_energy_pixel_map import CalibrationPoint, SpectrometerConfig, pixel_to_energy
+from static_xas_analysis import estimate_center_pixels
 
 
 GMD_SOURCE_TO_CHANNEL_DATASET = {
@@ -39,8 +42,23 @@ class ProcessGoodConfig:
     chunk_size: int = 20_000
     energy_group_decimals: int = 3
     proxy_pixel_bin_width: int = 1
-    energy_calibration_poly_order: int = 1
-    energy_calibration_min_sections: int = 4
+    center_method: str = "smooth_peak"
+    center_baseline_percentile: float = 20.0  # local_com only
+    pixel_map_config: dict[str, Any] = field(default_factory=lambda: {
+        "source_to_grating_m": 0.85,
+        "grating_to_screen_m": 0.5429,
+        "incident_angle_deg": 86.78,
+        "groove_density_lines_per_mm": 1200.0,
+        "diffraction_order": 1,
+        "magnification": 3.0,
+        "pixel_pitch_m": 50e-6,
+        "axis_sign": 1,
+    })
+    pixel_map_calibration: dict[str, float] = field(default_factory=lambda: {
+        "pixel": 524.0, "energy_eV": 284.2,
+    })
+    inverse_map_range_ev: tuple[float, float] = (260.0, 290.0)
+    inverse_map_samples: int = 10_000
     peak_snr_threshold: float = 5.0
     prominence_inner_px: int = 5
     prominence_outer_px: int = 20
@@ -119,8 +137,6 @@ class ProcessGoodResult:
     section_center_n: np.ndarray
     section_center_p16: np.ndarray
     section_center_p84: np.ndarray
-    energy_calibration_coeff: np.ndarray
-    energy_calibration_order: int
     energy_calibration_table: pd.DataFrame
     proxy_energy_eV: np.ndarray
     occupied_proxy_groups: np.ndarray
@@ -183,7 +199,7 @@ def compute_processed_qc(config: ProcessGoodConfig) -> ProcessGoodResult:
     section_center_pixel, section_center_n, section_center_p16, section_center_p84 = _summarize_section_centers(
         center_by_section, info.n_energy
     )
-    coeff, order, cal_table = fit_vls_pixel_energy_calibration(info, section_center_pixel, section_center_n, config)
+    cal_table = energy_mapping_diagnostics(info, section_center_pixel, section_center_n, config)
 
     converted_before = new_fit_accumulator(n_proxy)
     converted_after = new_fit_accumulator(n_proxy)
@@ -199,7 +215,8 @@ def compute_processed_qc(config: ProcessGoodConfig) -> ProcessGoodResult:
         keep = center_valid & (peak["peak_snr"] > float(config.peak_snr_threshold))
         proxy_group = proxy_groups_from_center_pixel(peak["center_pixel"], info.vls_pixels, config.proxy_pixel_bin_width)
         trans = integrated_vls(vls)
-        shot_energy = np.polyval(coeff, peak["center_pixel"])
+        shot_energy = np.full(gmd.shape, np.nan, dtype=np.float64)
+        shot_energy[center_valid] = map_pixels_to_energy(peak["center_pixel"][center_valid], config)
 
         update_fit_accumulator_by_index(converted_before, proxy_group, gmd, trans, center_valid)
         update_fit_accumulator_by_index(converted_after, proxy_group, gmd, trans, keep)
@@ -261,8 +278,6 @@ def compute_processed_qc(config: ProcessGoodConfig) -> ProcessGoodResult:
         section_center_n=section_center_n,
         section_center_p16=section_center_p16,
         section_center_p84=section_center_p84,
-        energy_calibration_coeff=coeff,
-        energy_calibration_order=order,
         energy_calibration_table=cal_table,
         proxy_energy_eV=proxy_energy,
         occupied_proxy_groups=occupied,
@@ -347,7 +362,7 @@ def save_good_static_xas(result: ProcessGoodResult, output_h5: Optional[str | Pa
             converted_offset[~np.isfinite(converted_offset)] = 0.0
             converted_group_energy[valid_proxy] = result.proxy_energy_eV[proxy_good[valid_proxy]]
 
-            shot_energy = np.polyval(result.energy_calibration_coeff, peak["center_pixel"][good])
+            shot_energy = map_pixels_to_energy(peak["center_pixel"][good], config)
             vv_good = vls[good]
             trans = integrated_vls(vv_good)
             nominal_vls = vv_good - nominal_offset / n_pix
@@ -495,7 +510,12 @@ def integrated_vls(vls: np.ndarray) -> np.ndarray:
 
 
 def peak_metrics(spectra: np.ndarray, sigma_raw: np.ndarray, pixels: np.ndarray, config: ProcessGoodConfig) -> dict[str, np.ndarray]:
-    """Compute peak prominence, raw-noise SNR, and local COM center."""
+    """Compute unchanged peak QC metrics and the selected absolute-pixel center.
+
+    The four legacy methods use static_xas_analysis, including its COM
+    fallback for invalid quadratic/log-quadratic fits. local_com preserves
+    the processed-to-good method with a configurable local baseline.
+    """
 
     spectra = np.asarray(spectra, dtype=np.float64)
     sigma_raw = np.asarray(sigma_raw, dtype=np.float64)
@@ -508,12 +528,20 @@ def peak_metrics(spectra: np.ndarray, sigma_raw: np.ndarray, pixels: np.ndarray,
     sigma_near_peak = np.full(n, np.nan, dtype=np.float64)
     peak_snr = np.full(n, np.nan, dtype=np.float64)
     center_pixel = np.full(n, np.nan, dtype=np.float64)
+    finite = np.all(np.isfinite(spectra), axis=1)
+    estimated_center = np.full(n, np.nan, dtype=np.float64)
+    if config.center_method != "local_com" and np.any(finite):
+        relative, _ = estimate_center_pixels(
+            spectra[finite], method=config.center_method,
+            half_window=config.center_half_window_px, chunk_size=config.chunk_size,
+        )
+        estimated_center[finite] = np.interp(relative, np.arange(n_pix), pixels)
 
     inner = int(config.prominence_inner_px)
     outer = int(config.prominence_outer_px)
     min_side = int(config.min_side_pixels)
     for i, y in enumerate(spectra):
-        if not np.all(np.isfinite(y)):
+        if not finite[i]:
             continue
         p0 = int(np.nanargmax(y))
         left = y[max(0, p0 - outer) : max(0, p0 - inner)]
@@ -527,14 +555,17 @@ def peak_metrics(spectra: np.ndarray, sigma_raw: np.ndarray, pixels: np.ndarray,
         s1 = min(n_pix, p0 + int(config.sigma_half_window_px) + 1)
         sig = np.nanmedian(sigma_raw[s0:s1])
 
-        c0 = max(0, p0 - int(config.center_half_window_px))
-        c1 = min(n_pix, p0 + int(config.center_half_window_px) + 1)
-        yw = y[c0:c1]
-        xw = pixels[c0:c1]
-        baseline = np.nanpercentile(yw, 20)
-        weights = np.clip(yw - baseline, 0.0, None)
-        if np.sum(weights) > 0:
-            center_pixel[i] = float(np.sum(xw * weights) / np.sum(weights))
+        if config.center_method == "local_com":
+            c0 = max(0, p0 - int(config.center_half_window_px))
+            c1 = min(n_pix, p0 + int(config.center_half_window_px) + 1)
+            yw = y[c0:c1]
+            xw = pixels[c0:c1]
+            baseline = np.nanpercentile(yw, config.center_baseline_percentile)
+            weights = np.clip(yw - baseline, 0.0, None)
+            if np.sum(weights) > 0:
+                center_pixel[i] = float(np.sum(xw * weights) / np.sum(weights))
+        else:
+            center_pixel[i] = estimated_center[i]
 
         peak_index[i] = p0
         peak_height[i] = y[p0]
@@ -555,38 +586,54 @@ def peak_metrics(spectra: np.ndarray, sigma_raw: np.ndarray, pixels: np.ndarray,
     }
 
 
-def fit_vls_pixel_energy_calibration(
+def map_pixels_to_energy(pixels: np.ndarray, config: ProcessGoodConfig) -> np.ndarray:
+    """Apply the fixed legacy spectrometer map to absolute Gotthard pixels.
+
+    Section energies never enter this conversion. Nonfinite centers remain
+    NaN; finite centers outside the configured inverse range raise an error.
+    """
+    pixels = np.asarray(pixels, dtype=np.float64)
+    finite = np.isfinite(pixels)
+    energy = np.full(pixels.shape, np.nan, dtype=np.float64)
+    try:
+        energy[finite] = pixel_to_energy(
+            pixels[finite], SpectrometerConfig(**config.pixel_map_config),
+            CalibrationPoint(**config.pixel_map_calibration),
+            e_min=config.inverse_map_range_ev[0], e_max=config.inverse_map_range_ev[1],
+            n_samples=config.inverse_map_samples,
+        )
+    except ValueError as exc:
+        if "outside interpolation range" in str(exc):
+            raise ValueError(
+                "VLS peak center is outside inverse_map_range_ev "
+                f"{config.inverse_map_range_ev}; adjust inverse_map_range_ev "
+                "to cover these pixels. No extrapolation is applied."
+            ) from exc
+        raise
+    return energy
+
+
+def energy_mapping_diagnostics(
     info: StaticInfo,
     section_center_pixel: np.ndarray,
     section_center_n: np.ndarray,
     config: ProcessGoodConfig,
-) -> tuple[np.ndarray, int, pd.DataFrame]:
-    """Fit converted energy from section median VLS center to section energy."""
+) -> pd.DataFrame:
+    """Compare the fixed physical map with section energies, without fitting."""
 
     x = np.asarray(section_center_pixel, dtype=np.float64)
     y = np.asarray(info.section_energy_eV, dtype=np.float64)
-    w = np.sqrt(np.maximum(np.asarray(section_center_n, dtype=np.float64), 1.0))
-    ok = np.isfinite(x) & np.isfinite(y) & (section_center_n > 0)
-    n_fit = int(np.sum(ok))
-    if n_fit < int(config.energy_calibration_min_sections):
-        raise RuntimeError(
-            f"Need at least {config.energy_calibration_min_sections} section centers for energy calibration; got {n_fit}."
-        )
-    order = min(int(config.energy_calibration_poly_order), n_fit - 1)
-    coeff = np.polyfit(x[ok], y[ok], deg=order, w=w[ok])
-    fit_energy = np.full_like(y, np.nan, dtype=np.float64)
-    fit_energy[ok] = np.polyval(coeff, x[ok])
-    table = pd.DataFrame(
+    mapped_energy = map_pixels_to_energy(x, config)
+    return pd.DataFrame(
         {
             "section": np.arange(info.n_energy),
             "section_energy_eV": y,
             "center_pixel": x,
             "n_center": section_center_n,
-            "fit_energy_eV": fit_energy,
-            "residual_eV": y - fit_energy,
+            "mapped_energy_eV": mapped_energy,
+            "section_minus_mapped_eV": y - mapped_energy,
         }
     )
-    return coeff, order, table
 
 
 def new_fit_accumulator(n_groups: int) -> dict[str, np.ndarray]:
@@ -707,6 +754,9 @@ def print_processed_qc_summary(result: ProcessGoodResult) -> None:
     )
     print(f"sections            : {info.n_energy}")
     print(f"energy source       : {info.section_energy_source} [{info.section_energy_source_unit}]")
+    print("converted energy    : fixed physical grating map (no section fit)")
+    print(f"calibration anchor  : {result.config.pixel_map_calibration}")
+    print(f"center method       : {result.config.center_method}")
     print(f"nominal bins        : {result.fit_nominal_after.x_eV.size:,}")
     print(f"converted bins      : {result.fit_converted_after.x_eV.size:,}")
     print(f"proxy pixel width   : {result.config.proxy_pixel_bin_width}")
@@ -758,16 +808,16 @@ def plot_energy_calibration_summary(result: ProcessGoodResult):
     finite = np.isfinite(table["center_pixel"].to_numpy(dtype=np.float64))
     if np.any(finite):
         xx = np.linspace(float(np.nanmin(table.loc[finite, "center_pixel"])), float(np.nanmax(table.loc[finite, "center_pixel"])), 250)
-        axes[0].plot(xx, np.polyval(result.energy_calibration_coeff, xx), "-", label="fit")
-    axes[0].set_xlabel("VLS peak COM pixel")
-    axes[0].set_ylabel("section energy (eV)")
+        axes[0].plot(xx, map_pixels_to_energy(xx, result.config), "-", label="fixed physical map")
+    axes[0].set_xlabel(f"VLS peak center pixel ({result.config.center_method})")
+    axes[0].set_ylabel("photon energy (eV)")
     axes[0].legend(frameon=False)
     axes[0].grid(alpha=0.25)
 
     axes[1].axhline(0, color="0.25", lw=0.9, ls=":")
-    axes[1].plot(table["section_energy_eV"], table["residual_eV"], "o-")
+    axes[1].plot(table["section_energy_eV"], table["section_minus_mapped_eV"], "o-")
     axes[1].set_xlabel("section energy (eV)")
-    axes[1].set_ylabel("fit residual (eV)")
+    axes[1].set_ylabel("section − mapped energy (eV)")
     axes[1].grid(alpha=0.25)
     return fig, axes
 
@@ -931,20 +981,28 @@ def write_energy_group(out: h5py.File, info: StaticInfo, result: ProcessGoodResu
     energy.create_dataset("section_to_nominal_group", data=info.section_to_group.astype(np.int32))
     energy.create_dataset("converted_proxy_group", data=result.occupied_proxy_groups.astype(np.int64))
     energy.create_dataset("converted_proxy_group_energy_eV", data=result.proxy_energy_eV[result.occupied_proxy_groups])
-    energy.create_dataset("vls_pixel_to_energy_coefficients", data=result.energy_calibration_coeff)
     energy.create_dataset("section_center_pixel", data=result.section_center_pixel)
     energy.create_dataset("section_center_n", data=result.section_center_n)
-    energy.create_dataset("section_center_fit_energy_eV", data=result.energy_calibration_table["fit_energy_eV"].to_numpy(dtype=np.float64))
-    energy.create_dataset("section_center_residual_eV", data=result.energy_calibration_table["residual_eV"].to_numpy(dtype=np.float64))
+    energy.create_dataset("section_center_mapped_energy_eV", data=result.energy_calibration_table["mapped_energy_eV"].to_numpy(dtype=np.float64))
+    energy.create_dataset("section_minus_mapped_eV", data=result.energy_calibration_table["section_minus_mapped_eV"].to_numpy(dtype=np.float64))
     energy.attrs["section_energy_source"] = info.section_energy_source
     energy.attrs["section_energy_source_unit"] = info.section_energy_source_unit
     energy.attrs["section_energy_conversion"] = info.section_energy_conversion
     energy.attrs["group_decimals"] = int(info.energy_group_decimals)
     energy.attrs["proxy_pixel_bin_width"] = int(result.config.proxy_pixel_bin_width)
-    energy.attrs["vls_calibration_order"] = int(result.energy_calibration_order)
-    energy.attrs["vls_calibration_x"] = "peak COM pixel after weak-VLS peak-SNR filter"
-    energy.attrs["vls_calibration_y"] = "section_energy_eV"
-    energy.attrs["converted_grouping"] = "shot-level VLS-COM proxy-pixel bins"
+    energy.attrs["vls_calibration_method"] = "physical_grating"
+    energy.attrs["vls_calibration_x"] = "absolute Gotthard peak center pixel"
+    energy.attrs["vls_calibration_y"] = "photon energy from fixed spectrometer map"
+    energy.attrs["converted_grouping"] = "shot-level VLS peak-center proxy-pixel bins"
+    energy.attrs["center_method"] = result.config.center_method
+    energy.attrs["center_half_window_px"] = int(result.config.center_half_window_px)
+    energy.attrs["center_baseline_percentile"] = float(result.config.center_baseline_percentile)
+    energy.attrs["inverse_map_range_ev"] = result.config.inverse_map_range_ev
+    energy.attrs["inverse_map_samples"] = int(result.config.inverse_map_samples)
+    geometry = energy.create_group("pixel_map_config")
+    geometry.attrs.update(asdict(SpectrometerConfig(**result.config.pixel_map_config)))
+    anchor = energy.create_group("pixel_map_calibration")
+    anchor.attrs.update(asdict(CalibrationPoint(**result.config.pixel_map_calibration)))
 
 
 def write_qc_group(out: h5py.File, result: ProcessGoodResult, max_good: int) -> h5py.Group:
@@ -966,6 +1024,11 @@ def write_qc_group(out: h5py.File, result: ProcessGoodResult, max_good: int) -> 
     qc.attrs["prominence_outer_px"] = int(cfg.prominence_outer_px)
     qc.attrs["prominence_baseline_percentile"] = float(cfg.prominence_baseline_percentile)
     qc.attrs["center_half_window_px"] = int(cfg.center_half_window_px)
+    qc.attrs["center_method"] = cfg.center_method
+    qc.attrs["center_baseline_percentile"] = float(cfg.center_baseline_percentile)
+    qc.attrs["sigma_half_window_px"] = int(cfg.sigma_half_window_px)
+    qc.attrs["min_side_pixels"] = int(cfg.min_side_pixels)
+    qc.attrs["use_ml_qc_ok"] = bool(cfg.use_ml_qc_ok)
     return qc
 
 
@@ -1065,6 +1128,33 @@ def _default_output_path(config: ProcessGoodConfig) -> Path:
 
 def _validate_config(config: ProcessGoodConfig) -> None:
     _normalize_gmd_source(config.gmd_source)
+    if config.center_method not in {"com", "peak", "smooth_peak", "gaussian_logfit", "local_com"}:
+        raise ValueError("center_method must be com, peak, smooth_peak, gaussian_logfit, or local_com")
+    for name in ("center_half_window_px", "sigma_half_window_px", "prominence_inner_px"):
+        if int(getattr(config, name)) < 0:
+            raise ValueError(f"{name} must be nonnegative")
+    if int(config.min_side_pixels) < 1:
+        raise ValueError("min_side_pixels must be positive")
+    for name in ("center_baseline_percentile", "prominence_baseline_percentile"):
+        if not 0 <= float(getattr(config, name)) <= 100:
+            raise ValueError(f"{name} must be between 0 and 100")
+    bounds = np.asarray(config.inverse_map_range_ev, dtype=np.float64)
+    if bounds.shape != (2,) or not np.all(np.isfinite(bounds)) or not 0 < bounds[0] < bounds[1]:
+        raise ValueError("inverse_map_range_ev must contain increasing positive finite energies")
+    if int(config.inverse_map_samples) != config.inverse_map_samples or config.inverse_map_samples < 2:
+        raise ValueError("inverse_map_samples must be an integer >= 2")
+    geometry = asdict(SpectrometerConfig(**config.pixel_map_config))
+    if not np.all(np.isfinite(list(geometry.values()))):
+        raise ValueError("pixel_map_config values must be finite")
+    for name in ("source_to_grating_m", "grating_to_screen_m", "groove_density_lines_per_mm", "magnification", "pixel_pitch_m"):
+        if geometry[name] <= 0:
+            raise ValueError(f"pixel_map_config {name} must be positive")
+    if geometry["axis_sign"] not in (-1, 1) or geometry["diffraction_order"] == 0:
+        raise ValueError("pixel_map_config requires axis_sign +/-1 and nonzero diffraction_order")
+    anchor = CalibrationPoint(**config.pixel_map_calibration)
+    if not np.isfinite(anchor.pixel) or not np.isfinite(anchor.energy_eV) or anchor.energy_eV <= 0:
+        raise ValueError("pixel_map_calibration requires a finite pixel and positive finite energy_eV")
+    map_pixels_to_energy(np.empty(0), config)  # Check physical map before reading data.
     if int(config.chunk_size) <= 0:
         raise ValueError("chunk_size must be positive")
     if int(config.proxy_pixel_bin_width) <= 0:

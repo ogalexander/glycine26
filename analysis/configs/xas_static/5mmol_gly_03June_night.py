@@ -31,7 +31,7 @@ CROP_ROI = (450, 650)
 
 # Cyclic shift (np.roll) of the VLS bunch axis applied right after the
 # pixel crop. VLS bunch 10 maps to raw GMD bunch 0 for this run.
-VLS_BUNCH_ROLL = 0
+VLS_BUNCH_ROLL = -2  # Bunch-axis roll (np.roll) applied to align the Gotthard line index
 GMD_BUNCH_START = 0
 
 # Bunch ranges (half-open).
