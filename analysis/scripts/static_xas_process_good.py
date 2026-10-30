@@ -17,7 +17,7 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from gotthard_energy_pixel_map import CalibrationPoint, SpectrometerConfig, pixel_to_energy
+from gotthard_energy_pixel_map import CalibrationPoint, SpectrometerConfig, energy_to_pixel, pixel_to_energy
 from static_xas_analysis import estimate_center_pixels
 
 
@@ -57,7 +57,7 @@ class ProcessGoodConfig:
     pixel_map_calibration: dict[str, float] = field(default_factory=lambda: {
         "pixel": 524.0, "energy_eV": 284.2,
     })
-    inverse_map_range_ev: tuple[float, float] = (260.0, 290.0)
+    inverse_map_range_ev: tuple[float, float] = (250.0, 310.0)
     inverse_map_samples: int = 10_000
     peak_snr_threshold: float = 5.0
     prominence_inner_px: int = 5
@@ -604,9 +604,17 @@ def map_pixels_to_energy(pixels: np.ndarray, config: ProcessGoodConfig) -> np.nd
         )
     except ValueError as exc:
         if "outside interpolation range" in str(exc):
+            pixel_bounds = np.sort(energy_to_pixel(
+                np.asarray(config.inverse_map_range_ev),
+                SpectrometerConfig(**config.pixel_map_config),
+                CalibrationPoint(**config.pixel_map_calibration),
+            ))
+            requested = pixels[finite]
             raise ValueError(
                 "VLS peak center is outside inverse_map_range_ev "
-                f"{config.inverse_map_range_ev}; adjust inverse_map_range_ev "
+                f"{config.inverse_map_range_ev}: requested centers span "
+                f"{requested.min():.3f}–{requested.max():.3f} pixels, but the map covers "
+                f"{pixel_bounds[0]:.3f}–{pixel_bounds[-1]:.3f} pixels; adjust inverse_map_range_ev "
                 "to cover these pixels. No extrapolation is applied."
             ) from exc
         raise

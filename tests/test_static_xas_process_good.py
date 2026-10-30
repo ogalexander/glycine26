@@ -91,6 +91,22 @@ class StaticXASProcessGoodTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "adjust inverse_map_range_ev"):
             pg.map_pixels_to_energy(np.array([0.0]), cfg)
 
+    def test_default_inverse_range_covers_full_processed_roi(self):
+        cfg = pg.ProcessGoodConfig("unused.h5")
+        pixels = np.arange(450.0, 650.0)
+        energies = pg.map_pixels_to_energy(pixels, cfg)
+        self.assertTrue(np.all(np.isfinite(energies)))
+        self.assertTrue(np.all(np.diff(energies) < 0))
+        self.assertAlmostEqual(energies[0], 299.28762245, places=6)
+        self.assertAlmostEqual(energies[-1], 261.34759632, places=6)
+        narrow = replace(cfg, inverse_map_range_ev=(260.0, 290.0))
+        with self.assertRaisesRegex(ValueError, "requested centers span 450.000.*map covers 494.818"):
+            pg.map_pixels_to_energy(pixels, narrow)
+        # Expanding the lookup table must retain the established physical mapping.
+        common_pixels = np.array([510.0, 524.0, 580.0, 640.0])
+        np.testing.assert_allclose(pg.map_pixels_to_energy(common_pixels, cfg),
+                                   pg.map_pixels_to_energy(common_pixels, narrow), rtol=0, atol=1e-7)
+
     def test_single_section_energy_does_not_fit_or_shift_physical_map(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "run12345_static_xas.h5"
