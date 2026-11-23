@@ -172,3 +172,53 @@ X-ray spectrum (VLS arm) are constant across the bunch train.
       notebooks load the same one.
 - [ ] ☐ Promote any helper reused across ≥2 post notebooks into the
       `analysis/scripts/` package.
+
+## Incident-energy intensity dips: 150C versus 7 June / 147C  ◐
+**Notebook:** appended comparison section in `Bunch investigations.ipynb`.
+**Reader:** `incident_yield_comparison.py` (chunked, read-only; Slurm CLI).
+
+- [x] Shared-scale maps and lineouts at overlapping energies; exposure/yield comparison.
+- [x] Identical broad/fixed GMD selections, fixed/tracking feature windows, e/i ratios.
+- [x] Acquisition-block, bunch, delay and available beam/DAQ monitor diagnostics.
+- [x] Synthetic numerical checks and four-train smoke checks in each 274 eV source.
+- [ ] Run the full Slurm comparison, inspect its results and establish which causes
+      remain consistent with the intensity dips. Preview outputs are not evidence.
+
+Selections and calibration are recorded in a timestamped manifest; original
+notebook analysis and raw data are unchanged. The 147C scan does not cover the
+150C points below 274 eV, so direct family comparisons use shared energies only.
+
+## Full-run chronology and candidate ion-monitor diagnostics  ◐
+**Notebook:** new final section in `Bunch investigations.ipynb`.
+**Reader:** `incident_chronology.py` (full data, chunked; notebook-local or Slurm execution).
+The chronology section defaults to `CHRON_EXECUTION_MODE = "local"`; `"slurm"`
+retains batch preparation/loading. `CHRON_RESULT_FILE` can reuse results in either mode.
+
+- [x] Actual tID chronology/provenance and matched energy/order/tID observable plots.
+- [x] Eight equal valid-train blocks, monitor mean/std/median/MAD, Pearson tables.
+- [x] Diagnostic E/I, A/I, B/I, overlap ratios and strict JSON per-run summary;
+      no ion-based correction is applied.
+- [x] Synthetic alignment/count/uncertainty checks and appended-cell execution checks.
+- [x] Lightweight full tID inventory: both series increase in energy with chronology.
+      The 147C 276.5 eV source has 53,293 retained rows with tID=0; flag chronology
+      as unavailable, keep energy diagnostics, label source-row blocks and suppress
+      unverified train-cluster errors. No IDs or raw data are repaired or removed.
+- [ ] Run the new full-data Slurm job and assess common modulation versus
+      detector-specific effects. Chronology and photon energy remain confounded.
+
+
+## Weak Auger search: 7 June / 147 C electron–electron and ion gates  ◐
+**Notebook:** `ee_ion_covariance_auger_search.ipynb`.
+**Reader:** `ee_ion_covariance.py` (read-only train chunks and selective aggregate rows).
+
+- [x] Verified all six 274.0–276.5 eV sources and fine config-1 aggregate schemas.
+- [x] Full recorded coverage, ion spectra, unique pairs, pooled covariance/GMD partial covariance.
+- [x] Configurable moving-PE projections, Boolean ion/control gates, final comparison panels.
+- [x] Synthetic comparison with existing loader/aggregate writer and direct numerical moments.
+- [x] Notebook-cell smoke check: eight trains/file and small aggregate KE subsets; optional branches exercised with unassigned validation ROIs.
+- [ ] Supply a justified 10a′ BE window and establish ion mass/charge assignments and sidebands.
+- [ ] Run full diagnostics with a Slurm compute-node kernel and assess backgrounds/uncertainties.
+
+Defaults remain small previews, with PE/ion gates unset and Cb disabled. Raw `[1,12)`
+GMD selection cannot be recovered from existing aggregate bin boundaries; selected
+aggregate cells/populations and native-bin KE coarsening are reported explicitly.

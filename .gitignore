@@ -29,3 +29,8 @@ dashboard/pages/__pycache__/
 
 # Ignore system files
 .DS_Store
+
+#Ignore checkpoints
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+*.log
