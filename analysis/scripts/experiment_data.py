@@ -55,7 +55,8 @@ class ExperimentData:
     Attributes
     ----------
     config : int
-        Experiment configuration (1 or 2).
+        Experiment configuration: 1 = gas arm (electron + ion TOF, VLS
+        optional), 2 = liquid arm (liquid eTOF + VLS).
     tID : np.ndarray
         Train IDs, shape (n,).
     gmd : np.ndarray
@@ -73,7 +74,8 @@ class ExperimentData:
     liq_tofs_e : np.ndarray, optional
         Electron TOF hits (config 2), shape (n, m, max_hits). Units: ns.
     vls : np.ndarray, optional
-        X-ray spectrum (config 2), shape (n, m, n_pixels).
+        X-ray spectrum from the Gotthard VLS, shape (n, m, n_pixels).
+        Always present for config 2; optional for config 1.
     shutter : np.ndarray, optional
         Per-train fast-shutter signal (multi-dim raw samples are reduced
         to a scalar via nanmean by ``write_h5.py``), shape (n,).
@@ -159,7 +161,7 @@ class ExperimentData:
         otherwise ``np.arange(n_vls_pixels)``.
         """
         if self.vls is None:
-            raise AttributeError("This dataset has no VLS data (config != 2).")
+            raise AttributeError("This dataset has no VLS data.")
         if self.vls_pixel_ax is not None:
             return self.vls_pixel_ax
         return np.arange(self.vls.shape[-1])
@@ -220,7 +222,7 @@ class ExperimentData:
         free function and this method.
         """
         if self.vls is None:
-            raise AttributeError("This dataset has no VLS data (config != 2).")
+            raise AttributeError("This dataset has no VLS data.")
 
         # Local import avoids an import cycle (processing.py imports
         # ExperimentData for type hints).
@@ -262,7 +264,7 @@ class ExperimentData:
             broadcast over the leading axes.
         """
         if self.vls is None:
-            raise AttributeError("This dataset has no VLS data (config != 2).")
+            raise AttributeError("This dataset has no VLS data.")
 
         background = np.asarray(background)
         n_bunches = self.vls.shape[1]
@@ -307,7 +309,7 @@ class ExperimentData:
             New dataset with the auto-computed background subtracted.
         """
         if self.vls is None:
-            raise AttributeError("This dataset has no VLS data (config != 2).")
+            raise AttributeError("This dataset has no VLS data.")
 
         bunch_start, bunch_end = background_roi
         if not 0 <= bunch_start < bunch_end <= self.n_bunches:
@@ -352,7 +354,7 @@ class ExperimentData:
             New dataset with the per-train background subtracted.
         """
         if self.vls is None:
-            raise AttributeError("This dataset has no VLS data (config != 2).")
+            raise AttributeError("This dataset has no VLS data.")
 
         bunch_start, bunch_end = background_roi
         if not 0 <= bunch_start < bunch_end <= self.n_bunches:
@@ -401,7 +403,7 @@ class ExperimentData:
             New dataset with the VLS bunch axis rolled.
         """
         if self.vls is None:
-            raise AttributeError("This dataset has no VLS data (config != 2).")
+            raise AttributeError("This dataset has no VLS data.")
 
         shift = int(shift)
         return replace(
@@ -521,7 +523,7 @@ class ExperimentData:
             set, shape ``(n_trains, n_bunches)`` each.
         """
         if self.vls is None:
-            raise AttributeError("This dataset has no VLS data (config != 2).")
+            raise AttributeError("This dataset has no VLS data.")
 
         from processing import spectral_moments
 

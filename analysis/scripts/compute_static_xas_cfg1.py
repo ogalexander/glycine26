@@ -190,6 +190,7 @@ def compute_static_xas_cfg1(
     data = data_loading.load_data(
         str(input_h5), config=1,
         trim_start=trim_start, trim_end=trim_end,
+        load_vls=False,  # per-shot TOF output only; skip the large VLS stack
     )
     if data.tofs_e is None or data.tofs_i is None:
         raise RuntimeError(

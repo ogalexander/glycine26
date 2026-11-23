@@ -4,15 +4,15 @@ import os
 import sys
 from pathlib import Path
 
-# Make the legacy beamtime decoder importable on both the local workstation
-# (current repo layout) and the FLASH cluster (2026 beamtime path).
+# analysis/scripts holds `config` (path resolution); the legacy TDC decoder
+# package (beamtime_scripts_2021) lives in the beamtime's analysis_tools
+# folder, located through config.DECODER_DIR.
 _REPO_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(_REPO_ROOT / "analysis" / "scripts"))
-sys.path.insert(
-    0,
-    str(_REPO_ROOT / "11022188" / "processed" / "analysis_tools" / "decoding_script"),
-)
-sys.path.append('/asap3/flash/gpfs/fl24/2026/data/11022188/processed/analysis_tools/decoding_script')
+
+import config  # path resolution; the only place hardcoded paths live
+
+sys.path.insert(0, str(config.DECODER_DIR))
 
 import re
 import glob
@@ -28,19 +28,31 @@ from beamtime_scripts_2021.util import write_tof_data_to_file
 
 import h5py as h5
 
-import config  # path resolution; the only place hardcoded paths live
+
 class DataChunk():
-    def __init__(self, chunk_size, train_length, max_ecounts=50, max_icounts=120):
+    """
+    Chunked accumulator for config 1 combined-H5 writes: electron + ion TOF
+    (TDC channels 1 / 2) and, optionally, the Gotthard VLS spectrum.
+
+    ``n_vls_pixels=None`` disables the VLS buffer (runs without a VLS);
+    otherwise every row carries a ``(train_length, n_vls_pixels)`` spectrum
+    block, NaN where the train had no VLS frame.
+    """
+
+    def __init__(self, chunk_size, train_length, max_ecounts=50, max_icounts=120,
+                 n_vls_pixels=None):
         self.chunk_size = chunk_size
         self.train_length = train_length
         self.max_ecounts = max_ecounts
         self.max_icounts = max_icounts
+        self.n_vls_pixels = n_vls_pixels
         self.n_e_overflows = 0
         self.n_i_overflows = 0
         self.reset()
         self.count = 0
 
-    def add_row(self, is_data, tID, gmd, mpe, hor_pos, ver_pos, z , z_std, tofs_e, tofs_i, between_tdc_files, shutter=np.nan):
+    def add_row(self, is_data, tID, gmd, mpe, hor_pos, ver_pos, z , z_std, tofs_e, tofs_i, between_tdc_files, shutter=np.nan,
+                vls=None):
         self.is_datas[self.idx] = is_data
         self.tIDs[self.idx] = tID
         self.gmds[self.idx] = gmd
@@ -78,6 +90,8 @@ class DataChunk():
                     tofs_i_bunch = tofs_i_bunch[:self.max_icounts]
                     n = self.max_icounts
                 self.tofs_is[self.idx, b_idx, :n] = tofs_i_bunch
+        if vls is not None and self.vls is not None:
+            self.vls[self.idx] = vls
 
         self.idx += 1
 
@@ -88,8 +102,10 @@ class DataChunk():
             return False
 
     def dump(self, tID_dset, data_flag_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset,
-        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset, shutter_dset):
+        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset, shutter_dset, vls_dset=None):
         roi = np.s_[self.count*self.chunk_size:(self.count+1)*self.chunk_size]
+        if vls_dset is not None:
+            vls_dset[roi]             = self.vls
         tID_dset[roi]                 = self.tIDs
         data_flag_dset[roi]           = self.is_datas
         z_dset[roi]                   = self.zs
@@ -122,29 +138,39 @@ class DataChunk():
         self.tofs_es = np.zeros((self.chunk_size, self.train_length, self.max_ecounts), dtype=np.uint32)
         self.tofs_is = np.zeros((self.chunk_size, self.train_length, self.max_icounts), dtype=np.uint32)
         self.between_tdc_filess = np.zeros((self.chunk_size, ), dtype='bool')
+        self.vls = (None if self.n_vls_pixels is None else
+                    np.full((self.chunk_size, self.train_length, self.n_vls_pixels), np.nan, dtype=np.float32))
 
         self.idx = 0
         self.is_e_data = False
         self.is_i_data = False
         print('reset.')
 
+    def n_written(self):
+        """Rows written so far (full chunks dumped + rows in the open chunk)."""
+        return self.count * self.chunk_size + self.idx
+
     def finish(self, tID_dset, data_flag_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset,
-        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset, shutter_dset):
-        self.is_datas            = self.is_datas[:self.idx-1]
-        self.tIDs                = self.tIDs[:self.idx-1]
-        self.gmds                = self.gmds[:self.idx-1]
-        self.mpes                = self.mpes[:self.idx-1]
-        self.hor_poss            = self.hor_poss[:self.idx-1]
-        self.ver_poss            = self.ver_poss[:self.idx-1]
-        self.zs                  = self.zs[:self.idx-1]
-        self.z_stds              = self.z_stds[:self.idx-1]
-        self.shutters            = self.shutters[:self.idx-1]
-        self.tofs_es             = self.tofs_es[:self.idx-1]
-        self.tofs_is             = self.tofs_is[:self.idx-1]
-        self.between_tdc_filess  = self.between_tdc_filess[:self.idx-1]
+        ver_pos_dset, tofs_es_dset, tofs_is_dset, between_tdc_files_dset, shutter_dset, vls_dset=None):
+        # Flush the open (partial) chunk. main() trims the datasets to
+        # n_written() afterwards, so rows never reached stay out of the file.
+        self.is_datas            = self.is_datas[:self.idx]
+        self.tIDs                = self.tIDs[:self.idx]
+        self.gmds                = self.gmds[:self.idx]
+        self.mpes                = self.mpes[:self.idx]
+        self.hor_poss            = self.hor_poss[:self.idx]
+        self.ver_poss            = self.ver_poss[:self.idx]
+        self.zs                  = self.zs[:self.idx]
+        self.z_stds              = self.z_stds[:self.idx]
+        self.shutters            = self.shutters[:self.idx]
+        self.tofs_es             = self.tofs_es[:self.idx]
+        self.tofs_is             = self.tofs_is[:self.idx]
+        self.between_tdc_filess  = self.between_tdc_filess[:self.idx]
 
-        roi = np.s_[self.count*self.chunk_size:(self.count*self.chunk_size) + self.idx-1]
+        roi = np.s_[self.count*self.chunk_size:(self.count*self.chunk_size) + self.idx]
 
+        if vls_dset is not None:
+            vls_dset[roi]           = self.vls[:self.idx]
         tID_dset[roi]               = self.tIDs
         z_dset[roi]                 = self.zs
         z_std_dset[roi]             = self.z_stds
@@ -159,9 +185,6 @@ class DataChunk():
             tofs_is_dset[roi]       = self.tofs_is
         data_flag_dset[roi]         = self.is_datas
         between_tdc_files_dset[roi] = self.between_tdc_filess
-
-        (dset.resize((self.count*self.chunk_size) + self.idx-1, axis=0) for dset in
-            [tID_dset, z_dset, z_std_dset, gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset, between_tdc_files_dset]) # 4 missing from here
 
 
 class DataChunkConfig2():
@@ -252,23 +275,27 @@ class DataChunkConfig2():
         self.idx = 0
         print('reset.')
 
-    def finish(self, dsets):
-        # Mirror DataChunk.finish: trim to idx-1 (drops the last partial row).
-        # This off-by-one is replicated for parity with the existing config 1 writer.
-        self.is_datas            = self.is_datas[:self.idx-1]
-        self.tIDs                = self.tIDs[:self.idx-1]
-        self.gmds                = self.gmds[:self.idx-1]
-        self.mpes                = self.mpes[:self.idx-1]
-        self.hor_poss            = self.hor_poss[:self.idx-1]
-        self.ver_poss            = self.ver_poss[:self.idx-1]
-        self.zs                  = self.zs[:self.idx-1]
-        self.z_stds              = self.z_stds[:self.idx-1]
-        self.shutters            = self.shutters[:self.idx-1]
-        self.liq_tofs_es         = self.liq_tofs_es[:self.idx-1]
-        self.vls                 = self.vls[:self.idx-1]
-        self.between_tdc_filess  = self.between_tdc_filess[:self.idx-1]
+    def n_written(self):
+        """Rows written so far (full chunks dumped + rows in the open chunk)."""
+        return self.count * self.chunk_size + self.idx
 
-        roi = np.s_[self.count*self.chunk_size:(self.count*self.chunk_size) + self.idx-1]
+    def finish(self, dsets):
+        # Flush the open (partial) chunk; main() trims the datasets to
+        # n_written() afterwards (same as DataChunk.finish).
+        self.is_datas            = self.is_datas[:self.idx]
+        self.tIDs                = self.tIDs[:self.idx]
+        self.gmds                = self.gmds[:self.idx]
+        self.mpes                = self.mpes[:self.idx]
+        self.hor_poss            = self.hor_poss[:self.idx]
+        self.ver_poss            = self.ver_poss[:self.idx]
+        self.zs                  = self.zs[:self.idx]
+        self.z_stds              = self.z_stds[:self.idx]
+        self.shutters            = self.shutters[:self.idx]
+        self.liq_tofs_es         = self.liq_tofs_es[:self.idx]
+        self.vls                 = self.vls[:self.idx]
+        self.between_tdc_filess  = self.between_tdc_filess[:self.idx]
+
+        roi = np.s_[self.count*self.chunk_size:(self.count*self.chunk_size) + self.idx]
         dsets['tID'][roi]                = self.tIDs
         dsets['local_DAQ_running'][roi]  = self.is_datas
         dsets['z'][roi]                  = self.zs
@@ -727,7 +754,9 @@ def check_and_correct_trainIDs(df: pd.DataFrame, trainID_at_start_32bit: int) ->
     """
 
     # reconstruct 32bit sweep number
-    sweeps=df['sweep'].to_numpy(dtype=np.int32)
+    # copy=True: under pandas >= 3 (copy-on-write) to_numpy() of an int32
+    # column is a read-only view, and both arrays are edited in place below.
+    sweeps=df['sweep'].to_numpy(dtype=np.int32, copy=True)
     sweep_diff=np.diff(sweeps) # sweep_diff[i] = sweeps[i+1]-[sweeps[i]
     sweep_of=np.flatnonzero(sweep_diff<-32767)  # determine events before 16bit wraparound of sweep#
     sweep_jc=np.flatnonzero(sweep_diff>32767)   # determine events where sweep# jitter occurs during wraparound
@@ -745,7 +774,7 @@ def check_and_correct_trainIDs(df: pd.DataFrame, trainID_at_start_32bit: int) ->
     # can be used to directly reconstruct the 32bit train IDs
     
     # Get the trainID as a Numpy array to speed up execution
-    trainID = df['trainID'].to_numpy(dtype=np.int32) # convert to signed 32bit
+    trainID = df['trainID'].to_numpy(dtype=np.int32, copy=True) # convert to signed 32bit
 
     # Calculate the difference between two consecutive trainIDs (diff[0] = trainID[1] - trainID[0])
     trainID_diff = np.append(np.diff(trainID), 0)
@@ -1037,8 +1066,17 @@ _VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 _SHUTTER_INDEX = "/FL2/Beamlines/Fast Shutter/shutter/index"
 _SHUTTER_VALUE = "/FL2/Beamlines/Fast Shutter/shutter/value"
 
-_DEFAULT_TRAIN_LENGTH = {1: 101, 2: 110}
-_DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
+# Bunch slots per train in the combined H5, and the Gotthard line stored
+# as bunch 0. Config 1 (gas arm, this beamtime) takes both from
+# config.TRAIN_LENGTH / config.VLS_OFFSET (working assumptions: 101 / 10;
+# runs with fewer pulses leave the trailing GMD slots NaN). Config 2
+# (liquid arm, previous beamtime) kept the full 110 Gotthard lines, unshifted.
+_DEFAULT_TRAIN_LENGTH = {1: config.TRAIN_LENGTH, 2: 110}
+_DEFAULT_VLS_OFFSET   = {1: config.VLS_OFFSET, 2: 0}
+# Rows per chunked write. Config 1 drops to the smaller size when the run
+# carries VLS (each row is then train_length x 1280 float32 ≈ 0.5 MB).
+_DEFAULT_CHUNK_SIZE     = {1: 1000, 2: 200}
+_DEFAULT_CHUNK_SIZE_VLS = 200
 
 # How many bunches per train carry real GMD / SDU data. For cfg 2 the
 # Gotthard VLS has more lines than the FEL has pulses (110 vs 101), so
@@ -1047,6 +1085,36 @@ _DEFAULT_CHUNK_SIZE   = {1: 1000, 2: 200}
 # "use every bunch slot", matching the cfg 1 layout where GMD spans the
 # whole train.
 _DEFAULT_DATA_BUNCHES = {1: None, 2: 101}
+
+
+def _raw_h5_has(h5_path, *keys) -> bool:
+    """True if every dataset in ``keys`` exists in the raw H5 file."""
+    try:
+        with h5.File(h5_path, "r") as f:
+            return all(k in f for k in keys)
+    except OSError:
+        return False
+
+
+def _crop_vls_lines(raw_vls, train_length, n_vls_pixels, vls_offset):
+    """
+    Line the Gotthard VLS frame up with the FEL bunch axis.
+
+    ``raw_vls`` is one train's ``(n_lines, n_pixels)`` frame. Line
+    ``b + vls_offset`` is stored as bunch ``b`` for ``b`` in
+    ``[0, train_length)``. A positive offset skips leading Gotthard lines;
+    a negative one leaves the first ``-vls_offset`` bunches empty. Slots
+    with no corresponding line, and pixels beyond the raw width, are NaN.
+    """
+    raw_vls = np.asarray(raw_vls, dtype=np.float32)
+    out = np.full((train_length, n_vls_pixels), np.nan, dtype=np.float32)
+    src0 = max(vls_offset, 0)      # first raw line used
+    dst0 = max(-vls_offset, 0)     # bunch slot it lands in
+    n = min(raw_vls.shape[0] - src0, train_length - dst0)
+    if n > 0:
+        p = min(raw_vls.shape[1], n_vls_pixels)
+        out[dst0:dst0 + n, :p] = raw_vls[src0:src0 + n, :p]
+    return out
 
 
 def _fold_into_bunches(tofs_raw, train_length, folding_parameter, edges):
@@ -1241,22 +1309,29 @@ def _advance_to(it, target_tID, label):
 def main(config_no, measurement_name, run_no, output_path=None,
          train_length=None, chunk_size=None,
          max_ecounts=50, max_icounts=120, n_vls_pixels=1280,
-         folding_parameter=39876.9, data_bunches=None):
+         folding_parameter=39876.9, data_bunches=None,
+         vls=None, vls_offset=None):
     """
     Decode and align the local-DAQ + raw-H5 streams for one measurement.
 
     Both configurations follow the same train-ID alignment pattern; only
     the detector layout differs:
 
-    - config 1: TDC channels 1 (electron, ``tofs_e``) and 2 (ion, ``tofs_i``).
-    - config 2: TDC channel 3 (liquid-jet electron, ``liq_tofs_e``) plus
-      Gotthard VLS spectra read from the raw H5.
+    - config 1 (gas arm): TDC channels 1 (electron, ``tofs_e``) and 2
+      (ion, ``tofs_i``), plus — optionally — the Gotthard VLS spectrum
+      (``vls``) lined up with the bunch axis.
+    - config 2 (liquid arm, previous beamtime): TDC channel 3 (liquid-jet
+      electron, ``liq_tofs_e``) plus Gotthard VLS spectra.
 
     If no TDC ``.lst`` files exist for the measurement, the TOF datasets
     (``tofs_e``/``tofs_i`` for cfg 1, ``liq_tofs_e`` for cfg 2) are
     omitted from the output and ``between_tdc_files`` is written as all
     False. The SDU and raw-H5 streams are still aligned and written
     normally. For cfg 2, ``vls`` is always written regardless.
+
+    The output holds one row per train in ``[first SDU tID, last SDU
+    tID]`` up to the point where a stream ran out; datasets are trimmed to
+    the rows actually written.
 
     Parameters
     ----------
@@ -1275,14 +1350,24 @@ def main(config_no, measurement_name, run_no, output_path=None,
     output_path : pathlib.Path, optional
         Output H5 path. Defaults to ``COMBINED_DIR / f"{measurement_name}.h5"``.
     train_length : int, optional
-        Bunches per train. Defaults to 400 for config 1 and 100 for config 2.
+        Bunch slots per train. Defaults to ``config.TRAIN_LENGTH`` (101)
+        for config 1 and 110 for config 2. GMD (and VLS) beyond the pulses
+        actually present are NaN.
     chunk_size : int, optional
-        Rows per chunked H5 write. Defaults to 1000 for config 1 and
-        200 for config 2 (config 2 buffers are larger because of VLS).
+        Rows per chunked H5 write. Defaults to 1000 for config 1 without
+        VLS, and 200 when VLS is written (config 2, or config 1 + VLS).
     max_ecounts, max_icounts : int
         Zero-padding limits for the per-bunch TDC tof arrays.
     n_vls_pixels : int
-        Width of the Gotthard VLS pixel axis (config 2 only).
+        Width of the Gotthard VLS pixel axis.
+    vls : bool or None
+        Config 1 only: write the VLS spectrum. ``None`` (default) writes it
+        when the run's raw H5 files contain the Gotthard dataset. Config 2
+        always writes VLS.
+    vls_offset : int, optional
+        Gotthard line stored as bunch 0 (line ``b + vls_offset`` -> bunch
+        ``b``); see :func:`_crop_vls_lines`. Defaults to
+        ``config.VLS_OFFSET`` (10) for config 1 and 0 for config 2.
     folding_parameter : float
         TOF range (100 ps) used to split each sweep's flat tof stream into
         per-bunch lists.
@@ -1299,8 +1384,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
         raise ValueError(f"config must be 1 or 2, got {config_no!r}")
     if train_length is None:
         train_length = _DEFAULT_TRAIN_LENGTH[config_no]
-    if chunk_size is None:
-        chunk_size = _DEFAULT_CHUNK_SIZE[config_no]
+    if vls_offset is None:
+        vls_offset = _DEFAULT_VLS_OFFSET[config_no]
+    vls_offset = int(vls_offset)
     if data_bunches is None:
         data_bunches = _DEFAULT_DATA_BUNCHES[config_no]
     # Effective per-train slot count for non-VLS streams. None = the
@@ -1328,7 +1414,6 @@ def main(config_no, measurement_name, run_no, output_path=None,
     print(f"train_length  : {train_length}")
     print(f"data_bunches  : {data_bunches}  "
           f"({'all bunches' if data_bunches is None else f'fills first {_data_n}; rest NaN'})")
-    print(f"chunk_size    : {chunk_size}")
     print()
 
     if not Path(h5_folder).is_dir():
@@ -1391,6 +1476,24 @@ def main(config_no, measurement_name, run_no, output_path=None,
         raise RuntimeError("None of the raw H5 files overlap with the SDU train-ID range.")
     print(f"First raw H5 file with overlap: index {first_h5_idx}")
 
+    # --- VLS: always for cfg 2; for cfg 1 when the run has it ----------
+    vls_in_raw = _raw_h5_has(h5_paths[first_h5_idx], _VLS_INDEX, _VLS_VALUE)
+    if config_no == 2 or vls is None:
+        write_vls = vls_in_raw if config_no == 1 else True
+    else:
+        write_vls = bool(vls)
+    if write_vls and not vls_in_raw:
+        raise RuntimeError(
+            f"VLS requested but {_VLS_VALUE!r} is not in {Path(h5_paths[first_h5_idx]).name}."
+        )
+    if chunk_size is None:
+        chunk_size = (_DEFAULT_CHUNK_SIZE_VLS if (config_no == 1 and write_vls)
+                      else _DEFAULT_CHUNK_SIZE[config_no])
+    print(f"vls           : "
+          + (f"written, Gotthard line b+{vls_offset} -> bunch b" if write_vls
+             else "not written" + ("" if vls_in_raw else " (not in raw H5)")))
+    print(f"chunk_size    : {chunk_size}")
+
     # --- Iterators -----------------------------------------------------
     sdu_it     = SDUIterator(sdu_fpaths)
     tdc_it     = TDCIterator(tdc_fpaths, config=config_no) if has_tdc else None
@@ -1398,8 +1501,8 @@ def main(config_no, measurement_name, run_no, output_path=None,
     mpe_it     = h5Iterator(h5_paths[first_h5_idx:], [_MPE_INDEX, _MPE_VALUE])
     hor_pos_it = h5Iterator(h5_paths[first_h5_idx:], [_HOR_INDEX, _HOR_VALUE])
     ver_pos_it = h5Iterator(h5_paths[first_h5_idx:], [_VER_INDEX, _VER_VALUE])
-    if config_no == 2:
-        vls_it = h5Iterator(h5_paths[first_h5_idx:], [_VLS_INDEX, _VLS_VALUE])
+    vls_it     = (h5Iterator(h5_paths[first_h5_idx:], [_VLS_INDEX, _VLS_VALUE])
+                  if write_vls else None)
 
     # Shutter is optional in the raw H5. If the dataset is missing in
     # any of the active files, fall back to NaN-fill for every train so
@@ -1423,7 +1526,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
     next_tID_mpe, next_mpe = _advance_to(mpe_it, first_tID, "mpe")
     next_tID_hor_pos, next_hor_pos = _advance_to(hor_pos_it, first_tID, "hor_pos")
     next_tID_ver_pos, next_ver_pos = _advance_to(ver_pos_it, first_tID, "ver_pos")
-    if config_no == 2:
+    if vls_it is not None:
         next_tID_vls, next_vls = _advance_to(vls_it, first_tID, "vls")
     if shutter_it is not None:
         next_tID_shutter, next_shutter = _advance_to(shutter_it, first_tID, "shutter")
@@ -1442,10 +1545,13 @@ def main(config_no, measurement_name, run_no, output_path=None,
              next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
 
     # --- Output H5 layout (schema + legacy extras) ---------------------
-    data_len = last_tID - first_tID
+    # One row per train in [first_tID, last_tID]; trimmed after the loop
+    # to the rows actually written (a stream can run out early).
+    data_len = last_tID - first_tID + 1
     if config_no == 1:
         chunk = DataChunk(chunk_size, train_length,
-                          max_ecounts=max_ecounts, max_icounts=max_icounts)
+                          max_ecounts=max_ecounts, max_icounts=max_icounts,
+                          n_vls_pixels=n_vls_pixels if write_vls else None)
     else:
         chunk = DataChunkConfig2(chunk_size, train_length,
                                  max_ecounts=max_ecounts,
@@ -1454,18 +1560,32 @@ def main(config_no, measurement_name, run_no, output_path=None,
     if output_path.exists():
         output_path.unlink()
 
+    def _create(f, name, shape, dtype, **kw):
+        """Dataset resizable along the train axis (trimmed after the loop)."""
+        return f.create_dataset(name, shape, dtype=dtype,
+                                maxshape=(None,) + tuple(shape[1:]), **kw)
+
     with h5.File(output_path, "w") as f_out:
         # Shared schema fields
-        tID_dset               = f_out.create_dataset("tID",               (data_len,),               dtype="double")
-        data_flag_dset         = f_out.create_dataset("local_DAQ_running", (data_len,),               dtype="bool")
-        z_dset                 = f_out.create_dataset("z",                 (data_len, train_length),  dtype=np.float32)
-        z_std_dset             = f_out.create_dataset("z_std",             (data_len, train_length),  dtype=np.float32)
-        gmd_dset               = f_out.create_dataset("gmd",               (data_len, train_length),  dtype=np.float32)
-        mpe_dset               = f_out.create_dataset("mpe",               (data_len,),               dtype=np.float32)
-        hor_pos_dset           = f_out.create_dataset("hor_pos",           (data_len,),               dtype=np.float32)
-        ver_pos_dset           = f_out.create_dataset("ver_pos",           (data_len,),               dtype=np.float32)
-        shutter_dset           = f_out.create_dataset("shutter",           (data_len,),               dtype=np.float32)
-        between_tdc_files_dset = f_out.create_dataset("between_tdc_files", (data_len,),               dtype="bool")
+        tID_dset               = _create(f_out, "tID",               (data_len,),               "double")
+        data_flag_dset         = _create(f_out, "local_DAQ_running", (data_len,),               "bool")
+        z_dset                 = _create(f_out, "z",                 (data_len, train_length),  np.float32)
+        z_std_dset             = _create(f_out, "z_std",             (data_len, train_length),  np.float32)
+        gmd_dset               = _create(f_out, "gmd",               (data_len, train_length),  np.float32)
+        mpe_dset               = _create(f_out, "mpe",               (data_len,),               np.float32)
+        hor_pos_dset           = _create(f_out, "hor_pos",           (data_len,),               np.float32)
+        ver_pos_dset           = _create(f_out, "ver_pos",           (data_len,),               np.float32)
+        shutter_dset           = _create(f_out, "shutter",           (data_len,),               np.float32)
+        between_tdc_files_dset = _create(f_out, "between_tdc_files", (data_len,),               "bool")
+
+        # VLS: one chunk per train so downstream code can stream it.
+        vls_dset = None
+        if write_vls:
+            vls_dset = _create(
+                f_out, "vls", (data_len, train_length, n_vls_pixels), np.float32,
+                compression="lzf", chunks=(1, train_length, n_vls_pixels),
+            )
+            vls_dset.attrs["vls_offset"] = vls_offset
 
         # TOF datasets are only written when TDC .lst files are present;
         # otherwise the slots stay None and the chunk dump/finish code
@@ -1474,24 +1594,20 @@ def main(config_no, measurement_name, run_no, output_path=None,
         tofs_e_dset = tofs_i_dset = liq_tofs_e_dset = None
         if config_no == 1:
             if has_tdc:
-                tofs_e_dset = f_out.create_dataset(
-                    "tofs_e", (data_len, train_length, max_ecounts),
-                    dtype=np.uint32, compression="lzf",
+                tofs_e_dset = _create(
+                    f_out, "tofs_e", (data_len, train_length, max_ecounts),
+                    np.uint32, compression="lzf",
                 )
-                tofs_i_dset = f_out.create_dataset(
-                    "tofs_i", (data_len, train_length, max_icounts),
-                    dtype=np.uint32, compression="lzf",
+                tofs_i_dset = _create(
+                    f_out, "tofs_i", (data_len, train_length, max_icounts),
+                    np.uint32, compression="lzf",
                 )
         else:
             if has_tdc:
-                liq_tofs_e_dset = f_out.create_dataset(
-                    "liq_tofs_e", (data_len, train_length, max_ecounts),
-                    dtype=np.uint32, compression="lzf",
+                liq_tofs_e_dset = _create(
+                    f_out, "liq_tofs_e", (data_len, train_length, max_ecounts),
+                    np.uint32, compression="lzf",
                 )
-            vls_dset = f_out.create_dataset(
-                "vls", (data_len, train_length, n_vls_pixels),
-                dtype=np.float32, compression="lzf",
-            )
             dsets_cfg2 = {
                 "tID": tID_dset, "local_DAQ_running": data_flag_dset,
                 "z": z_dset, "z_std": z_std_dset, "gmd": gmd_dset,
@@ -1606,9 +1722,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
                         print(f"shutter stopped on {next_tID_shutter}. Subsequent are NaN.")
                         next_tID_shutter = last_tID + 1
 
-            # ---- vls (config 2 only) -------------------------------
+            # ---- vls (config 2; config 1 when the run has it) --------
             vls = None
-            if config_no == 2:
+            if vls_it is not None:
                 next_tID_vls, next_vls, _ = _skip_stale_raw_h5(
                     vls_it, next_tID_vls, next_vls, tID, last_tID,
                     n_skipped_overlap, "vls",
@@ -1616,12 +1732,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 if tID < next_tID_vls:
                     vls = np.full((train_length, n_vls_pixels), np.nan, dtype=np.float32)
                 elif tID == next_tID_vls:
-                    raw_vls = np.asarray(next_vls, dtype=np.float32)
-                    vls_buf = np.full((train_length, n_vls_pixels), np.nan, dtype=np.float32)
-                    m = min(raw_vls.shape[0], train_length)
-                    p = min(raw_vls.shape[1] if raw_vls.ndim > 1 else n_vls_pixels, n_vls_pixels)
-                    vls_buf[:m, :p] = raw_vls[:m, :p]
-                    vls = vls_buf
+                    # Line the Gotthard lines up with the bunch axis and
+                    # crop / NaN-pad to train_length.
+                    vls = _crop_vls_lines(next_vls, train_length, n_vls_pixels, vls_offset)
                     try:
                         next_tID_vls, next_vls = vls_it.__next__()
                     except StopIteration:
@@ -1690,13 +1803,14 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 chunk_full = chunk.add_row(
                     is_data, tID, gmd, mpe, hor_pos, ver_pos, z, z_std,
                     tofs_e, tofs_i, between_tdc_files, shutter=shutter_val,
+                    vls=vls,
                 )
                 if chunk_full:
                     chunk.dump(
                         tID_dset, data_flag_dset, z_dset, z_std_dset,
                         gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset,
                         tofs_e_dset, tofs_i_dset, between_tdc_files_dset,
-                        shutter_dset,
+                        shutter_dset, vls_dset=vls_dset,
                     )
                     chunk.reset()
 
@@ -1738,10 +1852,16 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 tID_dset, data_flag_dset, z_dset, z_std_dset,
                 gmd_dset, mpe_dset, hor_pos_dset, ver_pos_dset,
                 tofs_e_dset, tofs_i_dset, between_tdc_files_dset,
-                shutter_dset,
+                shutter_dset, vls_dset=vls_dset,
             )
         else:
             chunk.finish(dsets_cfg2)
+
+        # Trim every dataset to the rows actually written, so a stream
+        # that ran out early leaves no zero-filled tail.
+        n_rows = chunk.n_written()
+        for dset in f_out.values():
+            dset.resize(n_rows, axis=0)
 
     # --- Completion summary ----------------------------------------
     print(f"\n=== {output_path.name} written successfully ===")
@@ -1767,11 +1887,13 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  python write_h5.py delay_scan3 1 48346\n"
-            "  python write_h5.py glycine_scan1 2 54609 -o glycine_scan1.h5\n"
-            "  python write_h5.py 'glycine_WL_scan*' 1 48346 -o glycine_WL.h5\n"
+            "  python write_h5.py energy_scan1 1 60513\n"
+            "    (config 1: e + i TOF; VLS added automatically when the run has it)\n"
+            "  python write_h5.py energy_scan1 1 60513 --vls-offset 9 --train-length 100\n"
+            "  python write_h5.py energy_scan1 1 60513 --no-vls -o scan1_novls.h5\n"
+            "  python write_h5.py 'energy_scan*' 1 60513 -o energy_scans.h5\n"
             "    (quote the pattern to stop the shell expanding it; matches\n"
-            "     glycine_WL_scan1, glycine_WL_scan2, ... in both SDU and TDC dirs)\n"
+            "     energy_scan1, energy_scan2, ... in both SDU and TDC dirs)\n"
         ),
     )
     parser.add_argument("measurement_name", type=str,
@@ -1780,25 +1902,35 @@ if __name__ == "__main__":
                              "to concatenate multiple scans into one combined H5. The "
                              "files are sorted by trainID across scans.")
     parser.add_argument("config", type=int, choices=(1, 2),
-                        help="Experiment configuration: 1 = e+i TOF, 2 = liq eTOF + VLS.")
+                        help="Experiment configuration: 1 = gas arm (e + i TOF, "
+                             "+ VLS when present), 2 = liquid arm (liq eTOF + VLS).")
     parser.add_argument("run_no", type=int,
                         help="FLASH run number used to glob raw H5 files.")
     parser.add_argument("-o", "--output", type=str, default=None,
                         help="Output H5 path. Defaults to COMBINED_DIR/<measurement>.h5.")
-    parser.add_argument("--train-length", type=int, default=101,
-                        help="Bunches per train (default: 400 for cfg 1, 110 for cfg 2).")
-    parser.add_argument("--data-bunches", type=int, default=101,
+    parser.add_argument("--train-length", type=int, default=None,
+                        help="Bunch slots per train (default: config.TRAIN_LENGTH = "
+                             f"{config.TRAIN_LENGTH} for cfg 1, 110 for cfg 2).")
+    parser.add_argument("--data-bunches", type=int, default=None,
                         help="Bunches per train carrying real GMD/SDU data. "
                              "Slots beyond this are NaN. Default: 101 for cfg 2 "
                              "(VLS=110, FEL=101), full train_length for cfg 1.")
+    parser.add_argument("--vls", action=argparse.BooleanOptionalAction, default=None,
+                        help="Config 1: force (--vls) or skip (--no-vls) the VLS. "
+                             "Default: written when the run's raw H5 has it.")
+    parser.add_argument("--vls-offset", type=int, default=None,
+                        help="Gotthard line stored as bunch 0 (line b+offset -> bunch b; "
+                             "negative leaves the first bunches empty). Default: "
+                             f"config.VLS_OFFSET = {config.VLS_OFFSET} for cfg 1, 0 for cfg 2.")
     parser.add_argument("--chunk-size", type=int, default=None,
-                        help="Rows per chunked write (default: 1000 for cfg 1, 200 for cfg 2).")
+                        help="Rows per chunked write (default: 1000 for cfg 1 without VLS, "
+                             "200 with VLS).")
     parser.add_argument("--max-ecounts", type=int, default=50,
                         help="Zero-padding limit for electron TOF arrays.")
     parser.add_argument("--max-icounts", type=int, default=120,
                         help="Zero-padding limit for ion TOF arrays (cfg 1 only).")
     parser.add_argument("--n-vls-pixels", type=int, default=1280,
-                        help="Width of the Gotthard VLS pixel axis (cfg 2 only).")
+                        help="Width of the Gotthard VLS pixel axis.")
     parser.add_argument("--folding-parameter", type=float, default=39876.9,
                         help="TOF range (100 ps) used to split sweep events into per-bunch lists.")
     args = parser.parse_args()
@@ -1815,4 +1947,6 @@ if __name__ == "__main__":
         n_vls_pixels=args.n_vls_pixels,
         folding_parameter=args.folding_parameter,
         data_bunches=args.data_bunches,
+        vls=args.vls,
+        vls_offset=args.vls_offset,
     )

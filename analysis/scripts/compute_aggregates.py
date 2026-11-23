@@ -396,8 +396,10 @@ def _verify_h5_for_config(f: h5py.File, config: int) -> None:
     """
     keys = set(f.keys())
     if config == 1:
+        # vls is a legitimate (optional) part of config 1 files; the
+        # config 1 aggregates don't use it yet.
         required = {"gmd", "tofs_e", "tofs_i", "between_tdc_files", "tID"}
-        wrong   = {"vls", "liq_tofs_e"} & keys
+        wrong   = {"liq_tofs_e"} & keys
     elif config == 2:
         required = {"gmd", "vls", "liq_tofs_e", "between_tdc_files", "tID"}
         wrong   = {"tofs_e", "tofs_i"} & keys

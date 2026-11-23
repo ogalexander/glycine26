@@ -1,455 +1,312 @@
+# gas-vls — FLASH beamtime 11024642 (FL24, 2026)
+
+Online and follow-up analysis for a FLASH2 gas-phase beamtime. The setup
+is the **gas-phase arm only**: magnetic-bottle electron TOF + ion TOF
+(TDC, local DAQ) plus the **Gotthard VLS** X-ray spectrometer, with GMD,
+OPIS photon energy, beam position and the fast shutter from the FLASH DAQ.
+
+This branch (`gas-vls`) is forked from `main` of
+`github.com/ogalexander/glycine26`, the analysis for the previous
+beamtime (11022188, glycine), which had a liquid-jet arm and a gas arm.
+The liquid-arm code (config 2) is kept but dormant here.
+
+---
+
+## Beamtime goals (priority order)
+
+1. **Good conditions.** Establish that data is taken under conditions
+   where everything can be normalised and correlated: no saturation of
+   the TDC hit finder (hits per bunch hitting `max_ecounts` /
+   `max_icounts`) or of the detectors; sane GMD / photon-energy / beam
+   position; correlations between electrons, ions, GMD and VLS.
+2. **Normalisation.** A normalisation procedure good enough to identify
+   small *nonlinear* signals, especially in the eTOF.
+3. **Pulse-energy aggregation.** Aggregate in GMD to find nonlinear
+   features.
+4. **XAS maps.** Combine runs at different photon energy into maps of
+   electron and ion spectra vs photon energy — using the nominal or the
+   measured photon energy, depending on how good the single-shot photon
+   energy metrics (OPIS / VLS) are.
+5. **Covariance.** Electron–electron and electron–ion covariance, also
+   as a function of photon energy and pulse energy.
+6. **Time-dependent XAS**, once good conditions are established.
+
+---
+
 ## Environment
 
-### Local (development)
-- Machine: local workstation
-- Data root: `glycine2026\11022188\`
-- Raw HDF5: `glycine2026\11022188\raw\hdf5\online-0\fl2user1\`
-- Processed local DAQ: `glycine2026\11022188\processed\local_DAQ\`
-- Output H5 files: `glycine2026\11022188\processed\combined\`
+### Maxwell (main working copy)
+- Clone: `~/gas-vls` on Maxwell (`max-exfl-display`), branch `gas-vls`.
+- Beamtime data: symlink `~/gas-vls/11024642 ->
+  /asap3/flash/gpfs/fl24/2026/data/11024642` (git-ignored).
+- Python: `/software/mamba/2026.05/bin/python3` (Python 3.13, numpy,
+  scipy, h5py, pandas 3, matplotlib) — same version as the Jupyter
+  kernel. The system `/usr/bin/python3` (3.9) has no pandas.
+- TDC decoder (`beamtime_scripts_2021.MCS6A_decoding`) is not in the
+  repo; it lives in the beamtime folder at
+  `processed/analysis_tools/analysis_tools_2023/decoding_script/` and is
+  put on `sys.path` by `write_h5.py` via `config.DECODER_DIR`.
+- `processed/` in the beamtime folder is writable; `raw/` is read-only.
+  Combined H5 files go to `processed/combined/`.
 
-### Remote (experiment, FLASH online cluster)
-- Data root: TBD — placeholder paths in `analysis/scripts/config.py`,
-  to be filled in once production paths on the FLASH cluster are confirmed
-- Structure mirrors local layout
+### Paths — `analysis/scripts/config.py`
+The **only** place paths live. The beamtime is set by three constants:
+`BEAMTIME_ID = "11024642"`, `BEAMTIME_YEAR = "2026"`,
+`BEAMLINE_HALL = "fl24"`. The bunch-axis working assumptions live there
+too: `TRAIN_LENGTH = 101` (bunch slots per train) and `VLS_OFFSET = 10`
+(Gotthard line `b + 10` → bunch `b`) — both still to be confirmed; they
+are the defaults of `write_h5.py` and `load_raw_h5` for config 1.
+`FLASH_ENV` picks the data root:
+- `local` (default): `<repo root>/11024642` (the symlink on Maxwell, or
+  a local copy with the same layout on a workstation).
+- `remote`: `/asap3/flash/gpfs/fl24/2026/data/11024642` directly.
 
-### Switching Environments
-All file paths are resolved through `analysis/scripts/config.py`.
-Set the environment variable `FLASH_ENV=remote` to switch to remote paths.
-Default is `local`. `config.py` is the **only** place hardcoded paths live.
+Exports `DATA_ROOT`, `RAW_H5_DIR` (`raw/hdf/online-0/fl2user1`),
+`LOCAL_DAQ_DIR` (`processed/local_DAQ`), `SDU_DIR` (`…/delay_log`),
+`TDC_DIR` (`…/TDC`), `COMBINED_DIR` (`processed/combined`),
+`DECODER_DIR`, `ANALYSIS_DIR`.
 
----
-
-## Data Sources
-
-### Config 1 test data (complete, aligned)
-- Raw HDF5 (gmd, mpe, tID):
-  `glycine2026\11022188\raw\hdf5\online-0\fl2user1\FLASH2_USER1_stream_2_run48346_*.h5`
-- Local DAQ (tID, z, tofs_e, tofs_i):
-  `glycine2026\11022188\processed\local_DAQ\delay_scan3\`
-
-### Config 2 test data (synthetic — artificially combined)
-- VLS source (different experiment, train IDs NOT aligned):
-  `glycine2026\11022188\raw\hdf5\online-0\fl2user1\FLASH2_USER1_main_run54609_file20_20251104T015112.1.h5`
-- All other fields (z, liq_tofs_e, mpe, gmd, tID) taken from config 1 data
-  above, with `tofs_e` reused as `liq_tofs_e` (same detector type, different
-  spectrometer — data is structurally identical for code development purposes)
-- VLS data is aligned by index (not train ID) after truncating to the shorter
-  of the two datasets
-- Output: `glycine2026\11022188\processed\combined\test_config2.h5`
-
-### Production H5 output (config 1 test)
-- Output: `glycine2026\11022188\processed\combined\test_config1.h5`
+### Working from the Windows workstation
+Maxwell is reached through WSL: `ssh maxwell` (ControlMaster socket; the
+user opens it with password + OTP). Nested quoting through PowerShell →
+WSL → ssh is fragile: write a script and pipe it
+(`wsl -e bash -lc "ssh maxwell bash -s < /mnt/c/.../script.sh"`).
 
 ---
 
-## H5 File Schema
-Combined H5 files written by `write_h5.py` (production CLI) and the
-test-data builders `write_h5_test_config1.py` / `write_h5_test_config2.py`
-share this schema. The first index is always the train index. Config 1
-has `m = 400` bunches/train; the config 2 test file is truncated to
-`m = 100` (the Gotthard VLS bunch count).
+## Data — what has been observed so far
 
-| Key                  | Shape        | Units  | Description                                |
-|----------------------|--------------|--------|--------------------------------------------|
-| `between_tdc_files`  | (n,)         | bool   | True = bad/incomplete train                |
-| `gmd`                | (n, m)       | µJ     | Per-bunch pulse energy                     |
-| `mpe`                | (n,)         | eV     | Per-train photon energy (upstream)         |
-| `tID`                | (n,)         | —      | Train IDs                                  |
-| `tofs_e`             | (n, m, 50)   | ns     | Electron TOF hits, zero-padded (cfg 1)     |
-| `tofs_i`             | (n, m, 120)  | ns     | Ion TOF hits, zero-padded (cfg 1)          |
-| `liq_tofs_e`         | (n, m, 50)   | ns     | Electron TOF hits, zero-padded (cfg 2)     |
-| `vls`                | (n, m, 1280) | arb.   | X-ray spectrum from Gotthard (cfg 2)       |
-| `z`                  | (n, m)       | arb.   | Delay stage position                       |
-| `z_std`              | (n, m)       | arb.   | Std of delay stage position (per train)    |
-| `hor_pos`            | (n,)         | arb.   | Per-train horizontal beam position         |
-| `ver_pos`            | (n,)         | arb.   | Per-train vertical beam position           |
-| `shutter`            | (n,)         | arb.   | Per-train fast-shutter level (NaN if absent in raw) |
-| `local_DAQ_running`  | (n,)         | bool   | True if local DAQ was active for the train |
+Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
+`RAW_H5_DIR` (runs from 60493). Observed per run (Nov 2026):
 
-The `liq_tofs_e` last dim (50) is inherited from `tofs_e` (synthetic test
-data). When real config 2 data is available, confirm the actual maximum
-hit count.
+| Runs          | GMD pulses / train | VLS (Gotthard)        | OPIS mpe   |
+|---------------|--------------------|-----------------------|------------|
+| 60493–60495   | 1 slot, no signal  | (n, 70, 1280) uint16  | ~45.6 eV   |
+| 60502–60508   | 29                 | 60502 only (70 lines) | 0 (OPIS off) |
+| 60509         | 30                 | —                     | ~170.5 eV  |
+| 60510–60514   | 60                 | (n, 100, 1280) uint16 | ~170.8 eV  |
+| 60534         | 100                | —                     | ~243.8 eV  |
 
-### Raw-H5 source paths (config 1)
-The config 1 writer pulls these from each `FLASH2_USER1_stream_2_run48346_*.h5`:
+- **Pulses per train change between runs.** The combined H5 uses a
+  fixed bunch axis (`train_length`, default 101); GMD slots beyond the
+  pulses present are NaN.
+- **VLS** is present only in some runs. The writer adds it for config 1
+  when the run has it, lined up with the bunch axis via `--vls-offset`
+  (default 10) and cropped to `train_length` (count / offset to be
+  confirmed — in run 60513, 60 pulses, Gotthard lines 0–58 are the lit
+  ones). Raw frames: pedestal ≈ 3240 ADU, pixels 0–1 stuck at 51914 (the
+  highest value seen); at ~171 eV the spectrum sits around pixels
+  510–610, ~20 ADU above the dark lines on average.
+- **Local DAQ (TDC `.lst`, SDU delay `.txt`)**: none copied for this
+  beamtime yet; they go to `processed/local_DAQ/{TDC,delay_log}`
+  (confirmed). TDC channels as before: ch 1 = electron, ch 2 = ion.
+  Bunch spacing is the same as last beamtime (`folding_parameter`
+  39876.9).
+- Other pulse-resolved raw channels worth knowing: `/Timing/bunch
+  pattern`, `/Timing/set number of bunches flash2`, bunch charge and
+  toroids (`/FL1/Electron Diagnostic/...`, `/uncategorised/FLASH.DIAG/
+  TOROID/...`), GMD tunnel (`.../energy tunnel`).
 
-| Project key | HDF5 path                                                                                       |
-|-------------|--------------------------------------------------------------------------------------------------|
-| `gmd`       | `/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall/value[:, 0, :]` (index 0 of the 8-channel axis = intensity per pulse) |
-| `mpe`       | `/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy/value`              |
-| `hor_pos`   | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal/value`               |
-| `ver_pos`   | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical/value`                 |
-| `shutter`   | `/FL2/Beamlines/Fast Shutter/shutter/value` (multi-dim → nanmean'd to a scalar per train; optional in raw — combined H5 is NaN-filled when missing) |
+---
 
-The 8-channel axis of `Pulse resolved energy` is *not* eight detector
-channels — it is per-pulse metadata channels (intensity, aux intensity,
-horizontal position, vertical position, sigmas of each, combined error
-flag). Only index 0 (intensity) is used as `gmd`.
+## H5 File Schema (combined files written by `write_h5.py`)
 
-VLS source (config 2): `/FL2/Support Infrastructure/Gotthard/images/value`
-in `FLASH2_USER1_main_run54609_file20_*.h5`, shape `(n_trains, 100, 1280)`.
+First index = train. `m` = `train_length` (default 101 for config 1).
+
+| Key                  | Shape        | Units | Description                                   |
+|----------------------|--------------|-------|-----------------------------------------------|
+| `tID`                | (n,)         | —     | Train IDs                                     |
+| `gmd`                | (n, m)       | µJ    | Per-pulse energy (NaN beyond pulses present)  |
+| `mpe`                | (n,)         | eV    | Per-train mean photon energy (OPIS)           |
+| `hor_pos`, `ver_pos` | (n,)         | arb.  | Per-train beam position (GMD hall)            |
+| `shutter`            | (n,)         | arb.  | Per-train fast-shutter level (NaN if absent)  |
+| `z`, `z_std`         | (n, m)       | arb.  | Delay stage position (SDU) and its std        |
+| `local_DAQ_running`  | (n,)         | bool  | SDU had a line for the train                  |
+| `between_tdc_files`  | (n,)         | bool  | True = bad/incomplete train                   |
+| `tofs_e`             | (n, m, 50)   | TDC   | Electron TOF hits, zero-padded (cfg 1)        |
+| `tofs_i`             | (n, m, 120)  | TDC   | Ion TOF hits, zero-padded (cfg 1)             |
+| `vls`                | (n, m, 1280) | arb.  | Gotthard spectrum, float32, NaN = no frame; cfg 1 optional (attr `vls_offset`), cfg 2 always |
+| `liq_tofs_e`         | (n, m, 50)   | TDC   | Liquid-jet electron TOF (cfg 2, dormant)      |
+
+TOF datasets are omitted when the measurement has no TDC files. The
+file holds one row per train from the first to the last SDU train ID,
+trimmed to the rows actually written.
+
+### Raw-H5 source paths
+| Key       | HDF5 path (`/value`, train IDs in the sibling `/index`)                     |
+|-----------|-------------------------------------------------------------------------------|
+| `gmd`     | `/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy hall` — `value[:, 0, :]` (index 0 of the 8 per-pulse metadata channels = intensity) |
+| `mpe`     | `/FL2/Photon Diagnostic/Wavelength/OPIS tunnel/Processed/mean photon energy` |
+| `hor_pos` | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal`  |
+| `ver_pos` | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical`    |
+| `shutter` | `/FL2/Beamlines/Fast Shutter/shutter` — (n, 100), nanmean'd per train        |
+| `vls`     | `/FL2/Support Infrastructure/Gotthard/images` — (n, lines, 1280) uint16      |
 
 ### Optional `vls_moments` group
-`save_vls_moments` (in `data_loading.py`) appends a `vls_moments/` group
-to a combined H5 file holding per-shot VLS spectral moments:
-
-| Dataset              | Shape   | Description                              |
-|----------------------|---------|------------------------------------------|
-| `vls_moments/sums`   | (n, m)  | Integrated VLS intensity per shot        |
-| `vls_moments/coms`   | (n, m)  | Centre of mass (source-pixel units)      |
-| `vls_moments/widths` | (n, m)  | sqrt of 2nd central moment (pixel units) |
-
-Trains absent from the saved subset are NaN-filled. Group attrs
-`crop_roi` and `background_roi` record the preprocessing applied before
-the moments were computed. `load_data` restores this group when present.
+`save_vls_moments` appends `vls_moments/{sums,coms,widths}` `(n, m)`
+with attrs `crop_roi` / `background_roi`; `load_data` restores it.
+Never write it into raw files (read-only).
 
 ---
 
-## Combined H5 writers
+## `write_h5.py` — combined-H5 writer (CLI)
 
-### `write_h5.py` — production CLI
-Aligns three streams by train ID — raw FLASH H5 (GMD, MPE, beam
-position; +VLS for config 2), local-DAQ SDU `.txt` (z, z_std), local-DAQ
-TDC `.lst` (TOFs) — and writes a combined H5 in the schema above. All
-paths resolve through `config.py`.
+Aligns raw FLASH H5 (GMD, MPE, beam position, shutter, VLS), SDU `.txt`
+(z) and TDC `.lst` (TOFs) by train ID.
 
 ```
 python write_h5.py <measurement_name> <config> <run_no> [-o OUT.h5]
-                   [--train-length N] [--chunk-size N]
-                   [--max-ecounts N] [--max-icounts N]
-                   [--n-vls-pixels N] [--folding-parameter F]
+    [--train-length N] [--vls | --no-vls] [--vls-offset K]
+    [--data-bunches N] [--chunk-size N] [--max-ecounts N] [--max-icounts N]
+    [--n-vls-pixels N] [--folding-parameter F]
 ```
+- `config=1` (this beamtime): TDC ch 1 → `tofs_e`, ch 2 → `tofs_i`;
+  VLS written automatically when the run's raw H5 has it (`--no-vls` to
+  skip). Gotthard line `b + K` → bunch `b` (`K` may be negative).
+- `measurement_name` may be a glob (`'scan*'`) to concatenate scans.
+- Defaults: `train_length` = `config.TRAIN_LENGTH` (101), `--vls-offset`
+  = `config.VLS_OFFSET` (10), chunk 1000 (200 with VLS), `max_ecounts`
+  50, `max_icounts` 120, `folding_parameter` 39876.9 (TDC units; bunch
+  spacing unchanged from last beamtime).
+- The SDU stream is required (it defines the train range).
+- Output defaults to `COMBINED_DIR/<measurement>.h5`.
 
-- `config=1`: TDC ch 1 → `tofs_e`, ch 2 → `tofs_i`.
-- `config=2`: TDC ch 3 → `liq_tofs_e`; VLS read from
-  `/FL2/Support Infrastructure/Gotthard/images/value` (paired with
-  `.../index`) in the same raw H5 files.
-- `extract_data_from_single_file` always decodes all three TDC channels;
-  unused channels come back empty and never raise.
-- `TDCIterator(fpaths, config=...)` defaults to `config=1` (back-compat
-  with the test scripts).
-- Defaults: `train_length` 400 (cfg 1) / 100 (cfg 2),
-  `chunk_size` 1000 / 200, `max_ecounts` 50, `max_icounts` 120,
-  `n_vls_pixels` 1280, `folding_parameter` 9969.225 ns.
-- Output defaults to `COMBINED_DIR / "<measurement>.h5"`.
-
-### `write_h5_test_config1.py`, `write_h5_test_config2.py`
-Test-data builders for the bundled `test_config1.h5` and `test_config2.h5`.
-The config 2 test file is synthetic — its VLS comes from a different run
-and is index-aligned (not train-ID-aligned) with the config 1 streams.
-Use `write_h5.py` for real measurements.
+`write_h5_test_config1.py` / `write_h5_test_config2.py` are legacy test
+builders from the previous beamtime.
 
 ---
 
-## Analysis Scripts API Summary
+## Analysis Scripts API Summary (`analysis/scripts/`)
 
 ### `data_loading.py`
-- `load_data(filepath, config, trim_start=2, trim_end=2, downsample_N=1) → ExperimentData`
-  Loads H5, removes bad trains, trims edges. `downsample_N` keeps only
-  1 train in N (testing). Restores a saved `vls_moments` group if present.
-- `save_vls_moments(data, filepath, overwrite=False)`
-  Scatters per-shot VLS moments back onto the file's full train axis
-  (matched by `tID`) and writes a `vls_moments/` group.
-- Re-exports `ExperimentData` for backwards-compatible imports.
+- `load_data(filepath, config, trim_start=2, trim_end=2, downsample_N=1,
+  load_vls=True) → ExperimentData` — removes bad trains, trims edges;
+  loads `vls` whenever the file has it (pass `load_vls=False` for
+  TOF-only work: ~0.5 MB/train). Restores `vls_moments` if present.
+- `load_raw_h5(run_no, config, raw_dir=None, train_length=None,
+  n_vls_pixels=1280, max_files=None, load_vls=True, vls_offset=None,
+  train_step=1) → ExperimentData` — quick look straight from raw files
+  (no TDC/SDU): `gmd`, `mpe`, `shutter`, and `vls` when present.
+  Config-1 defaults come from `config.TRAIN_LENGTH` / `VLS_OFFSET`;
+  `train_step` keeps every N-th train and the VLS is read only for those
+  (blockwise), so whole runs fit in memory. Duplicate trains at file
+  boundaries are dropped.
+- `save_vls_moments(data, filepath, overwrite=False)`.
 
-### `experiment_data.py`
-`ExperimentData` dataclass — container for one loaded combined-H5 dataset.
-- Fields: `config`, `tID`, `gmd`, `mpe`, `z`, `between_tdc_files`;
-  optional `tofs_e`, `tofs_i`, `liq_tofs_e`, `vls`, `shutter`; VLS
-  metadata `vls_pixel_ax`, `vls_sums`, `vls_coms`, `vls_widths`,
-  `vls_crop_roi`, `vls_background_roi`; `shot_mask`.
-- Properties: `.n_trains`, `.n_bunches`, `.mpe_broadcast`, `.vls_pixels`,
-  `.valid_shots`, `.n_valid_shots`.
-- Transforms — each returns a **new** `ExperimentData` (never mutates):
-  - `crop_vls(roi_min, roi_max)` — half-open VLS pixel ROI crop.
-  - `subtract_background(background)` — subtract a 1D spectrum.
-  - `auto_subtract_background(background_roi)` — subtract the mean
-    spectrum over a half-open bunch range.
-  - `auto_subtract_background_trainwise(background_roi)` — per-train
-    counterpart; mean over the bunch range is taken on each train and
-    subtracted from that train's bunches.
-  - `roll_vls_bunches(shift)` — cyclically shift `vls` along the bunch
-    axis (`np.roll(..., axis=1)`); clears moments.
-  - `compute_vls_moments()` — populate `vls_sums/coms/widths`.
-  - `filter_shots(values, lo=None, hi=None, inside=True)` — mask shots
-    in place; updates the cumulative `shot_mask` (the correct
-    denominator for later averaging). Float arrays → NaN, TOF hit
-    arrays → zeroed.
-  - `filter_trains(values, lo=None, hi=None, inside=True)` — drop whole
-    trains; shrinks every field along the train axis.
-  - `trim_bunches(bunch_start, bunch_end)` — half-open slice of the
-    bunch axis.
+### `experiment_data.py` — `ExperimentData`
+Fields `config`, `tID`, `gmd`, `mpe`, `z`, `between_tdc_files`; optional
+`tofs_e`, `tofs_i`, `liq_tofs_e`, `vls`, `shutter`; VLS metadata
+(`vls_pixel_ax`, `vls_sums/coms/widths`, `vls_crop_roi`,
+`vls_background_roi`); `shot_mask`. Properties `.n_trains`,
+`.n_bunches`, `.mpe_broadcast`, `.vls_pixels`, `.valid_shots`,
+`.n_valid_shots`. Transforms return a **new** object:
+`crop_vls`, `subtract_background`, `auto_subtract_background`,
+`auto_subtract_background_trainwise`, `roll_vls_bunches`,
+`compute_vls_moments`, `filter_shots` (updates the cumulative
+`shot_mask` — the right denominator for averages), `filter_trains`,
+`trim_bunches`. VLS methods check `vls is None`, not `config`.
 
 ### `binning.py`
-- `arb_bool_ar(bin_edges, bin_on) → (bin_cents, bool_ar)`
-- `bin_bool_ar(start, stop, n_bins, bin_on) → (bin_cents, bool_ar)`
-- `bin_bool_ar_pc(start, stop, n_bins, bin_on) → (bin_cents, bool_ar)`
-- `bin_and_average(bool_ar, to_average) → (binned, binned_std, binned_n)`
-- `bin_and_sum_ratio(bool_ar, numerator, denominator) → (ratio, binned_n)`
+`arb_bool_ar`, `bin_bool_ar`, `bin_bool_ar_pc`, `bin_and_average`,
+`bin_and_sum_ratio` (energy-normalised `sum(x)/sum(y)` per bin).
 
 ### `processing.py`
-- `count_hits(tofs, tof_min, tof_max) → counts (n, m)`
-- `hits_to_spectrum(tofs, tof_edges) → spectra (n, m, n_bins)`
-- `average_spectrum(tofs, tof_edges, mask) → (tof_cents, mean, std)`
-- `select_bunch_range(data, bunch_start, bunch_end) → flat dict`
-- `crop_to_roi(spectra, roi_min, roi_max) → (cropped, pixel_ax)`
-  Half-open crop of the last (pixel) axis; backs `crop_vls`.
-- `spectral_moments(spectra, pixel_ax) → (sums, coms, widths)`
-  Sum, centre of mass, and width along the last axis.
+`count_hits`, `hits_to_spectrum`, `average_spectrum`,
+`select_bunch_range`, `crop_to_roi`, `spectral_moments`.
 
-### `plotting.py`
-- `plot_diagnostics(data, ...) → (fig, axes)`
-- `plot_linearity(data, ...) → (fig, axes)`
-- `plot_energy_binned_maps(data, mpe_edges, e_tof_edges, ...) → (fig, axes)`
-- `plot_delay_dependence(data, mpe_range, z_edges, ...) → (fig, axes)`
+### `plotting.py` (legacy quick-look, still config-1 *or* VLS)
+`plot_diagnostics`, `plot_linearity`, `plot_energy_binned_maps`,
+`plot_delay_dependence` — all return `(fig, axes)`. They pick
+"ion vs VLS" panels by `config`; not yet updated for config 1 + VLS.
 
 ### `compute_aggregates.py`
-Streams a combined H5 in train chunks and writes binned matrix
-aggregates for covariance analysis and ADMM ghost imaging — the full
-per-shot matrices never live in memory.
-- `compute_aggregates(input_h5, output_h5, *, gmd_edges, config,
-  mode="spectral", tof_edges=None, ion_tof_edges=None, crop_roi=None,
-  background_spec=None, z_edges=None, tof_roi=None, chunk_size=200,
-  trim_start=0, trim_end=0, ...)`
-  - `config=1`: D = electron TOF, C = ion TOF; computes `DtC`.
-  - `config=2`: A = VLS, D = liquid-jet eTOF; computes `AtD`.
-  - Both always compute the GMD aggregates `G`, `GtG`, `DtG`
-    (+ `AtG`/`CtG`) so downstream code can form partial covariances
-    against pulse energy.
-  - `mode="time_resolved"` (config 2 only): bins by GMD × stage z; the
-    eTOF collapses to a scalar count inside `tof_roi` (`n_tof = 1`).
-- `load_aggregates(path) → AggregatesData` — config / mode inferred
-  from which datasets are present.
-- `AggregatesData` dataclass — all matrix fields are *per-bin means*
-  (empty bins NaN). Properties: `.config`, `.mode`, `.n_gmd_bins`,
-  `.n_z_bins`, `.n_pixels`, `.n_tof`, `.n_tof_i`, `.gmd_centres`,
-  `.z_centres`, `.tof_centres`, `.ion_tof_centres`, `.var_G`
-  (= `GtG − G²`).
-- CLI: `python compute_aggregates.py CONFIG.py INPUT.h5 [-o OUT.h5]`.
-  Output defaults to `<input>_aggregates.h5` (spectral) or
-  `<input>_aggregates_tr.h5` (time-resolved).
+Streams a combined H5 and writes per-GMD-bin means of the matrix
+aggregates needed for covariance (`G`, `GtG`, `D`, `DtD`, `DtG`, and per
+config `C`/`CtC`/`DtC`/`CtG` or `A`/`AtA`/`AtD`/`AtG`), so full per-shot
+matrices never sit in memory.
+- `config=1`: D = electron TOF, C = ion TOF. A `vls` dataset in the file
+  is accepted but **not yet aggregated** (VLS aggregates for config 1 are
+  a TODO).
+- `config=2`: A = VLS, D = liquid eTOF; `mode="time_resolved"` bins by
+  GMD × z.
+- `load_aggregates(path) → AggregatesData` (per-bin means, NaN for empty
+  bins; `.var_G = GtG − G²`).
+- CLI: `python compute_aggregates.py CONFIG.py INPUT.h5 [-o OUT.h5]`;
+  config modules in `analysis/configs/` (`aggregates_example_cfg1.py`
+  is the config-1 template).
+
+### Static-XAS scripts (shutter-gated photon-energy scans)
+Each **open** shutter section = one nominal photon energy (assigned by
+section index, so `NOMINAL_ENERGIES` must follow the scan order);
+**closed** sections = background. Detection (in
+`compute_static_xas_cfg1.py`): percentile threshold on `/shutter`,
+polarity auto-flip from the per-train hit score, trim
+`TRANSITION_TRIM_SECONDS × TRAIN_RATE_HZ` trains around each change.
+- `compute_static_xas_cfg1.py` — e + i TOF per shot, per section
+  (`load_data(..., load_vls=False)`).
+- `compute_static_xas.py` — VLS counterpart (written for config 2).
+- `compute_xas_aggregates.py` — GMD-binned VLS aggregates per section,
+  straight from raw H5.
+Config modules: `analysis/configs/xas_static/`, `analysis/configs/aggregates_*xas*.py`.
 
 ### `admm_ghost.py`
-ADMM solver for regularised spectral-domain ghost imaging. Per GMD bin
-it finds the kernel `X` minimising
-`½‖MX − B‖²_F + ½λ_p‖D_pX‖²_F + ½λ_t‖XD_tᵀ‖²_F + λ_s‖X‖_1`
-with `M = Cov(A)`, `B = Cov(A, D)`.
-- `solve_admm(M, B, *, lambda_smooth_pixel, lambda_smooth_tof,
-  lambda_sparse, rho=1.0, diff_order=2, max_iter=500, tol_primal=1e-4,
-  tol_dual=1e-4, X0=None, ...) → ADMMResult`
-  x-step is a Sylvester equation diagonalised once via
-  `scipy.linalg.eigh`; z-step is L1 soft-thresholding.
-- `ADMMResult` dataclass: `.X`, `.n_iter`, `.converged`, `.history`
-  (`primal`, `dual`, `objective` arrays).
-
-### Static-XAS scripts (photon-energy scans via the fast shutter)
-A photon-energy XAS scan steps the mono while the fast shutter gates
-acquisition: each **open** shutter section corresponds to one nominal
-photon energy, and the intervening **closed** sections give the
-shutter-down background. These scripts detect those sections from the
-per-train `/shutter` signal in the combined H5 and assign each open
-section a nominal energy *by section index* (so the order of
-`NOMINAL_ENERGIES` must match the scan order). Shutter detection lives
-in `compute_static_xas_cfg1.py`: percentile-threshold the signal,
-auto-flip polarity using the per-train hit score, and trim
-`TRANSITION_TRIM_SECONDS × TRAIN_RATE_HZ` trains around every state
-change to drop shutter-in-motion trains.
-
-- **`compute_static_xas_cfg1.py`** — config 1 (electron + ion TOF).
-  Reads `tofs_e`, `tofs_i`, `gmd`, `tID`, `shutter` from a combined H5
-  (via `load_data`), collects each open section's `SIGNAL_BUNCH_RANGE`
-  hits, and flattens train×bunch → shot. **Stops at flattening** — no
-  GMD binning, no TOF histogramming, no background subtraction (left to
-  downstream notebooks). Output `run<N>_cfg1_static_xas.h5`:
-  `tofs_e (N_E, N_shots, max_ecounts)`, `tofs_i (…, max_icounts)`,
-  `gmd (N_E, N_shots)` NaN-padded, `n_shots (N_E,)`,
-  `nominal_energies (N_E,)`; provenance in attrs (`mode='xas_static'`,
-  `config=1`, `run_no`, `signal_bunch_range`, section counts, transition
-  trim, …). CLI: `python compute_static_xas_cfg1.py CONFIG.py [-o OUT.h5] [-i IN.h5]`.
-- **`compute_static_xas.py`** — config 2 (VLS) counterpart. Same
-  section logic but with the full VLS pipeline (pixel crop → bunch-axis
-  roll → per-train background → per-section closed-shutter background →
-  signal-bunch crop), stopping after flattening. Writes `vls`, `gmd`,
-  `n_shots`, `nominal_energies`, `vls_pixels`, `section_bg`.
-- **`compute_xas_aggregates.py`** — the XAS analogue of
-  `compute_aggregates.py`: same section logic + VLS background pipeline,
-  but bins each open section by GMD into the `AggregatesData` layout
-  (`A`, `AtA`, `AtG`, `G`, `GtG`, `n_per_bin` of shape `(N_E, N_GMD, …)`).
-  Reads raw FLASH H5 directly (SDU/TDC streams not needed).
-
-Config modules live in `analysis/configs/xas_static/` (per-shot scripts)
-and `analysis/configs/aggregates_*xas*.py` (aggregate script); a single
-module can drive both — the aggregate script consumes the extra
-GMD-binning fields when present. Required keys: `RUN_NO`,
-`NOMINAL_ENERGIES`, `SIGNAL_BUNCH_RANGE`, `CONFIG`; `MODE` ∈ `{"xas",
-"xas_scan", "xas_static"}`. Config 2 adds `CROP_ROI`, `BG_BUNCH_RANGE`,
-`VLS_BUNCH_ROLL`. Optional: `INPUT_H5`, `TRIM_START/END`,
-`TRAIN_RATE_HZ`, `TRANSITION_TRIM_SECONDS`, `FIRST_SECTION_STATE`.
-
-### Notebooks (`analysis/notebooks/`)
-- `diagnostics.ipynb` — GMD / beam-position / per-train diagnostics
-  plus `plot_linearity` (GMD vs electrons and, for config 2, GMD vs
-  integrated VLS).
-- `tof_inspect.ipynb` — memory-efficient TOF histogramming (indexed-hit
-  flattening); average / per-bunch / per-train spectra; GMD vs electron
-  count correlation; average TOF spectrum per GMD bin.
-- `vls_inspect.ipynb` — VLS crop / background / moments; average / per-
-  bunch / per-train spectra; GMD-binned and COM-binned average spectra.
-- `covariance_inspect.ipynb` — config 2: photon-photon `Cov(A,A)` and
-  photon-electron `Cov(A,D)` per GMD bin.
-- `covariance_inspect_cfg1.ipynb` — config 1: electron-ion `Cov(D,C)`
-  and GMD-controlled partial covariance `Cov(D,C|G)`.
-- `admm_solve.ipynb` — config 2 spectral ADMM inversion per GMD bin.
-- `admm_solve_tr.ipynb` — time-resolved ADMM; kernel vs stage position.
-
-### Analysis configs (`analysis/configs/`)
-Python-module config files passed to `compute_aggregates.py`. Each
-exposes module-level constants (`GMD_EDGES`, `CONFIG`, `MODE`,
-`CHUNK_SIZE`, `TRIM_START/END`, plus mode-specific extras).
-- `aggregates_example.py` — config 2, spectral (`CROP_ROI`,
-  `BACKGROUND`, `TOF_EDGES`).
-- `aggregates_example_cfg1.py` — config 1, spectral (`TOF_EDGES`,
-  `ION_TOF_EDGES`).
-- `aggregates_example_tr.py` — config 2, time-resolved (`Z_EDGES`,
-  `TOF_ROI`).
+ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
+`M = Cov(A)`, `B = Cov(A, D)`); was used for VLS × liquid eTOF.
 
 ---
 
-## Aggregates H5 Schema
-Written by `compute_aggregates.py`. All matrix datasets are **per-bin
-means** over the shots in each bin (empty bins are NaN). `N_GMD` =
-number of GMD bins; `N_Z` = number of stage-z bins (TR mode only).
-
-### Config 2, spectral mode
-| Dataset      | Shape                       | Description               |
-|--------------|-----------------------------|---------------------------|
-| `A`          | (N_GMD, n_pixels)           | Mean VLS spectrum         |
-| `AtA`        | (N_GMD, n_pixels, n_pixels) | `<Aᵢ Aᵢᵀ>`                |
-| `D`          | (N_GMD, n_tof)              | Mean eTOF spectrum        |
-| `DtD`        | (N_GMD, n_tof, n_tof)       | `<Dᵢ Dᵢᵀ>`                |
-| `AtD`        | (N_GMD, n_pixels, n_tof)    | `<Aᵢ Dᵢᵀ>`                |
-| `G`, `GtG`   | (N_GMD,)                    | Mean GMD, mean GMD²       |
-| `AtG`        | (N_GMD, n_pixels)           | `<Aᵢ Gᵢ>`                 |
-| `DtG`        | (N_GMD, n_tof)              | `<Dᵢ Gᵢ>`                 |
-| `n_per_bin`  | (N_GMD,)                    | Shot count per bin        |
-| `gmd_edges`  | (N_GMD+1,)                  | GMD bin edges (µJ)        |
-| `tof_edges`  | (n_tof+1,)                  | eTOF bin edges (ns)       |
-| `vls_pixels` | (n_pixels,)                 | Source-pixel indices      |
-| `background` | (n_pixels,)                 | Background subtracted     |
-
-### Config 1, spectral mode
-As above but with `C` / `CtC` / `DtC` / `CtG` (ion TOF) in place of the
-VLS aggregates, `ion_tof_edges` in place of `vls_pixels` / `background`,
-and no `A*` datasets. `D` is the electron TOF.
-
-### Time-resolved mode (config 2)
-An extra `N_Z` axis is inserted before the per-shot dimensions, `n_tof`
-collapses to 1 (scalar eTOF count inside `tof_roi`), and `z_edges`
-`(N_Z+1,)` is added.
-
-`load_aggregates()` reads any of these layouts back into `AggregatesData`.
+## Repository layout notes
+- `analysis/notebooks/camera_shutter_difference.ipynb` — this
+  beamtime: YAG camera (`/zraw/FLASH.FEL/MULTIPLX1.CAM/YAG/dGroup`)
+  shutter-open minus closed, with optional filtering / downbinning.
+- Everything else under `analysis/notebooks/`, `analysis/post/`
+  (incl. `TASKS.md`), `analysis/configs/` (run-specific files),
+  `ML/`, `dashboard/`, `old_dashboard/`, `diagnostics/`, `docs/` is from
+  the glycine beamtime — reference material; paths in it point at
+  11022188.
 
 ---
 
 ## Key Conventions
-- **Zero-padded TOF arrays**: hits are non-zero values; zeros are padding.
-  Always exclude zeros before histogramming or counting.
-- **Normalisation**: energy-normalised averages use `sum(x)/sum(y)` per bin,
-  NOT `mean(x/y)`. See `bin_and_sum_ratio`.
-- **Bunch selection**: always pass `bunch_start` / `bunch_end` to analysis
-  functions. The "good" bunch range must be determined per dataset from the
-  diagnostic plots.
-- **Config detection**: always passed explicitly as `config=1` or `config=2`.
-  Never inferred automatically.
-- **Units**: GMD in µJ, TOF in ns, photon energy in eV.
-- **All plot functions return `(fig, axes)`** for downstream customisation.
+- **Zero-padded TOF arrays**: hits are non-zero; zeros are padding.
+  Exclude zeros before histogramming or counting.
+- **Normalisation**: energy-normalised averages use `sum(x)/sum(y)` per
+  bin, not `mean(x/y)` (`bin_and_sum_ratio`).
+- **Bunch selection**: always pass `bunch_start` / `bunch_end`; the good
+  bunch range is set per dataset from diagnostics (pulses per train vary
+  between runs here).
+- **Config** is always passed explicitly (`config=1` for this beamtime),
+  never inferred. VLS presence is detected from the data, not from
+  `config`.
+- **Units**: GMD µJ, photon energy eV, TOF in TDC units (as stored).
+- Plot functions return `(fig, axes)`.
+- Notebooks: state the question, the runs / files read and the
+  parameters in a header cell; resolve paths through `config.py`.
 
 ---
 
-## Post-Analysis Phase (publishable results)
+## Current status
+- [x] Branch `gas-vls` + Maxwell clone; beamtime symlink.
+- [x] `config.py` → beamtime 11024642 (single place for ID/year/hall),
+      `DECODER_DIR`.
+- [x] VLS an optional part of config 1: writer (auto-detect,
+      `--vls-offset`, crop to `train_length`), `load_data` /
+      `load_raw_h5`, `ExperimentData`, aggregates input check.
+- [x] Writer fixes: pandas-3 read-only arrays in the TDC train-ID
+      correction; output trimmed to rows written (old resize was a
+      no-op; old `finish` dropped the last row); CLI defaults no longer
+      override per-config defaults.
+- [x] Local-DAQ layout (`processed/local_DAQ/{TDC,delay_log}`) and bunch
+      spacing (unchanged) confirmed.
+- [ ] Confirm bunch count per train (working value 101) and VLS line
+      offset (working value 10).
+- [ ] Diagnostics for goal 1 (hit-finder / detector saturation,
+      e/i/GMD/VLS correlations, photon-energy and VLS quality).
+- [ ] VLS aggregates for config 1 in `compute_aggregates.py`.
+- [ ] XAS maps vs photon energy (nominal vs measured).
 
-**The beamtime is complete — no more raw data will be produced.** The
-project has moved from quick-look analysis (early results) to
-**well-organised, repeatable analysis for publication.** All new
-analysis work lives in **`analysis/post/`** and follows these rules:
-
-- **One notebook = one well-defined analysis task.** Name it for the
-  task and the run(s) it consumes.
-- **Comment throughout.** Every notebook states, up front, the physics
-  question, the exact runs / datasets it reads (run numbers + combined-H5
-  / aggregate paths), and the analysis steps. Each cell carries a short
-  comment tying it to that task.
-- **Reuse the existing API.** Build on `data_loading`, `experiment_data`,
-  `processing`, `binning`, `plotting`, and the `compute_*` scripts rather
-  than re-implementing. Promote anything reused across notebooks into the
-  scripts package.
-- **Reproducible.** No hardcoded absolute paths — resolve everything
-  through `config.py`. Record run numbers and parameters in a header cell.
-
-The **maintained task list** for this phase is
-**`analysis/post/TASKS.md`** — tasks, subtasks, progress, and notes.
-The user owns and updates it; keep it current as work proceeds (it is
-the source of truth for what is done / next, in preference to the
-checklist below). The legacy quick-look notebooks remain in
-`analysis/notebooks/` for reference.
-
----
-
-## Current Status
-- [x] Analysis scripts written (data_loading, experiment_data, binning,
-      processing, plotting)
-- [x] Config 1 test data available
-- [x] VLS test data available (misaligned — combiner script written)
-- [x] `write_h5.py` — production CLI; argparse-driven, takes
-      `measurement_name`, `config` (1 or 2), `run_no`. Dispatches on
-      `config` to write config-1 (e + i TOF) or config-2 (liq eTOF +
-      VLS) combined H5 files. All paths via `config.py`.
-- [x] `write_h5_test_config1.py` — written; runs end-to-end and produces
-      `test_config1.h5` (73 634 trains × 400 bunches).
-- [x] `write_h5_test_config2.py` — written; produces `test_config2.h5`
-      (4 936 trains × 100 bunches, VLS-truncated).
-- [x] `config.py` — written; switches paths via `FLASH_ENV`.
-- [x] Writers tested end-to-end on local data (Step 6 validation).
-- [x] `ExperimentData` fluent transforms — `crop_vls`,
-      `subtract_background`, `auto_subtract_background`,
-      `compute_vls_moments`, `filter_shots`, `filter_trains`,
-      `trim_bunches`. VLS background subtraction + ROI cropping done.
-- [x] `compute_aggregates.py` — written; runs end-to-end for config 1
-      and config 2, spectral and time-resolved modes.
-- [x] `admm_ghost.py` — ADMM ghost-imaging solver written and verified.
-- [x] Notebooks: `diagnostics`, `tof_inspect`, `vls_inspect`,
-      `covariance_inspect`, `covariance_inspect_cfg1`, `admm_solve`,
-      `admm_solve_tr`.
-- [x] `plot_linearity` integrated into `diagnostics.ipynb`; extended so
-      config 2 shows integrated VLS as the secondary observable.
-- [x] Fast-shutter `/shutter` added to the combined-H5 schema
-      (`write_h5.py`); optional on load (`ExperimentData.shutter`).
-- [x] Static-XAS scripts: `compute_static_xas_cfg1.py` (e+i TOF
-      per-shot), `compute_static_xas.py` (VLS per-shot),
-      `compute_xas_aggregates.py` (GMD aggregates) — shutter-section
-      detection, nominal-energy-by-section.
-- [x] **Beamtime complete — entered the post-analysis phase.** See the
-      "Post-Analysis Phase" section above and `analysis/post/TASKS.md`.
-- [ ] Remaining plotting notebooks (energy maps, delay dependence) to be
-      written.
-- [ ] Remote profile paths in `config.py` to be filled in once the
-      production location on the FLASH cluster is known.
-
----
-
-## TODO / Open Questions
-- Fill in placeholder remote paths in `analysis/scripts/config.py` once
-  production paths are confirmed.
-- Confirm VLS pixel axis calibration (pixel → eV) once available — the
-  test data uses bare pixel index for the x-axis.
-- Confirm `z` units and sign convention (delay stage → time delay in fs).
-- Confirm `m` (bunches per train) for production data. Run 48346 has
-  `m = 400` per the raw H5; production may differ.
-- Confirm the max-hits dimension for real `liq_tofs_e` once a real
-  config 2 acquisition is available (currently inherits the test
-  `tofs_e` last-dim = 50).
-- Write notebooks for `plot_energy_binned_maps` and
-  `plot_delay_dependence`.
-- Re-calibrate the ADMM regularisation weights (`LAMBDA_SMOOTH_PIXEL`,
-  `LAMBDA_SMOOTH_TOF`, `LAMBDA_SPARSE`, `RHO`) on real config 2 data —
-  the current defaults are tuned to the synthetic test covariances.
+## Open questions
+- Exact bunch count and the Gotthard line ↔ FEL pulse offset (working
+  values 101 / 10 in `config.py`).
+- Max hits per bunch (`max_ecounts` 50 / `max_icounts` 120) adequate?
+- VLS pixel → eV calibration; `z` units / sign (→ fs) for time-resolved runs.

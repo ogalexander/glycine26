@@ -1,8 +1,10 @@
 # Ignore claude files
 .claude/
 
-# Ignore the experiment folder (where all data is stored)
-11022188/
+# Ignore the experiment folders (symlinks / local copies holding the data).
+# No trailing slash: git sees a symlink as a file, so "11024642/" would not match it.
+/11024642
+/11022188
 
 # Ignore H5 data files
 *.h5
