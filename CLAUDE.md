@@ -94,9 +94,11 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   when the run has it, lined up with the bunch axis via `--vls-offset`
   (default 10) and cropped to `train_length` (count / offset to be
   confirmed — in run 60513, 60 pulses, Gotthard lines 0–58 are the lit
-  ones). Raw frames: pedestal ≈ 3240 ADU, pixels 0–1 stuck at 51914 (the
-  highest value seen); at ~171 eV the spectrum sits around pixels
-  510–610, ~20 ADU above the dark lines on average.
+  ones and the conditions notebook's offset scan peaks at offset ≈ −1).
+  Raw frames: pedestal ≈ 3240 ADU; bad pixels 0–1 (stuck at 51914, the
+  highest value seen), 679–681 (hot), 832–863 (flat ~4790 ADU, no noise);
+  at ~171 eV the spectrum sits around pixels 510–610, ~20 ADU above the
+  dark lines on average.
 - **Local DAQ (TDC `.lst`, SDU delay `.txt`)**: none copied for this
   beamtime yet; they go to `processed/local_DAQ/{TDC,delay_log}`
   (confirmed). TDC channels as before: ch 1 = electron, ch 2 = ion.
@@ -256,6 +258,23 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
 ---
 
 ## Repository layout notes
+- `analysis/notebooks/conditions_check.ipynb` — goal 1, per run or
+  combined file: machine stability, bunch pattern (`BUNCH_RANGE` /
+  `shot` mask), GMD and OPIS, VLS pedestal / saturation / line-offset
+  scan / VLS-vs-GMD / COM jitter, TDC hit-cap and dead-time checks,
+  GMD-normalised linearity per TOF window, correlation matrix and yield
+  drift. Raw mode (no TOF) until combined files exist. Deliberately flat:
+  plain arrays at top level, one explicit figure per cell.
+- `analysis/notebooks/inspect_vls.ipynb` — single-shot VLS spectra
+  (pedestal + common mode, ROI), per-shot `shots` dict (gmd, vls_sum,
+  com, width, mpe, t_min, slot), `FILTERS`, average spectra binned on
+  any `shots` key with optional normalisation (`None` / `"gmd"` =
+  sum/sum(GMD) / `"area"`); moment check by binning on COM and on width
+  (COM-aligned).
+- `analysis/notebooks/inspect_tofs.ipynb` — same pattern for `tofs_e` /
+  `tofs_i` from a combined file: average TOF spectra per bin (`None` /
+  `"shot"` / `"gmd"` / `"area"`) and the ratio of each bin to all shots
+  (nonlinear features vs GMD).
 - `analysis/notebooks/camera_shutter_difference.ipynb` — this
   beamtime: YAG camera (`/zraw/FLASH.FEL/MULTIPLX1.CAM/YAG/dGroup`)
   shutter-open minus closed, with optional filtering / downbinning.
@@ -300,8 +319,8 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
       spacing (unchanged) confirmed.
 - [ ] Confirm bunch count per train (working value 101) and VLS line
       offset (working value 10).
-- [ ] Diagnostics for goal 1 (hit-finder / detector saturation,
-      e/i/GMD/VLS correlations, photon-energy and VLS quality).
+- [x] Conditions notebook for goal 1 (`conditions_check.ipynb`); TOF
+      sections tested on previous-beamtime data only so far.
 - [ ] VLS aggregates for config 1 in `compute_aggregates.py`.
 - [ ] XAS maps vs photon energy (nominal vs measured).
 
