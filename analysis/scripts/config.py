@@ -60,6 +60,13 @@ BEAMLINE_HALL: str = "fl24"
 TRAIN_LENGTH: int = 101  # bunch slots per train in combined files
 VLS_OFFSET:   int = 10   # Gotthard line (b + VLS_OFFSET) is stored as bunch b
 
+# TDC channel -> config 1 dataset. At this beamtime the electron TOF is on
+# channel 2 and the ion TOF on channel 1 (checked on run 60538: ch 2 hits
+# sit below ~1000 ns, ch 1 hits are the Ar+ / N2+ ... ion peaks at
+# 1400-3200 ns). Beamtime 11022188 used electron = 1, ion = 2.
+TDC_CHANNEL_E: int = 2   # -> tofs_e
+TDC_CHANNEL_I: int = 1   # -> tofs_i
+
 # ---------------------------------------------------------------------------
 # Profile definitions
 # ---------------------------------------------------------------------------
@@ -120,6 +127,8 @@ __all__ = [
     "BEAMLINE_HALL",
     "TRAIN_LENGTH",
     "VLS_OFFSET",
+    "TDC_CHANNEL_E",
+    "TDC_CHANNEL_I",
     "FLASH_ENV",
     "DATA_ROOT",
     "RAW_H5_DIR",

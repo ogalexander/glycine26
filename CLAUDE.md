@@ -56,6 +56,8 @@ The **only** place paths live. The beamtime is set by three constants:
 too: `TRAIN_LENGTH = 101` (bunch slots per train) and `VLS_OFFSET = 10`
 (Gotthard line `b + 10` → bunch `b`) — both still to be confirmed; they
 are the defaults of `write_h5.py` and `load_raw_h5` for config 1.
+`TDC_CHANNEL_E = 2` / `TDC_CHANNEL_I = 1` map the TDC channels to
+`tofs_e` / `tofs_i` (swapped relative to beamtime 11022188).
 `FLASH_ENV` picks the data root:
 - `local` (default): `<repo root>/11024642` (the symlink on Maxwell, or
   a local copy with the same layout on a workstation).
@@ -86,6 +88,8 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
 | 60509         | 30                 | —                     | ~170.5 eV  |
 | 60510–60514   | 60                 | (n, 100, 1280) uint16 | ~170.8 eV  |
 | 60534         | 100                | —                     | ~243.8 eV  |
+| 60536         | 100                | (n, 100, 1280)        | 0          |
+| 60537–60538   | 100                | —                     | 0          |
 
 - **Pulses per train change between runs.** The combined H5 uses a
   fixed bunch axis (`train_length`, default 101); GMD slots beyond the
@@ -99,11 +103,28 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   highest value seen), 679–681 (hot), 832–863 (flat ~4790 ADU, no noise);
   at ~171 eV the spectrum sits around pixels 510–610, ~20 ADU above the
   dark lines on average.
-- **Local DAQ (TDC `.lst`, SDU delay `.txt`)**: none copied for this
-  beamtime yet; they go to `processed/local_DAQ/{TDC,delay_log}`
-  (confirmed). TDC channels as before: ch 1 = electron, ch 2 = ion.
-  Bunch spacing is the same as last beamtime (`folding_parameter`
-  39876.9).
+- **Local DAQ (TDC `.lst`, SDU delay `.txt`)**: so far the files land
+  flat in `processed/local_DAQ/` as `<name>_<10-digit start tID>.{lst,txt}`,
+  one acquisition per file (several `Argon_*` acquisitions side by side).
+  The `{TDC,delay_log}` subfolders in `config.py` don't exist yet;
+  the writer falls back to the flat folder. **TDC channels are swapped
+  relative to last beamtime: ch 2 = electron, ch 1 = ion**
+  (`config.TDC_CHANNEL_E` / `TDC_CHANNEL_I`). Bunch spacing is the same
+  as last beamtime (`folding_parameter` 39876.9).
+- **Crosstalk**: fast electrons from the ion spectrometer reach the
+  electron TOF ~25 ns (250 TDC units) after each ion hit. They arrive
+  after the electron spectrum (which ends at ~950 ns), so electron TOF is
+  binned only out to 10000 TDC units (1000 ns).
+- **Run 60538** (argon, `Argon_2807259185`, first e + i TOF data;
+  combined `run60538_Argon_2807259185.h5`, 6057 trains, written with
+  `--max-ecounts 120 --max-icounts 50`): GMD median 0.15 µJ; ~4.9 e and
+  ~1.4 i hits per shot over the whole bunch period. Electrons sit at
+  85–950 ns, ions at 1450–3100 ns (+ a weak light-ion group at
+  250–500 ns). Ion yield per µJ falls ~6× over the first ~50 pulses of
+  the train, then stays flat, while electrons per µJ stay within ±10%
+  (ion detection efficiency varies along the train). 5 burst trains hit
+  both hit caps (cut by `MAX_HITS_E/I`). E–i covariance is far from
+  rank 1 even after GMD conditioning (`covariance_ee_ei.ipynb`).
 - Other pulse-resolved raw channels worth knowing: `/Timing/bunch
   pattern`, `/Timing/set number of bunches flash2`, bunch charge and
   toroids (`/FL1/Electron Diagnostic/...`, `/uncategorised/FLASH.DIAG/
@@ -162,14 +183,20 @@ python write_h5.py <measurement_name> <config> <run_no> [-o OUT.h5]
     [--data-bunches N] [--chunk-size N] [--max-ecounts N] [--max-icounts N]
     [--n-vls-pixels N] [--folding-parameter F]
 ```
-- `config=1` (this beamtime): TDC ch 1 → `tofs_e`, ch 2 → `tofs_i`;
+- `config=1` (this beamtime): TDC ch `config.TDC_CHANNEL_E` (2) →
+  `tofs_e`, ch `config.TDC_CHANNEL_I` (1) → `tofs_i`;
   VLS written automatically when the run's raw H5 has it (`--no-vls` to
   skip). Gotthard line `b + K` → bunch `b` (`K` may be negative).
-- `measurement_name` may be a glob (`'scan*'`) to concatenate scans.
+- `measurement_name` may be a glob (`'scan*'`) to concatenate scans, or
+  a full file stem with the 10-digit tID (`Argon_2807259185`) to take
+  exactly that acquisition. Files are looked up in `SDU_DIR` / `TDC_DIR`
+  (or a per-measurement subfolder), then in the flat `LOCAL_DAQ_DIR`.
 - Defaults: `train_length` = `config.TRAIN_LENGTH` (101), `--vls-offset`
   = `config.VLS_OFFSET` (10), chunk 1000 (200 with VLS), `max_ecounts`
   50, `max_icounts` 120, `folding_parameter` 39876.9 (TDC units; bunch
-  spacing unchanged from last beamtime).
+  spacing unchanged from last beamtime). Electrons are the busier
+  channel at this beamtime, so pass `--max-ecounts 120 --max-icounts 50`
+  (as for run 60538).
 - The SDU stream is required (it defines the train range).
 - Output defaults to `COMBINED_DIR/<measurement>.h5`.
 
@@ -233,9 +260,15 @@ matrices never sit in memory.
   GMD × z.
 - `load_aggregates(path) → AggregatesData` (per-bin means, NaN for empty
   bins; `.var_G = GtG − G²`).
+- Optional config keys `BUNCH_RANGE = (start, stop)` (half-open bunch
+  slice; default all slots) and `MAX_HITS_E` / `MAX_HITS_I` (drop shots
+  with more hits over the full TOF range, e.g. burst / cap-clipped
+  shots, which otherwise dominate the second moments). Both are recorded
+  in the output attrs (`bunch_range`, `max_hits_*`, `n_skipped_max_hits`).
 - CLI: `python compute_aggregates.py CONFIG.py INPUT.h5 [-o OUT.h5]`;
   config modules in `analysis/configs/` (`aggregates_example_cfg1.py`
-  is the config-1 template).
+  is the config-1 template; `aggregates_run60538_argon.py` and
+  `_b0-20.py` are the first ones for this beamtime).
 
 ### Static-XAS scripts (shutter-gated photon-energy scans)
 Each **open** shutter section = one nominal photon energy (assigned by
@@ -275,6 +308,15 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   `tofs_i` from a combined file: average TOF spectra per bin (`None` /
   `"shot"` / `"gmd"` / `"area"`) and the ratio of each bin to all shots
   (nonlinear features vs GMD).
+- `analysis/notebooks/covariance_ee_ei.ipynb` — goal 5, from config-1
+  aggregates: pools GMD bins and merges TOF bins (exact on aggregates).
+  It builds three estimates (`EST`): total, within GMD bins, and partial on
+  GMD. Then: e–e / e–i maps with significance, a crosstalk check
+  (e–i covariance vs t_electron − t_ion), covariance-filtered spectra
+  per TOF window, a rank test (canonical correlations vs the
+  (√n_e + √n_i)/√N noise edge, checked with a shifted-train null),
+  the residual after the leading component, and the same per GMD bin.
+  TOF parameters and plot axes in ns (TDC units × 0.1 on loading).
 - `analysis/notebooks/camera_shutter_difference.ipynb` — this
   beamtime: YAG camera (`/zraw/FLASH.FEL/MULTIPLX1.CAM/YAG/dGroup`)
   shutter-open minus closed, with optional filtering / downbinning.
@@ -297,7 +339,8 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
 - **Config** is always passed explicitly (`config=1` for this beamtime),
   never inferred. VLS presence is detected from the data, not from
   `config`.
-- **Units**: GMD µJ, photon energy eV, TOF in TDC units (as stored).
+- **Units**: GMD µJ, photon energy eV. TOF is stored in TDC units of
+  100 ps; plots show ns.
 - Plot functions return `(fig, axes)`.
 - Notebooks: state the question, the runs / files read and the
   parameters in a header cell; resolve paths through `config.py`.
@@ -315,8 +358,10 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
       correction; output trimmed to rows written (old resize was a
       no-op; old `finish` dropped the last row); CLI defaults no longer
       override per-config defaults.
-- [x] Local-DAQ layout (`processed/local_DAQ/{TDC,delay_log}`) and bunch
-      spacing (unchanged) confirmed.
+- [x] Bunch spacing (unchanged) confirmed. Local-DAQ files currently
+      flat in `processed/local_DAQ/` (writer falls back to it).
+- [x] First TOF run processed and aggregated (60538, argon);
+      e–e / e–i covariance notebook (`covariance_ee_ei.ipynb`).
 - [ ] Confirm bunch count per train (working value 101) and VLS line
       offset (working value 10).
 - [x] Conditions notebook for goal 1 (`conditions_check.ipynb`); TOF
@@ -327,5 +372,10 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
 ## Open questions
 - Exact bunch count and the Gotthard line ↔ FEL pulse offset (working
   values 101 / 10 in `config.py`).
-- Max hits per bunch (`max_ecounts` 50 / `max_icounts` 120) adequate?
+- Max hits per bunch adequate? With `--max-ecounts 120 --max-icounts 50`
+  only burst shots reach them in run 60538.
+- Source of the ion-efficiency drop along the train (run 60538).
+- `conditions_check` / `inspect_tofs` still plot TDC units and default
+  to whole-bunch windows (0–40000), so their electron counts include
+  the crosstalk after 1000 ns.
 - VLS pixel → eV calibration; `z` units / sign (→ fs) for time-resolved runs.

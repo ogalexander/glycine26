@@ -28,6 +28,11 @@ A Python module exposing the module-level names below. Example file:
                   the first/last edges are dropped
     CONFIG      : 1 or 2  (H5 layout — picks tofs_e vs liq_tofs_e)
     CHUNK_SIZE  : trains per chunk         (optional, default 200)
+    BUNCH_RANGE : (bunch_start, bunch_end) half-open bunch slice that is
+                  aggregated (optional, default all bunches)
+    MAX_HITS_E  : drop shots with more electron hits than this (counted
+                  over the whole TOF range; optional, default no cut)
+    MAX_HITS_I  : same for ion hits (config 1; optional)
     TRIM_START  : trains trimmed from the start (optional, 0)
     TRIM_END    : trains trimmed from the end   (optional, 0)
     OUTPUT_SUFFIX : str appended to the default output filename
@@ -432,6 +437,9 @@ def compute_aggregates(
     chunk_size: int = 200,
     trim_start: int = 0,
     trim_end: int = 0,
+    bunch_range: Optional[Tuple[int, int]] = None,
+    max_hits_e: Optional[int] = None,
+    max_hits_i: Optional[int] = None,
     config_path: Optional[Path] = None,
     verbose: bool = True,
 ) -> None:
@@ -494,6 +502,14 @@ def compute_aggregates(
         unused for ``config = 1`` time-resolved (which keeps the full
         eTOF / ion-TOF spectra).
     chunk_size, trim_start, trim_end : int
+    bunch_range : (int, int), optional
+        Half-open ``[bunch_start, bunch_end)`` slice of the bunch axis to
+        aggregate. ``None`` (default) uses every bunch slot.
+    max_hits_e, max_hits_i : int, optional
+        Drop shots with more electron (ion, config 1) hits than this,
+        counted over the full TOF range before histogramming. Removes
+        burst / hit-cap-clipped shots, which otherwise dominate the
+        second moments. ``None`` (default) applies no cut.
     config_path : Path, optional
         Recorded as a provenance attribute.
     verbose : bool
@@ -558,14 +574,19 @@ def compute_aggregates(
         keep_mask = _build_keep_mask(f, trim_start, trim_end)
         n_total = keep_mask.shape[0]
         m = f["gmd"].shape[1]
+        b0, b1 = (0, m) if bunch_range is None else (int(bunch_range[0]), int(bunch_range[1]))
+        if not 0 <= b0 < b1 <= m:
+            raise ValueError(f"bunch_range {bunch_range} outside [0, {m}]")
 
         log(f"input              : {input_h5}")
         log(f"config             : {config}")
         log(f"mode               : {mode}")
         log(f"trains             : {n_total} total, "
             f"{int(keep_mask.sum())} kept after bad-train filter + trim")
-        log(f"bunches / train    : {m}")
+        log(f"bunches / train    : {m}, aggregating [{b0}, {b1})")
         log(f"GMD bins           : {n_gmd}  edges {gmd_edges}")
+        if max_hits_e is not None or max_hits_i is not None:
+            log(f"max hits / shot    : e {max_hits_e}, i {max_hits_i}")
         if config == 2:
             log(f"VLS ROI            : [{roi_min}, {roi_max}) = {n_pixels} pixels")
         if mode == "spectral" or config == 1:
@@ -637,6 +658,7 @@ def compute_aggregates(
 
         n_skipped_gmd_oor = 0
         n_skipped_gmd_nan = 0
+        n_skipped_max_hits = 0
         n_skipped_z_oor   = 0
         n_skipped_z_nan   = 0
 
@@ -646,16 +668,16 @@ def compute_aggregates(
             if not sub_mask.any():
                 continue
 
-            gmd_block = f["gmd"][s:e][sub_mask]                            # (n_keep, m)
-            tof_block = f[e_tof_key][s:e][sub_mask]                        # (n_keep, m, max_hits)
+            gmd_block = f["gmd"][s:e, b0:b1][sub_mask]                     # (n_keep, m)
+            tof_block = f[e_tof_key][s:e, b0:b1][sub_mask]                 # (n_keep, m, max_hits)
             if config == 2:
-                vls_block = f["vls"][s:e, :, roi_min:roi_max][sub_mask]    # (n_keep, m, n_pixels)
+                vls_block = f["vls"][s:e, b0:b1, roi_min:roi_max][sub_mask]  # (n_keep, m, n_pixels)
                 A_block = vls_block.astype(np.float64) - background
             else:
-                ion_tof_block = f["tofs_i"][s:e][sub_mask]                 # (n_keep, m, max_hits_i)
+                ion_tof_block = f["tofs_i"][s:e, b0:b1][sub_mask]          # (n_keep, m, max_hits_i)
                 C_block = _histogram_tof_chunk(ion_tof_block, ion_tof_edges)
             if mode == "time_resolved":
-                z_block = f["z"][s:e][sub_mask]
+                z_block = f["z"][s:e, b0:b1][sub_mask]
 
             n_keep = gmd_block.shape[0]
 
@@ -677,6 +699,15 @@ def compute_aggregates(
             valid    = ~gmd_nan & ~gmd_oor
             n_skipped_gmd_nan += int(gmd_nan.sum())
             n_skipped_gmd_oor += int(gmd_oor.sum())
+
+            # Burst / clipped shots: hit count over the full TOF range.
+            too_many = np.zeros_like(valid)
+            if max_hits_e is not None:
+                too_many |= (tof_block != 0).sum(axis=-1).ravel() > int(max_hits_e)
+            if max_hits_i is not None and config == 1:
+                too_many |= (ion_tof_block != 0).sum(axis=-1).ravel() > int(max_hits_i)
+            n_skipped_max_hits += int((too_many & valid).sum())
+            valid = valid & ~too_many
 
             if mode == "spectral":
                 bin_id = gmd_bin
@@ -796,8 +827,14 @@ def compute_aggregates(
         fout.attrs["trim_start"]      = int(trim_start)
         fout.attrs["trim_end"]        = int(trim_end)
         fout.attrs["chunk_size"]      = int(chunk_size)
+        fout.attrs["bunch_range"]     = np.asarray([b0, b1], dtype=np.int64)
         fout.attrs["n_skipped_gmd_oor"] = int(n_skipped_gmd_oor)
         fout.attrs["n_skipped_gmd_nan"] = int(n_skipped_gmd_nan)
+        fout.attrs["n_skipped_max_hits"] = int(n_skipped_max_hits)
+        if max_hits_e is not None:
+            fout.attrs["max_hits_e"] = int(max_hits_e)
+        if max_hits_i is not None:
+            fout.attrs["max_hits_i"] = int(max_hits_i)
         if config == 2:
             fout.attrs["vls_crop_roi"]    = np.asarray([roi_min, roi_max], dtype=np.int64)
             fout.attrs["background_type"] = background_meta["type"]
@@ -824,6 +861,7 @@ def compute_aggregates(
     else:
         summary += (f"; skipped {n_skipped_gmd_oor} GMD-oor, "
                     f"{n_skipped_gmd_nan} nan")
+    summary += f", {n_skipped_max_hits} over max hits"
     log(summary)
 
 
@@ -870,6 +908,9 @@ def main(argv=None) -> None:
         chunk_size=int(getattr(cfg, "CHUNK_SIZE", 200)),
         trim_start=int(getattr(cfg, "TRIM_START", 0)),
         trim_end=int(getattr(cfg, "TRIM_END", 0)),
+        bunch_range=getattr(cfg, "BUNCH_RANGE", None),
+        max_hits_e=getattr(cfg, "MAX_HITS_E", None),
+        max_hits_i=getattr(cfg, "MAX_HITS_I", None),
         config_path=args.config_path,
     )
 

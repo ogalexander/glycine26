@@ -32,7 +32,8 @@ import h5py as h5
 class DataChunk():
     """
     Chunked accumulator for config 1 combined-H5 writes: electron + ion TOF
-    (TDC channels 1 / 2) and, optionally, the Gotthard VLS spectrum.
+    (TDC channels ``config.TDC_CHANNEL_E`` / ``TDC_CHANNEL_I``) and,
+    optionally, the Gotthard VLS spectrum.
 
     ``n_vls_pixels=None`` disables the VLS buffer (runs without a VLS);
     otherwise every row carries a ``(train_length, n_vls_pixels)`` spectrum
@@ -315,8 +316,8 @@ class TDCIterator:
     """
     Walks the per-train TDC events file-by-file.
 
-    All three TDC channels (1 = electron, 2 = ion, 3 = liquid-jet electron)
-    are decoded from every file regardless of the active config. The
+    All three TDC channels (electron = ``config.TDC_CHANNEL_E``, ion =
+    ``config.TDC_CHANNEL_I``, 3 = liquid-jet electron) are decoded from every file regardless of the active config. The
     ``config`` argument only changes what ``__next__`` returns, so callers
     for the unused config still see legitimate (empty) data instead of an
     AttributeError or an extra unwrap step.
@@ -559,8 +560,8 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
     corrected. After this, the 32bit trainID is reconstructed from the 16bit trainID. The data is separated by TDC
     channel into:
 
-        - channel 1 -> electron tofs (config 1, ``tofs_e``)
-        - channel 2 -> ion      tofs (config 1, ``tofs_i``)
+        - ``config.TDC_CHANNEL_E`` (2 at this beamtime) -> electron tofs (config 1, ``tofs_e``)
+        - ``config.TDC_CHANNEL_I`` (1 at this beamtime) -> ion      tofs (config 1, ``tofs_i``)
         - channel 3 -> liquid-jet electron tofs (config 2, ``liq_tofs_e``)
 
     Channels that record no events in this file simply return empty arrays; the
@@ -574,10 +575,10 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
     :param sweeps_per_file: number of sweeps and thus trainIDs the file should contain
     :return: tuple of 7 Numpy arrays:
             1. trainIDs:        all trainIDs contained in the file (length: sweeps_per_file)
-            2. eventcounts_e:   #events on channel 1 (electron, config 1) per trainID
-            3. tofs_e:          all tof events on channel 1 (length: sum(eventcounts_e))
-            4. eventcounts_i:   #events on channel 2 (ion, config 1) per trainID
-            5. tofs_i:          all tof events on channel 2 (length: sum(eventcounts_i))
+            2. eventcounts_e:   #events on the electron channel (config 1) per trainID
+            3. tofs_e:          all tof events on the electron channel (length: sum(eventcounts_e))
+            4. eventcounts_i:   #events on the ion channel (config 1) per trainID
+            5. tofs_i:          all tof events on the ion channel (length: sum(eventcounts_i))
             6. eventcounts_le:  #events on channel 3 (liq electron, config 2) per trainID
             7. tofs_le:         all tof events on channel 3 (length: sum(eventcounts_le))
     """
@@ -658,12 +659,12 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
         trainIDs = np.arange(sweeps_per_file) + trainID_at_start_32bit + 6
 
     # Split events by TDC channel:
-    #   channel 1 -> electron (config 1, tofs_e)
-    #   channel 2 -> ion      (config 1, tofs_i)
-    #   channel 3 -> liquid-jet electron (config 2, liq_tofs_e)
+    #   config.TDC_CHANNEL_E (2 at this beamtime) -> electron (config 1, tofs_e)
+    #   config.TDC_CHANNEL_I (1 at this beamtime) -> ion      (config 1, tofs_i)
+    #   channel 3                                 -> liquid-jet electron (config 2, liq_tofs_e)
     # Channels with no events for the active config remain empty; this is fine.
-    electron_events = df[df['channel'] == 1]
-    ion_events      = df[df['channel'] == 2]
+    electron_events = df[df['channel'] == config.TDC_CHANNEL_E]
+    ion_events      = df[df['channel'] == config.TDC_CHANNEL_I]
     liq_e_events    = df[df['channel'] == 3]
 
     # Per-trainID event counts for each channel.
@@ -1177,7 +1178,10 @@ def _list_measurement_files(base_dir: Path, measurement_name: str, ext: str) -> 
           subfolder and flat layouts in one pass).
 
     Files in each searched folder are kept only when:
-        1. Their name matches ``<measurement_name>_*.<ext>`` (fnmatch).
+        1. Their name matches ``<measurement_name>_*.<ext>`` (fnmatch), or
+           ``<measurement_name>.<ext>`` when the name already carries the
+           10-digit suffix (e.g. ``Argon_2807259185`` selects exactly that
+           one acquisition out of several ``Argon_*`` files).
         2. They end with ``_<10 digits>.<ext>`` (the standard suffix).
 
     Duplicates (e.g. via symlinks) are removed. The result is sorted by
@@ -1186,7 +1190,9 @@ def _list_measurement_files(base_dir: Path, measurement_name: str, ext: str) -> 
     """
     if not base_dir.is_dir():
         return []
-    name_pattern = measurement_name + "_*." + ext
+    name_patterns = [measurement_name + "_*." + ext]
+    if re.search(r"_\d{10}$", measurement_name):
+        name_patterns.append(measurement_name + "." + ext)
     suffix_re = re.compile(r"_\d{10}\." + re.escape(ext) + "$")
 
     folders = []
@@ -1210,7 +1216,7 @@ def _list_measurement_files(base_dir: Path, measurement_name: str, ext: str) -> 
         except OSError:
             continue
         for name in entries:
-            if not fnmatch.fnmatchcase(name, name_pattern):
+            if not any(fnmatch.fnmatchcase(name, pat) for pat in name_patterns):
                 continue
             if not suffix_re.search(name):
                 continue
@@ -1221,6 +1227,24 @@ def _list_measurement_files(base_dir: Path, measurement_name: str, ext: str) -> 
             matches.append(p)
     matches.sort(key=lambda p: int(Path(p).stem[-10:]))
     return matches
+
+
+def _find_local_daq_files(stream_dir: Path, measurement_name: str, ext: str):
+    """
+    :func:`_list_measurement_files` on ``stream_dir`` (``config.SDU_DIR`` /
+    ``config.TDC_DIR``), falling back to the flat ``config.LOCAL_DAQ_DIR``
+    when nothing matches there (the local DAQ writes ``.txt`` and ``.lst``
+    side by side). Returns ``(fpaths, folder_searched)``.
+    """
+    fpaths = _list_measurement_files(stream_dir, measurement_name, ext)
+    if fpaths:
+        return fpaths, stream_dir
+    flat = Path(config.LOCAL_DAQ_DIR)
+    if flat != stream_dir:
+        fpaths = _list_measurement_files(flat, measurement_name, ext)
+        if fpaths:
+            return fpaths, flat
+    return [], stream_dir
 
 
 def _sanitize_output_stem(measurement_name: str) -> str:
@@ -1317,8 +1341,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
     Both configurations follow the same train-ID alignment pattern; only
     the detector layout differs:
 
-    - config 1 (gas arm): TDC channels 1 (electron, ``tofs_e``) and 2
-      (ion, ``tofs_i``), plus — optionally — the Gotthard VLS spectrum
+    - config 1 (gas arm): TDC channels ``config.TDC_CHANNEL_E`` (electron,
+      ``tofs_e``; ch 2 at this beamtime) and ``config.TDC_CHANNEL_I`` (ion,
+      ``tofs_i``; ch 1), plus — optionally — the Gotthard VLS spectrum
       (``vls``) lined up with the bunch axis.
     - config 2 (liquid arm, previous beamtime): TDC channel 3 (liquid-jet
       electron, ``liq_tofs_e``) plus Gotthard VLS spectra.
@@ -1343,7 +1368,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
         ``config.SDU_DIR / measurement_name`` / ``config.TDC_DIR /
         measurement_name`` (legacy per-measurement subfolder layout)
         and falls back to ``config.SDU_DIR`` / ``config.TDC_DIR``
-        themselves when the subfolder does not exist.
+        themselves when the subfolder does not exist, then to the flat
+        ``config.LOCAL_DAQ_DIR``. A name carrying the 10-digit train-ID
+        suffix (``Argon_2807259185``) selects exactly that acquisition.
     run_no : int
         FLASH run number used to glob the raw H5 files under
         ``config.RAW_H5_DIR``.
@@ -1420,13 +1447,13 @@ def main(config_no, measurement_name, run_no, output_path=None,
         raise FileNotFoundError(f"Raw H5 folder not found: {h5_folder}")
 
     # --- Locate SDU .txt files -----------------------------------------
-    sdu_fpaths = _list_measurement_files(Path(config.SDU_DIR), measurement_name, "txt")
+    sdu_fpaths, sdu_dir = _find_local_daq_files(Path(config.SDU_DIR), measurement_name, "txt")
     if not sdu_fpaths:
         raise ValueError(
             f"No SDU .txt files for measurement '{measurement_name}' "
-            f"under {config.SDU_DIR}."
+            f"under {config.SDU_DIR} or {config.LOCAL_DAQ_DIR}."
         )
-    print(f"Found {len(sdu_fpaths)} SDU .txt files.")
+    print(f"Found {len(sdu_fpaths)} SDU .txt files in {sdu_dir}.")
     if is_glob_name:
         # Show which scan(s) the wildcard matched, by file-prefix.
         prefixes = sorted({Path(p).stem[:-11] for p in sdu_fpaths})
@@ -1437,16 +1464,17 @@ def main(config_no, measurement_name, run_no, output_path=None,
     # combined H5 containing the SDU + raw-H5 streams. The TOF datasets
     # (tofs_e/tofs_i in cfg 1, liq_tofs_e in cfg 2) are simply omitted
     # from the output schema and `between_tdc_files` is all False.
-    tdc_fpaths = _list_measurement_files(Path(config.TDC_DIR), measurement_name, "lst")
+    tdc_fpaths, tdc_dir = _find_local_daq_files(Path(config.TDC_DIR), measurement_name, "lst")
     has_tdc = bool(tdc_fpaths)
     if has_tdc:
-        print(f"Found {len(tdc_fpaths)} TDC .lst files.")
+        print(f"Found {len(tdc_fpaths)} TDC .lst files in {tdc_dir}.")
         if is_glob_name:
             prefixes = sorted({Path(p).stem[:-11] for p in tdc_fpaths})
             print(f"  TDC scan prefixes matched: {prefixes}")
     else:
         print(f"No TDC .lst files for measurement '{measurement_name}' "
-              f"under {config.TDC_DIR}; writing SDU + raw-H5 only.")
+              f"under {config.TDC_DIR} or {config.LOCAL_DAQ_DIR}; "
+              f"writing SDU + raw-H5 only.")
 
     # --- Locate raw H5 files for this run ------------------------------
     h5_paths = sorted(
@@ -1891,6 +1919,8 @@ if __name__ == "__main__":
             "    (config 1: e + i TOF; VLS added automatically when the run has it)\n"
             "  python write_h5.py energy_scan1 1 60513 --vls-offset 9 --train-length 100\n"
             "  python write_h5.py energy_scan1 1 60513 --no-vls -o scan1_novls.h5\n"
+            "  python write_h5.py Argon_2807259185 1 60538\n"
+            "    (full file stem: only that acquisition of several Argon_* files)\n"
             "  python write_h5.py 'energy_scan*' 1 60513 -o energy_scans.h5\n"
             "    (quote the pattern to stop the shell expanding it; matches\n"
             "     energy_scan1, energy_scan2, ... in both SDU and TDC dirs)\n"
