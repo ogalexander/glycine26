@@ -10,6 +10,11 @@ This branch (`gas-vls`) is forked from `main` of
 beamtime (11022188, glycine), which had a liquid-jet arm and a gas arm.
 The liquid-arm code (config 2) is kept but dormant here.
 
+`HANDOVER.md` (25 Nov 2026) is the orientation document for colleagues
+and their assistants: rules, data model, pipeline with Slurm template,
+runs, results so far and open issues. Keep it in step with this file
+when the state changes substantially.
+
 ---
 
 ## Beamtime goals (priority order)
@@ -557,11 +562,16 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   photoelectrons (it moves between runs), not a photon peak; the ~100 ns
   bump in those runs sits on the Ar Auger.
 - `analysis/notebooks/undulator_scan_aggregates.ipynb` — opens
-  energy-mode aggregates (default run 60559) as plain arrays (`D`, `C`,
+  energy-mode aggregates (`AGG_H5`, now the final run 60560 file) as
+  plain arrays (`D`, `C`,
   `DtD`, `CtC`, `DtC`, `G`, `GtG`, `DtG`, `CtG`, `n`; axes `E`,
   `gmd_edges`, `tof_e` / `tof_i` in ns), prints the photon-energy
   calibration and maps the shots per cell. Starting point for
-  covariance vs photon energy. Section *Two-photon resonance* (cells
+  covariance vs photon energy. Section *XAS maps* (cells `undagg-xas*`):
+  one panel per GMD bin, measured photon energy × electron KE, colour
+  `D_E` (hits / shot / eV) or, with `XAS_NORM = "gmd"`, divided by each
+  cell's mean GMD; `XAS_KE`, `XAS_LOG`, `XAS_SHARED_CLIM`,
+  `XAS_MIN_SHOTS` (300). Section *Two-photon resonance* (cells
   `undagg-2ph-*`): looks for a core → valence-hole resonance opened by
   a first (valence-ionising) photon — fast-electron partial-yield XAS
   (`HIGH_KE` 210–285 eV, per µJ per GMD bin and relative to `REF_KE`
@@ -656,8 +666,20 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
       `load_data`, `load_raw_h5`, `ExperimentData`.
 - [x] Conditions notebook for goal 1 (`conditions_check.ipynb`); TOF
       sections run on run 60538.
-- [ ] VLS aggregates for config 1 in `compute_aggregates.py`.
-- [ ] XAS maps vs photon energy (nominal vs measured).
+- [x] VLS aggregates for config 1 in `compute_aggregates.py` (`A`,
+      `AtA`, `AtD`, `AtC`, `AtG`); hit-list accumulation and `--workers`.
+- [x] eTOF / iTOF calibrations (`calibration.py`) applied with Jacobians
+      in both undulator notebooks; electron bins defined in energy.
+- [x] Run 60560 complete: final combined file, photon energy and
+      aggregates (Slurm, 5.5 min).
+- [x] XAS maps: vs nominal energy in `undulator_scan.ipynb`, vs measured
+      energy per GMD bin in `undulator_scan_aggregates.ipynb`.
+- [x] Two-photon resonance section run on 60559 and 60560 (results not
+      yet interpreted; see `HANDOVER.md` §7).
+- [x] `HANDOVER.md` for colleagues.
+- [ ] Delay scans at 268 eV (`Ethanol_delay_scan_short*_268eV`, raw runs
+      from 60561): not written yet; config-1 `time_resolved` hit-list
+      path unverified.
 
 ## Open questions
 - Gotthard line ↔ pulse offset for runs with other bunch patterns
