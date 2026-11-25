@@ -58,7 +58,11 @@ BEAMLINE_HALL: str = "fl24"
 # ---------------------------------------------------------------------------
 
 TRAIN_LENGTH: int = 101  # bunch slots per train in combined files
-VLS_OFFSET:   int = 10   # Gotthard line (b + VLS_OFFSET) is stored as bunch b
+# Gotthard line (b + VLS_OFFSET) is stored as bunch b. With 100 pulses the
+# frame has 105 lines: 0-1 dark, 2-101 = GMD bunches 0-99, 102-104 dark
+# (runs 60545, 60559; see analysis/notebooks/vls_alignment.ipynb), so the
+# 101-slot crop keeps every lit line plus one dark line in slot 100.
+VLS_OFFSET:   int = 2
 
 # TDC channel -> config 1 dataset. At this beamtime the electron TOF is on
 # channel 2 and the ion TOF on channel 1 (checked on run 60538: ch 2 hits

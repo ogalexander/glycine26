@@ -366,6 +366,7 @@ def _concat_experiment_data(parts):
         liq_tofs_e=cat("liq_tofs_e"),
         vls=cat("vls"),
         shutter=cat("shutter"),
+        nominal_energy=cat("nominal_energy"),
         shot_mask=cat("shot_mask"),
     )
 

@@ -53,9 +53,10 @@ The liquid-arm code (config 2) is kept but dormant here.
 The **only** place paths live. The beamtime is set by three constants:
 `BEAMTIME_ID = "11024642"`, `BEAMTIME_YEAR = "2026"`,
 `BEAMLINE_HALL = "fl24"`. The bunch-axis working assumptions live there
-too: `TRAIN_LENGTH = 101` (bunch slots per train) and `VLS_OFFSET = 10`
-(Gotthard line `b + 10` → bunch `b`) — both still to be confirmed; they
-are the defaults of `write_h5.py` and `load_raw_h5` for config 1.
+too: `TRAIN_LENGTH = 101` (bunch slots per train) and `VLS_OFFSET = 2`
+(Gotthard line `b + 2` → bunch `b`; checked on runs 60545 / 60559 with
+100 pulses, `vls_alignment.ipynb`); they are the defaults of
+`write_h5.py` and `load_raw_h5` for config 1.
 `TDC_CHANNEL_E = 2` / `TDC_CHANNEL_I = 1` map the TDC channels to
 `tofs_e` / `tofs_i` (swapped relative to beamtime 11022188).
 `FLASH_ENV` picks the data root:
@@ -90,17 +91,26 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
 | 60534         | 100                | —                     | ~243.8 eV  |
 | 60536         | 100                | (n, 100, 1280)        | 0          |
 | 60537–60538   | 100                | —                     | 0          |
+| 60559         | 100                | (n, 105, 1280) uint16 | 0 (undulator scan, set λ 4.575–4.679 nm) |
 
 - **Pulses per train change between runs.** The combined H5 uses a
   fixed bunch axis (`train_length`, default 101); GMD slots beyond the
   pulses present are NaN.
 - **VLS** is present only in some runs. The writer adds it for config 1
   when the run has it, lined up with the bunch axis via `--vls-offset`
-  (default 10) and cropped to `train_length` (count / offset to be
-  confirmed — in run 60513, 60 pulses, Gotthard lines 0–58 are the lit
-  ones and the conditions notebook's offset scan peaks at offset ≈ −1).
+  (default `config.VLS_OFFSET` = 2) and cropped to `train_length`.
+  With 100 pulses the frame has **105 lines: 0–1 dark, 2–101 = GMD
+  bunches 0–99, 102–104 dark**; the GMD ↔ line-integral correlation
+  scan peaks sharply at +2 (run 60545 r = 0.95 in
+  `inspect_vls_plus_energy_scan`; run 60559 r = 0.87, ≤ 0.12 at every
+  other offset, `vls_alignment.ipynb`). The 101-slot crop keeps all lit
+  lines, and slot 100 holds dark line 102 (no GMD, no TOF hits) — a
+  per-train dark reference. Earlier runs differ (run 60513, 60 pulses:
+  lines 0–58 lit, offset ≈ −1), so check runs with other bunch patterns.
   Raw frames: pedestal ≈ 3240 ADU; bad pixels 0–1 (stuck at 51914, the
-  highest value seen), 679–681 (hot), 832–863 (flat ~4790 ADU, no noise);
+  highest value seen), 291–292 (high pedestal, 291 noisy and nearly
+  blind; found on run 60559), 679–681 (hot), 832–863 (flat ~4790 ADU,
+  no noise);
   at ~171 eV the spectrum sits around pixels 510–610, ~20 ADU above the
   dark lines on average.
 - **Local DAQ (TDC `.lst`, SDU delay `.txt`)**: so far the files land
@@ -125,6 +135,39 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   (ion detection efficiency varies along the train). 5 burst trains hit
   both hit caps (cut by `MAX_HITS_E/I`). E–i covariance is far from
   rank 1 even after GMD conditioning (`covariance_ee_ei.ipynb`).
+  Ion m/q calibration (`inspect_itof_argon.ipynb`): t = −18 ns +
+  481.4 ns·√(m/q), rms residual 4 ns over Ar⁺–Ar⁴⁺, N₂⁺, O₂⁺. Each peak
+  has a sharp main component and a broader shoulder 2–6 % earlier;
+  σ ≈ 35 ns / q. Detected Ar shares ~3 / 82 / 14 / 0.6 % (q = 1–4),
+  flat across 0.03–0.5 µJ; every ion (incl. residual-gas N₂⁺) scales as
+  G^0.72. Nothing above Ar⁴⁺ (Ar⁵⁺/Ar⁴⁺ < 1.4 %, 95 %).
+- **Run 60559** (ethanol undulator scan, `Ethanol_undulator_scan_2807989445`;
+  combined `run60559_Ethanol_undulator_scan_2807989445.h5`, 11 486 trains,
+  with VLS and `nominal_energy`): 18 steps 265–282 eV in 1 eV (set
+  wavelength 4.6786 → 4.3966 nm), ~60 s each; OPIS empty. The set
+  wavelength is logged every ~15 s and on each change; the VLS peak
+  moves 3–13 trains after the first record of a new value
+  (`undulator_scan.ipynb` drops 30 trains after each change). VLS peak
+  pixel 579 (265 eV) → 296 (282 eV), linear: E = 299.52 eV − 0.0597
+  eV/px × pixel, rms 0.08 eV against the nominal values; a VLS ROI of
+  300–640 cuts the top steps, use 200–650. Single-shot centre: σ ≈ 0.32
+  eV about nominal for the 67 % of shots whose VLS signal clears 5σ of
+  the dark line. ~0.1–0.4 electron and ~0.15 ion hits per shot.
+- **Run 60560** (ethanol undulator scan, `Ethanol_undulator_scan_2808016357`,
+  started 00:33 Nov 25, running for hours; one growing `.lst`, no `.txt`
+  until it ends). Written while running with `--live`:
+  `run60560_..._live_novls.h5` (whole run to 02:04, no VLS, 53 865
+  trains) and `run60560_..._live_seg.h5` (last 2 raw files, with VLS).
+  0.5 eV steps from 265 eV, ~10 min (6030 trains) each; every train has
+  TDC data; TDC ↔ GMD aligned at zero shift in every 5000-train block
+  (r 0.40–0.51 vs ≤ 0.13 at ±1), incl. across the first 16-bit
+  train-ID wrap; 42 merged-sweep trains; ~0.3–0.6 e and 0.2–0.3 ion hits
+  per shot. VLS offset +2 and 100 lit lines confirmed; within a step the
+  VLS centre wanders by ~±0.2 eV over minutes, and 268.5 / 269.0 eV sit
+  at pixels 515.8 / 506.9, ~3–4 px below run 60559's positions for the
+  same nominal energies. Live commands:
+  `python write_h5.py Ethanol_undulator_scan_2808016357 1 60560 --live
+  [--no-vls | --first-tid T] --max-ecounts 120 --max-icounts 50 -o …`.
 - Other pulse-resolved raw channels worth knowing: `/Timing/bunch
   pattern`, `/Timing/set number of bunches flash2`, bunch charge and
   toroids (`/FL1/Electron Diagnostic/...`, `/uncategorised/FLASH.DIAG/
@@ -143,6 +186,7 @@ First index = train. `m` = `train_length` (default 101 for config 1).
 | `mpe`                | (n,)         | eV    | Per-train mean photon energy (OPIS)           |
 | `hor_pos`, `ver_pos` | (n,)         | arb.  | Per-train beam position (GMD hall)            |
 | `shutter`            | (n,)         | arb.  | Per-train fast-shutter level (NaN if absent)  |
+| `nominal_energy`     | (n,)         | eV    | Nominal photon energy = hc / undulator set wavelength, latest record ≤ train (NaN without one ≤ 300 trains old) |
 | `z`, `z_std`         | (n, m)       | arb.  | Delay stage position (SDU) and its std        |
 | `local_DAQ_running`  | (n,)         | bool  | SDU had a line for the train                  |
 | `between_tdc_files`  | (n,)         | bool  | True = bad/incomplete train                   |
@@ -163,6 +207,7 @@ trimmed to the rows actually written.
 | `hor_pos` | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall horizontal`  |
 | `ver_pos` | `/FL2/Photon Diagnostic/GMD/Average beam position/position hall vertical`    |
 | `shutter` | `/FL2/Beamlines/Fast Shutter/shutter` — (n, 100), nanmean'd per train        |
+| `nominal_energy` | `/Electron Diagnostic/Undulator setting/set wavelength 1` (nm; event records, not per train — no `/FL2` prefix) |
 | `vls`     | `/FL2/Support Infrastructure/Gotthard/images` — (n, lines, 1280) uint16      |
 
 ### Optional `vls_moments` group
@@ -182,7 +227,31 @@ python write_h5.py <measurement_name> <config> <run_no> [-o OUT.h5]
     [--train-length N] [--vls | --no-vls] [--vls-offset K]
     [--data-bunches N] [--chunk-size N] [--max-ecounts N] [--max-icounts N]
     [--n-vls-pixels N] [--folding-parameter F]
+    [--no-sdu] [--live [--live-margin N]] [--first-tid T] [--last-tid T]
 ```
+- **SDU optional** (`--no-sdu`, and automatic when there is no `.txt`):
+  the SDU only carries the delay stage, so for runs without a delay
+  scan the TDC defines the trains (first TDC train → last raw-H5 train,
+  stopping when the TDC ends); `z` / `z_std` NaN, `local_DAQ_running` =
+  TDC has the train. Identical output to the SDU path otherwise (checked
+  on run 60559).
+- **`--live`** for a measurement still being acquired: every `.lst` is
+  copied into a private temp folder by `_snapshot_readonly` (source
+  opened `O_RDONLY`, exactly the bytes present at that moment) and only
+  the copy is decoded; the last `--live-margin` (50) TDC trains are
+  dropped as possibly incomplete; raw H5 files modified < 2 min ago are
+  skipped (FLASH publishes a raw file only once it is closed, ~9 min
+  after it starts). The `.lst` files are writable through the beamtime
+  ACL, so never point anything but read-only code at them; the decoder
+  itself only uses `open(.., 'rb' / 'r')` and `np.fromfile`.
+- `--first-tid` / `--last-tid`: write only part of a measurement (e.g.
+  the newest raw files of a long run; earlier raw files are skipped
+  cheaply).
+- 16-bit TDC counters: `check_and_correct_trainIDs` unwraps sweep# and
+  tag bits with `_unwrap16` (one period per wrap). The old loops added
+  (i+1)·65536 at the i-th wrap, i.e. wrong from the second wrap on
+  (> 65536 trains ≈ 1.8 h in one `.lst`); identical results up to one
+  wrap (checked on 60559 / 60560).
 - `config=1` (this beamtime): TDC ch `config.TDC_CHANNEL_E` (2) →
   `tofs_e`, ch `config.TDC_CHANNEL_I` (1) → `tofs_i`;
   VLS written automatically when the run's raw H5 has it (`--no-vls` to
@@ -191,17 +260,21 @@ python write_h5.py <measurement_name> <config> <run_no> [-o OUT.h5]
   a full file stem with the 10-digit tID (`Argon_2807259185`) to take
   exactly that acquisition. Files are looked up in `SDU_DIR` / `TDC_DIR`
   (or a per-measurement subfolder), then in the flat `LOCAL_DAQ_DIR`.
+- `nominal_energy` is filled after the loop from the set-wavelength
+  records of every raw file of the run (`data_loading.read_nominal_energy`).
 - Defaults: `train_length` = `config.TRAIN_LENGTH` (101), `--vls-offset`
-  = `config.VLS_OFFSET` (10), chunk 1000 (200 with VLS), `max_ecounts`
+  = `config.VLS_OFFSET` (2), chunk 1000 (200 with VLS), `max_ecounts`
   50, `max_icounts` 120, `folding_parameter` 39876.9 (TDC units; bunch
   spacing unchanged from last beamtime). Electrons are the busier
   channel at this beamtime, so pass `--max-ecounts 120 --max-icounts 50`
   (as for run 60538).
-- The SDU stream is required (it defines the train range).
 - Output defaults to `COMBINED_DIR/<measurement>.h5`.
 
 `write_h5_test_config1.py` / `write_h5_test_config2.py` are legacy test
-builders from the previous beamtime.
+builders from the previous beamtime. The config-1 builder pins that
+beamtime's channels (`TDCIterator(..., channel_e=1, channel_i=2)`);
+`TDCIterator` / `extract_data_from_single_file` otherwise default to
+`config.TDC_CHANNEL_E/I`.
 
 ---
 
@@ -215,16 +288,22 @@ builders from the previous beamtime.
 - `load_raw_h5(run_no, config, raw_dir=None, train_length=None,
   n_vls_pixels=1280, max_files=None, load_vls=True, vls_offset=None,
   train_step=1) → ExperimentData` — quick look straight from raw files
-  (no TDC/SDU): `gmd`, `mpe`, `shutter`, and `vls` when present.
+  (no TDC/SDU): `gmd`, `mpe`, `shutter`, `nominal_energy`, and `vls`
+  when present.
   Config-1 defaults come from `config.TRAIN_LENGTH` / `VLS_OFFSET`;
   `train_step` keeps every N-th train and the VLS is read only for those
   (blockwise), so whole runs fit in memory. Duplicate trains at file
   boundaries are dropped.
 - `save_vls_moments(data, filepath, overwrite=False)`.
+- `read_nominal_energy(h5_paths, tID, max_age=300) → (energy, n_records)`
+  — hc / `set wavelength 1` of the latest record at or before each
+  train; NaN before the first record or when it is > `max_age` trains
+  old. Used by the writer and `load_raw_h5`.
 
 ### `experiment_data.py` — `ExperimentData`
 Fields `config`, `tID`, `gmd`, `mpe`, `z`, `between_tdc_files`; optional
-`tofs_e`, `tofs_i`, `liq_tofs_e`, `vls`, `shutter`; VLS metadata
+`tofs_e`, `tofs_i`, `liq_tofs_e`, `vls`, `shutter`, `nominal_energy`
+(per train; sliced by `filter_trains` / `roll_tofs_trains`); VLS metadata
 (`vls_pixel_ax`, `vls_sums/coms/widths`, `vls_crop_roi`,
 `vls_background_roi`); `shot_mask`. Properties `.n_trains`,
 `.n_bunches`, `.mpe_broadcast`, `.vls_pixels`, `.valid_shots`,
@@ -295,9 +374,12 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   combined file: machine stability, bunch pattern (`BUNCH_RANGE` /
   `shot` mask), GMD and OPIS, VLS pedestal / saturation / line-offset
   scan / VLS-vs-GMD / COM jitter, TDC hit-cap and dead-time checks,
+  average TOF spectra, train-averaged TOF × bunch-slot maps
+  (unnormalised and `TOF_MAP_NORM` = `"gmd"` / `"area"`),
   GMD-normalised linearity per TOF window, correlation matrix and yield
-  drift. Raw mode (no TOF) until combined files exist. Deliberately flat:
-  plain arrays at top level, one explicit figure per cell.
+  drift. TOF in ns (converted on load; electron windows stop at
+  1000 ns). Deliberately flat: plain arrays at top level, one explicit
+  figure per cell.
 - `analysis/notebooks/inspect_vls.ipynb` — single-shot VLS spectra
   (pedestal + common mode, ROI), per-shot `shots` dict (gmd, vls_sum,
   com, width, mpe, t_min, slot), `FILTERS`, average spectra binned on
@@ -308,6 +390,14 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   `tofs_i` from a combined file: average TOF spectra per bin (`None` /
   `"shot"` / `"gmd"` / `"area"`) and the ratio of each bin to all shots
   (nonlinear features vs GMD).
+- `analysis/notebooks/inspect_itof_argon.ipynb` — variant of
+  `inspect_tofs` for the argon ion TOF (ns): Gaussian + linear fits to
+  Ar⁺–Ar⁴⁺, N₂⁺, O₂⁺ (`CAL_PEAKS`), m/q calibration `tof_of` / `mq_of`,
+  spectrum on an m/q axis, GMD-binned shape comparison, background-
+  subtracted yields (`YIELD_WINDOWS`) with power-law order, Ar
+  charge-state shares and mean charge vs GMD, Ar^q+ search up to
+  `Q_MAX` (σ_q = σ₁/q, overlaps flagged), and the same per bunch-slot
+  group.
 - `analysis/notebooks/covariance_ee_ei.ipynb` — goal 5, from config-1
   aggregates: pools GMD bins and merges TOF bins (exact on aggregates).
   It builds three estimates (`EST`): total, within GMD bins, and partial on
@@ -317,6 +407,17 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   (√n_e + √n_i)/√N noise edge, checked with a shifted-train null),
   the residual after the leading component, and the same per GMD bin.
   TOF parameters and plot axes in ns (TDC units × 0.1 on loading).
+- `analysis/notebooks/vls_alignment.ipynb` — raw files of one run, all
+  Gotthard lines: GMD ↔ line-integral offset scan, lit lines vs the GMD
+  train profile, which lines the combined file keeps for
+  `config.VLS_OFFSET` / `TRAIN_LENGTH`, and (optional combined file)
+  the stored VLS and both TOFs on the bunch axis.
+- `analysis/notebooks/undulator_scan.ipynb` — undulator-gap scans from a
+  combined file with VLS + `nominal_energy`: steps (settling trains
+  dropped), streamed VLS (pedestal from dark slot 100, per-shot peak
+  centre, dark-noise threshold), pixel → eV fit against the nominal
+  energies, scan trace, electron TOF vs nominal and vs measured photon
+  energy, average-train maps (slot × e TOF / ion TOF / VLS) per step.
 - `analysis/notebooks/camera_shutter_difference.ipynb` — this
   beamtime: YAG camera (`/zraw/FLASH.FEL/MULTIPLX1.CAM/YAG/dGroup`)
   shutter-open minus closed, with optional filtering / downbinning.
@@ -362,20 +463,39 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
       flat in `processed/local_DAQ/` (writer falls back to it).
 - [x] First TOF run processed and aggregated (60538, argon);
       e–e / e–i covariance notebook (`covariance_ee_ei.ipynb`).
-- [ ] Confirm bunch count per train (working value 101) and VLS line
-      offset (working value 10).
+- [x] Run 60559 (ethanol undulator scan) written:
+      `run60559_Ethanol_undulator_scan_2807989445.h5` (11 486 trains,
+      with VLS and `nominal_energy`, 3.2 GB) via `write_h5.py
+      Ethanol_undulator_scan_2807989445 1 60559 --max-ecounts 120
+      --max-icounts 50`; `undulator_scan.ipynb` runs on it.
+- [x] VLS line offset 2 and 101 slots confirmed for 100-pulse runs
+      (`vls_alignment.ipynb`); `config.VLS_OFFSET` = 2.
+- [x] `nominal_energy` (undulator set wavelength) in the combined H5,
+      `load_data`, `load_raw_h5`, `ExperimentData`.
 - [x] Conditions notebook for goal 1 (`conditions_check.ipynb`); TOF
-      sections tested on previous-beamtime data only so far.
+      sections run on run 60538.
 - [ ] VLS aggregates for config 1 in `compute_aggregates.py`.
 - [ ] XAS maps vs photon energy (nominal vs measured).
 
 ## Open questions
-- Exact bunch count and the Gotthard line ↔ FEL pulse offset (working
-  values 101 / 10 in `config.py`).
+- Gotthard line ↔ pulse offset for runs with other bunch patterns
+  (+2 / 101 slots hold for the 100-pulse runs checked).
+- A few trains per run (60538: 5 of 6057; 60559: 20 of 11 486) carry
+  about twice the usual hits, and one shot in each holds TOF values
+  beyond the bunch period (> 40000 TDC; in 60559 also negative ones,
+  stored wrapped near 2³²) — looks like two sweeps merged under one
+  train ID, which breaks the sorted-stream assumption in
+  `_fold_into_bunches`. Cut trains with any hit > 40000 until the
+  writer handles it.
 - Max hits per bunch adequate? With `--max-ecounts 120 --max-icounts 50`
   only burst shots reach them in run 60538.
 - Source of the ion-efficiency drop along the train (run 60538).
-- `conditions_check` / `inspect_tofs` still plot TDC units and default
-  to whole-bunch windows (0–40000), so their electron counts include
-  the crosstalk after 1000 ns.
-- VLS pixel → eV calibration; `z` units / sign (→ fs) for time-resolved runs.
+- Why every ion yield (and the electrons) grows as ~G^0.7 rather than
+  linearly in run 60538 — common to all species, so GMD scale / offset
+  or detector response rather than the ionisation.
+- `inspect_tofs` still plots TDC units and defaults to the whole bunch
+  (0–40000), so its electron spectra include the crosstalk after
+  1000 ns.
+- VLS pixel → eV: only relative to the undulator set values so far
+  (run 60559 fit); no independent absolute reference. `z` units / sign
+  (→ fs) for time-resolved runs.

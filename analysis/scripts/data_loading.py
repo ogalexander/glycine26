@@ -14,7 +14,8 @@ import numpy as np
 
 from experiment_data import ExperimentData
 
-__all__ = ["ExperimentData", "load_data", "load_raw_h5", "save_vls_moments"]
+__all__ = ["ExperimentData", "load_data", "load_raw_h5", "save_vls_moments",
+           "read_nominal_energy"]
 
 _VLS_MOMENTS_GROUP = "vls_moments"
 
@@ -28,6 +29,59 @@ _VLS_INDEX = "/FL2/Support Infrastructure/Gotthard/images/index"
 _VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 _SHUTTER_INDEX = "/FL2/Beamlines/Fast Shutter/shutter/index"
 _SHUTTER_VALUE = "/FL2/Beamlines/Fast Shutter/shutter/value"
+
+# Undulator set wavelength (nm): the nominal photon energy. An event-type
+# channel — one record every ~15 s plus one on each change (in run 60559 the
+# VLS shows the photon energy move 3-13 trains after the first record of a
+# new value), not one per train.
+SET_WAVELENGTH_INDEX = "/Electron Diagnostic/Undulator setting/set wavelength 1/index"
+SET_WAVELENGTH_VALUE = "/Electron Diagnostic/Undulator setting/set wavelength 1/value"
+HC_EV_NM = 1239.841984
+# A record older than this many trains is treated as stale (records come
+# at least every ~15 s = 150 trains while the setting is logged).
+NOMINAL_ENERGY_MAX_AGE = 300
+NOMINAL_ENERGY_ATTRS = {
+    "units": "eV",
+    "source": SET_WAVELENGTH_VALUE.rsplit("/", 1)[0],
+    "definition": f"{HC_EV_NM} eV nm / set wavelength (nm) of the latest record "
+                  f"at or before the train; NaN before the first record or when "
+                  f"that record is more than {NOMINAL_ENERGY_MAX_AGE} trains old",
+}
+
+
+def read_nominal_energy(h5_paths, tID, max_age=NOMINAL_ENERGY_MAX_AGE):
+    """
+    Nominal photon energy (eV) per train from the undulator set wavelength.
+
+    Collects the ``set wavelength 1`` records from every raw file in
+    ``h5_paths`` and gives each train the latest record at or before it
+    (E = hc / lambda). Trains before the first record, or whose latest
+    record is more than ``max_age`` trains old, are NaN. Around a step the
+    machine needs a few trains to reach the new setting, so drop the first
+    trains after each change when the exact energy matters.
+
+    Returns ``(energy, n_records)``: float32 array shaped like ``tID`` and
+    the number of records found (0 if no file has the channel).
+    """
+    rec_t, rec_v = [], []
+    for path in h5_paths:
+        with h5py.File(path, "r") as f:
+            if SET_WAVELENGTH_INDEX in f and SET_WAVELENGTH_VALUE in f:
+                rec_t.append(f[SET_WAVELENGTH_INDEX][...].astype(np.int64).ravel())
+                rec_v.append(f[SET_WAVELENGTH_VALUE][...].astype(np.float64).ravel())
+    tID = np.asarray(tID)
+    energy = np.full(tID.shape, np.nan, dtype=np.float32)
+    if not rec_t:
+        return energy, 0
+    rec_t, rec_v = np.concatenate(rec_t), np.concatenate(rec_v)
+    order = np.argsort(rec_t, kind="stable")
+    rec_t, rec_v = rec_t[order], rec_v[order]
+    t = tID.astype(np.int64)
+    idx = np.searchsorted(rec_t, t, side="right") - 1
+    ok = idx >= 0
+    ok[ok] &= (t[ok] - rec_t[idx[ok]] <= max_age) & np.isfinite(rec_v[idx[ok]]) & (rec_v[idx[ok]] > 0)
+    energy[ok] = HC_EV_NM / rec_v[idx[ok]]
+    return energy, len(rec_t)
 
 
 def load_data(
@@ -91,6 +145,8 @@ def load_data(
         # Shutter was added to the combined-H5 schema after the initial
         # write_h5 release; treat as optional so older files still load.
         shutter = load("shutter") if "shutter" in f else None
+        # Nominal photon energy (undulator set wavelength), added later still.
+        nominal_energy = load("nominal_energy") if "nominal_energy" in f else None
 
         tofs_e     = None
         tofs_i     = None
@@ -141,6 +197,7 @@ def load_data(
         liq_tofs_e=liq_tofs_e,
         vls=vls,
         shutter=shutter,
+        nominal_energy=nominal_energy,
         vls_sums=vls_sums,
         vls_coms=vls_coms,
         vls_widths=vls_widths,
@@ -221,7 +278,7 @@ def load_raw_h5(
     vls_offset : int, optional
         Gotthard line stored as bunch 0, as in ``write_h5.py
         --vls-offset`` (line ``b + vls_offset`` -> bunch ``b``). Defaults
-        to ``config.VLS_OFFSET`` (10) for config 1 and 0 for config 2.
+        to ``config.VLS_OFFSET`` (2) for config 1 and 0 for config 2.
     train_step : int
         Keep every ``train_step``-th train (default 1 = all). The VLS is
         read only for the kept trains, in blocks, so memory scales with
@@ -230,7 +287,9 @@ def load_raw_h5(
     Returns
     -------
     ExperimentData
-        Container with ``tID``, ``gmd``, ``mpe``, ``shutter`` populated.
+        Container with ``tID``, ``gmd``, ``mpe``, ``shutter`` and
+        ``nominal_energy`` (from the records of every file of the run, see
+        :func:`read_nominal_energy`) populated.
         ``vls`` is populated for config 2, and for config 1 when present;
         ``z`` is NaN-filled; TOF fields are ``None``.
         ``between_tdc_files`` is all-False (no TDC stream).
@@ -262,6 +321,7 @@ def load_raw_h5(
     h5_paths = sorted(glob.glob(pattern), key=_file_order_key)
     if not h5_paths:
         raise FileNotFoundError(f"No raw H5 files matching {pattern!r}.")
+    all_h5_paths = list(h5_paths)       # nominal-energy records: every file
     if max_files is not None:
         h5_paths = h5_paths[:max_files]
     print(f"Loading {len(h5_paths)} raw H5 file(s) for run {run_no} "
@@ -363,6 +423,7 @@ def load_raw_h5(
     n_total = tID.shape[0]
     z = np.full((n_total, train_length), np.nan, dtype=np.float32)
     between_tdc_files = np.zeros(n_total, dtype=bool)
+    nominal_energy, _ = read_nominal_energy(all_h5_paths, tID)
 
     print(f"Loaded {n_total} trains x {train_length} bunches"
           f"{' (+ VLS, line b+%d -> bunch b)' % vls_offset if vls is not None else ''}.")
@@ -376,6 +437,7 @@ def load_raw_h5(
         between_tdc_files=between_tdc_files,
         vls=vls,
         shutter=shutter,
+        nominal_energy=nominal_energy,
     )
 
 

@@ -11,12 +11,17 @@ _REPO_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(_REPO_ROOT / "analysis" / "scripts"))
 
 import config  # path resolution; the only place hardcoded paths live
+import data_loading  # raw-H5 helpers shared with load_raw_h5 (nominal energy)
 
 sys.path.insert(0, str(config.DECODER_DIR))
 
 import re
 import glob
 import fnmatch
+import atexit
+import shutil
+import tempfile
+import time
 
 from tqdm import tqdm
 import numpy as np
@@ -320,7 +325,9 @@ class TDCIterator:
     ``config.TDC_CHANNEL_I``, 3 = liquid-jet electron) are decoded from every file regardless of the active config. The
     ``config`` argument only changes what ``__next__`` returns, so callers
     for the unused config still see legitimate (empty) data instead of an
-    AttributeError or an extra unwrap step.
+    AttributeError or an extra unwrap step. ``channel_e`` / ``channel_i``
+    override the config-1 channel map (e.g. 1 / 2 for beamtime 11022188
+    data).
 
     Yields per train:
         - config == 1:  (tID, eventcounts_e,  tofs_e_bunch,
@@ -328,9 +335,14 @@ class TDCIterator:
         - config == 2:  (tID, eventcounts_le, tofs_le_bunch)
     """
 
-    def __init__(self, measurement_fpaths, config: int = 1):
+    def __init__(self, measurement_fpaths, config: int = 1, channel_e: int = None, channel_i: int = None,
+                 drop_last_trains: int = 0):
         self._measurement_fpaths = measurement_fpaths
         self.config = int(config)
+        self._channels = dict(channel_e=channel_e, channel_i=channel_i)
+        # Trains dropped from the end of the last file: the latest sweeps of
+        # a file the local DAQ is still writing can be incomplete (--live).
+        self._drop_last = int(drop_last_trains)
         if self.config not in (1, 2):
             raise ValueError(f"TDCIterator config must be 1 or 2, got {config!r}")
 
@@ -340,11 +352,7 @@ class TDCIterator:
         # Get number of sweeps/trainIDs per file specified by the sweep preset
         self.sweeps_per_file = metadata_decoding.from_file(self._measurement_fpaths[0], keywords='swpreset=', paragraph_kw='MPA4A')[0]
 
-        (self.trainIDs_tdc,
-         self.eventcounts_e,  self.tofs_e,
-         self.eventcounts_i,  self.tofs_i,
-         self.eventcounts_le, self.tofs_le) = extract_data_from_single_file(
-            self._measurement_fpaths[0], self.decoder, self.sweeps_per_file)
+        self._load(0)
         print('!!!!!!!!!')
         print(self.trainIDs_tdc.shape,
               self.eventcounts_e.shape,  self.tofs_e.shape,
@@ -353,6 +361,22 @@ class TDCIterator:
 
         self._index = 0
         self._file_index = 1
+
+    def _load(self, file_index):
+        (self.trainIDs_tdc,
+         self.eventcounts_e,  self.tofs_e,
+         self.eventcounts_i,  self.tofs_i,
+         self.eventcounts_le, self.tofs_le) = extract_data_from_single_file(
+            self._measurement_fpaths[file_index], self.decoder, self.sweeps_per_file, **self._channels)
+        if self._drop_last > 0 and file_index == len(self._measurement_fpaths) - 1:
+            keep = max(len(self.trainIDs_tdc) - self._drop_last, 0)
+            self.trainIDs_tdc = self.trainIDs_tdc[:keep]
+            for ch in ("e", "i", "le"):
+                counts = getattr(self, f"eventcounts_{ch}")[:keep]
+                setattr(self, f"eventcounts_{ch}", counts)
+                setattr(self, f"tofs_{ch}", getattr(self, f"tofs_{ch}")[:int(counts.sum(dtype=np.int64))])
+            print(f'Dropped the last {self._drop_last} trains of the last TDC file '
+                  f'(kept up to tID {self.trainIDs_tdc[-1] if keep else None}).')
 
     def __iter__(self):
         return self
@@ -363,11 +387,7 @@ class TDCIterator:
 
             if self._file_index < len(self._measurement_fpaths):
                 print('Finished TDC file {} of {}.'.format(self._file_index, len(self._measurement_fpaths)))
-                (self.trainIDs_tdc,
-                 self.eventcounts_e,  self.tofs_e,
-                 self.eventcounts_i,  self.tofs_i,
-                 self.eventcounts_le, self.tofs_le) = extract_data_from_single_file(
-                    self._measurement_fpaths[self._file_index], self.decoder, self.sweeps_per_file)
+                self._load(self._file_index)
                 self._file_index += 1
                 self._index = 0
                 self.between_files = True
@@ -550,7 +570,8 @@ def decode_tdc_data(tdc_data_folder: str, measurement_name: str, decoded_data_fo
     f_ion.close()
 
 
-def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_per_file: int) -> \
+def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_per_file: int,
+                                  channel_e: int = None, channel_i: int = None) -> \
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Decodes a single TDC-generated .lst-file, preprocessed the data and returns it as Numpy arrays.
@@ -573,6 +594,7 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
     :param fpath: absolute filepath of one TDC-generated .lst-file
     :param decoder: user-written decoder object that is used for decoding the raw TDC data
     :param sweeps_per_file: number of sweeps and thus trainIDs the file should contain
+    :param channel_e, channel_i: TDC channels of the config-1 electron / ion TOF; None = config.TDC_CHANNEL_E / _I
     :return: tuple of 7 Numpy arrays:
             1. trainIDs:        all trainIDs contained in the file (length: sweeps_per_file)
             2. eventcounts_e:   #events on the electron channel (config 1) per trainID
@@ -663,8 +685,8 @@ def extract_data_from_single_file(fpath: str, decoder: decoding.Decoder, sweeps_
     #   config.TDC_CHANNEL_I (1 at this beamtime) -> ion      (config 1, tofs_i)
     #   channel 3                                 -> liquid-jet electron (config 2, liq_tofs_e)
     # Channels with no events for the active config remain empty; this is fine.
-    electron_events = df[df['channel'] == config.TDC_CHANNEL_E]
-    ion_events      = df[df['channel'] == config.TDC_CHANNEL_I]
+    electron_events = df[df['channel'] == (config.TDC_CHANNEL_E if channel_e is None else channel_e)]
+    ion_events      = df[df['channel'] == (config.TDC_CHANNEL_I if channel_i is None else channel_i)]
     liq_e_events    = df[df['channel'] == 3]
 
     # Per-trainID event counts for each channel.
@@ -717,6 +739,23 @@ def calc_eventcount_per_trainID(df: pd.DataFrame, all_trainIDs: np.ndarray) -> n
     return all_eventcounts
 
 
+def _unwrap16(values) -> np.ndarray:
+    """
+    Undo the wraparounds of a 16bit counter read in acquisition order.
+
+    A drop by more than half the range is a wrap (+65536 from the next
+    value on); a rise by more than half the range is a value recorded just
+    before a wrap arriving after it (-65536 from there on). Corrections
+    accumulate one period per wrap. Returns int64.
+    """
+    v = np.asarray(values, dtype=np.int64)
+    out = v.copy()
+    if len(v) > 1:
+        d = np.diff(v)
+        out[1:] += 65536 * np.cumsum((d < -32767).astype(np.int64) - (d > 32767).astype(np.int64))
+    return out
+
+
 def check_and_correct_trainIDs(df: pd.DataFrame, trainID_at_start_32bit: int) -> pd.DataFrame:
     """
     Checks for errors in the "trainID" column of the DataFrame df and corrects them. Corrected are errors that are
@@ -754,45 +793,15 @@ def check_and_correct_trainIDs(df: pd.DataFrame, trainID_at_start_32bit: int) ->
     and return 32bit trainIDs (also correct for initial offset to 32bit ID)
     """
 
-    # reconstruct 32bit sweep number
-    # copy=True: under pandas >= 3 (copy-on-write) to_numpy() of an int32
-    # column is a read-only view, and both arrays are edited in place below.
-    sweeps=df['sweep'].to_numpy(dtype=np.int32, copy=True)
-    sweep_diff=np.diff(sweeps) # sweep_diff[i] = sweeps[i+1]-[sweeps[i]
-    sweep_of=np.flatnonzero(sweep_diff<-32767)  # determine events before 16bit wraparound of sweep#
-    sweep_jc=np.flatnonzero(sweep_diff>32767)   # determine events where sweep# jitter occurs during wraparound
-    i=0
-    while i<len(sweep_of):  # go through all negative jumps of sweep#
-        sweeps[sweep_of[i]+1:]+=(i+1)*65536
-        i+=1
-    i=0
-    while i<len(sweep_jc):  # still need to account for possible jitter of sweep# during wraparound
-        # positive jump can only occur after wraparound, i.e., these events (an all behind it)
-        # have now a too high sweep# (bevause it also leads to doubled wraparounds)
-        sweeps[sweep_jc[i]+1:]-=65536
-        i+=1
-    #sweep counter should now correct
-    # can be used to directly reconstruct the 32bit train IDs
-    
-    # Get the trainID as a Numpy array to speed up execution
-    trainID = df['trainID'].to_numpy(dtype=np.int32, copy=True) # convert to signed 32bit
-
-    # Calculate the difference between two consecutive trainIDs (diff[0] = trainID[1] - trainID[0])
-    trainID_diff = np.append(np.diff(trainID), 0)
-    
-    train_of=np.flatnonzero(trainID_diff<-32767)   #correct for overflows, basically the same as with sweep number
-    train_jc=np.flatnonzero(trainID_diff>32767)   # determine events where trainID jitter occurs during wraparound
-    i=0
-    while i<len(train_of):   # go through all negative jumps of trainID
-        trainID[train_of[i]+1:]+=(i+1)*65536
-        i+=1
-    i=0
-    while i<len(train_jc):  # still need to account for possible jitter of trainID during wraparound
-        # positive jump can only occur after wraparound, i.e., these events (an all behind it)
-        # have now a too high trainID (bevause it also leads to doubled wraparounds)
-        sweeps[train_jc[i]+1:]-=65536
-        i+=1
-    #train ID now does not wrap around at 65536
+    # Reconstruct the 32bit sweep number and the 32bit (relative) trainID from
+    # the 16bit counters, in acquisition order. The previous loops added
+    # (i+1)*65536 after the i-th wrap on top of the earlier wraps (3x65536
+    # after the second wrap instead of 2x), and applied the trainID jitter
+    # correction to the sweep array; both matter once an acquisition passes
+    # two wraps (> 65536 trains, ~1.8 h). _unwrap16 adds one period per wrap.
+    sweeps = _unwrap16(df['sweep'].to_numpy())
+    trainID = _unwrap16(df['trainID'].to_numpy())
+    #train ID and sweep# now do not wrap around at 65536
     
     # diff now between trainID and sweep# as the overflows should be removed now
     trainID_diff = np.append(np.diff(trainID-sweeps), 0)
@@ -1066,11 +1075,16 @@ _VLS_INDEX = "/FL2/Support Infrastructure/Gotthard/images/index"
 _VLS_VALUE = "/FL2/Support Infrastructure/Gotthard/images/value"
 _SHUTTER_INDEX = "/FL2/Beamlines/Fast Shutter/shutter/index"
 _SHUTTER_VALUE = "/FL2/Beamlines/Fast Shutter/shutter/value"
+# Nominal photon energy: the undulator set wavelength (nm) -> /nominal_energy
+# (eV). Event-type channel (a record every ~15 s and on change); see
+# data_loading.read_nominal_energy.
+_SETWL_INDEX = data_loading.SET_WAVELENGTH_INDEX
+_SETWL_VALUE = data_loading.SET_WAVELENGTH_VALUE
 
 # Bunch slots per train in the combined H5, and the Gotthard line stored
 # as bunch 0. Config 1 (gas arm, this beamtime) takes both from
-# config.TRAIN_LENGTH / config.VLS_OFFSET (working assumptions: 101 / 10;
-# runs with fewer pulses leave the trailing GMD slots NaN). Config 2
+# config.TRAIN_LENGTH / config.VLS_OFFSET (101 / 2: 100 pulses, Gotthard
+# lines 2-101; runs with fewer pulses leave the trailing GMD slots NaN). Config 2
 # (liquid arm, previous beamtime) kept the full 110 Gotthard lines, unshifted.
 _DEFAULT_TRAIN_LENGTH = {1: config.TRAIN_LENGTH, 2: 110}
 _DEFAULT_VLS_OFFSET   = {1: config.VLS_OFFSET, 2: 0}
@@ -1247,6 +1261,37 @@ def _find_local_daq_files(stream_dir: Path, measurement_name: str, ext: str):
     return [], stream_dir
 
 
+def _snapshot_readonly(src_paths, dst_dir) -> list:
+    """
+    Copy files into ``dst_dir`` for decoding, never writing to the sources.
+
+    Each source is opened with ``os.O_RDONLY`` and exactly the bytes present
+    at that moment are copied (the local DAQ may still be appending to the
+    last ``.lst``); the decoder then only ever sees the copy. Names are
+    kept, since the decoder takes the start train ID from the file name.
+    """
+    dst_dir = Path(dst_dir).resolve()
+    out = []
+    for src in map(Path, src_paths):
+        if src.resolve().parent == dst_dir:
+            raise ValueError(f"snapshot directory must differ from the source folder: {dst_dir}")
+        dst = dst_dir / src.name
+        fd = os.open(src, os.O_RDONLY)
+        try:
+            left = os.fstat(fd).st_size
+            with open(dst, "xb") as fout:
+                while left > 0:
+                    buf = os.read(fd, min(left, 16 << 20))
+                    if not buf:
+                        break
+                    fout.write(buf)
+                    left -= len(buf)
+        finally:
+            os.close(fd)
+        out.append(str(dst))
+    return out
+
+
 def _sanitize_output_stem(measurement_name: str) -> str:
     """Strip glob metacharacters from ``measurement_name`` for use as a filename."""
     cleaned = re.sub(r"[\*\?\[\]]", "", measurement_name).strip("_")
@@ -1334,7 +1379,8 @@ def main(config_no, measurement_name, run_no, output_path=None,
          train_length=None, chunk_size=None,
          max_ecounts=50, max_icounts=120, n_vls_pixels=1280,
          folding_parameter=39876.9, data_bunches=None,
-         vls=None, vls_offset=None):
+         vls=None, vls_offset=None, no_sdu=False, live=False,
+         live_margin=50, live_min_age=120, first_tid=None, last_tid=None):
     """
     Decode and align the local-DAQ + raw-H5 streams for one measurement.
 
@@ -1394,7 +1440,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
     vls_offset : int, optional
         Gotthard line stored as bunch 0 (line ``b + vls_offset`` -> bunch
         ``b``); see :func:`_crop_vls_lines`. Defaults to
-        ``config.VLS_OFFSET`` (10) for config 1 and 0 for config 2.
+        ``config.VLS_OFFSET`` (2) for config 1 and 0 for config 2.
     folding_parameter : float
         TOF range (100 ps) used to split each sweep's flat tof stream into
         per-bunch lists.
@@ -1405,6 +1451,22 @@ def main(config_no, measurement_name, run_no, output_path=None,
         the FEL pulse count when ``train_length = 110``) and ``None``
         for cfg 1 (fills every bunch). VLS always uses the full
         ``train_length``.
+    no_sdu : bool
+        Ignore the SDU ``.txt`` (delay stage; redundant when no delay is
+        scanned). Also the fallback when no ``.txt`` exists. The train
+        range then comes from the TDC (first TDC train to the last raw-H5
+        train), ``z`` / ``z_std`` are NaN and ``local_DAQ_running`` marks
+        the trains the TDC recorded.
+    live : bool
+        For a measurement still being acquired: the ``.lst`` files are
+        copied read-only into a private temporary folder (see
+        :func:`_snapshot_readonly`) and decoded from there, the last
+        ``live_margin`` trains of the TDC data are dropped (possibly
+        incomplete), and raw H5 files modified less than ``live_min_age``
+        seconds ago are skipped.
+    first_tid, last_tid : int, optional
+        Restrict the output to this train-ID range (inclusive), e.g. to
+        write only the newest part of a long run.
     """
     config_no = int(config_no)
     if config_no not in (1, 2):
@@ -1447,17 +1509,19 @@ def main(config_no, measurement_name, run_no, output_path=None,
         raise FileNotFoundError(f"Raw H5 folder not found: {h5_folder}")
 
     # --- Locate SDU .txt files -----------------------------------------
-    sdu_fpaths, sdu_dir = _find_local_daq_files(Path(config.SDU_DIR), measurement_name, "txt")
-    if not sdu_fpaths:
-        raise ValueError(
-            f"No SDU .txt files for measurement '{measurement_name}' "
-            f"under {config.SDU_DIR} or {config.LOCAL_DAQ_DIR}."
-        )
-    print(f"Found {len(sdu_fpaths)} SDU .txt files in {sdu_dir}.")
-    if is_glob_name:
-        # Show which scan(s) the wildcard matched, by file-prefix.
-        prefixes = sorted({Path(p).stem[:-11] for p in sdu_fpaths})
-        print(f"  SDU scan prefixes matched: {prefixes}")
+    # Optional: without them (or with no_sdu) the TDC defines the trains.
+    sdu_fpaths, sdu_dir = ([], None) if no_sdu else \
+        _find_local_daq_files(Path(config.SDU_DIR), measurement_name, "txt")
+    use_sdu = bool(sdu_fpaths)
+    if use_sdu:
+        print(f"Found {len(sdu_fpaths)} SDU .txt files in {sdu_dir}.")
+        if is_glob_name:
+            # Show which scan(s) the wildcard matched, by file-prefix.
+            prefixes = sorted({Path(p).stem[:-11] for p in sdu_fpaths})
+            print(f"  SDU scan prefixes matched: {prefixes}")
+    else:
+        print("SDU           : " + ("ignored (--no-sdu)" if no_sdu else "no .txt files")
+              + "; train range from the TDC, z / z_std NaN.")
 
     # --- Locate TDC .lst files -----------------------------------------
     # TDC is optional: if no .lst files are present, we still write a
@@ -1472,6 +1536,11 @@ def main(config_no, measurement_name, run_no, output_path=None,
             prefixes = sorted({Path(p).stem[:-11] for p in tdc_fpaths})
             print(f"  TDC scan prefixes matched: {prefixes}")
     else:
+        if not use_sdu:
+            raise ValueError(
+                f"Neither SDU .txt nor TDC .lst files for measurement '{measurement_name}' "
+                f"under {config.LOCAL_DAQ_DIR}; nothing defines the trains."
+            )
         print(f"No TDC .lst files for measurement '{measurement_name}' "
               f"under {config.TDC_DIR} or {config.LOCAL_DAQ_DIR}; "
               f"writing SDU + raw-H5 only.")
@@ -1481,13 +1550,49 @@ def main(config_no, measurement_name, run_no, output_path=None,
         glob.glob(os.path.join(h5_folder, f"*run{run_no}*.h5")),
         key=_h5_file_order_key,
     )
+    if live:
+        # The FLASH DAQ publishes a raw file once it is closed; skip any
+        # file touched in the last live_min_age s in case it is still landing.
+        fresh = [p for p in h5_paths if time.time() - os.path.getmtime(p) < live_min_age]
+        h5_paths = [p for p in h5_paths if p not in fresh]
+        if fresh:
+            print(f"live: skipping {len(fresh)} raw H5 file(s) modified < {live_min_age} s ago.")
     if not h5_paths:
         raise ValueError(f"No raw H5 files for run {run_no} in {h5_folder}")
     print(f"Found {len(h5_paths)} raw H5 files for run {run_no}.")
 
+    # --- TDC iterator (decodes the first .lst now) ---------------------
+    # In live mode the .lst files are decoded from read-only snapshots in a
+    # private temporary folder; the originals are opened once, O_RDONLY.
+    tdc_it = None
+    if has_tdc:
+        decode_fpaths = tdc_fpaths
+        if live:
+            snap_dir = tempfile.mkdtemp(prefix="write_h5_lst_")
+            atexit.register(shutil.rmtree, snap_dir, ignore_errors=True)
+            decode_fpaths = _snapshot_readonly(tdc_fpaths, snap_dir)
+            sizes = [os.path.getsize(p) / 1e6 for p in decode_fpaths]
+            print(f"live: read-only snapshot of {len(decode_fpaths)} .lst file(s) "
+                  f"({sum(sizes):.1f} MB) in {snap_dir}")
+        tdc_it = TDCIterator(decode_fpaths, config=config_no,
+                             drop_last_trains=live_margin if live else 0)
+
     # --- Determine train-ID range of the measurement -------------------
-    first_tID = int(extract_sdu_data_from_single_file(sdu_fpaths[0])[0][0])
-    last_tID  = int(extract_sdu_data_from_single_file(sdu_fpaths[-1])[0][-1])
+    if use_sdu:
+        first_tID = int(extract_sdu_data_from_single_file(sdu_fpaths[0])[0][0])
+        last_tID  = int(extract_sdu_data_from_single_file(sdu_fpaths[-1])[0][-1])
+    else:
+        # First TDC train to the last train of the raw files; the loop also
+        # stops when the TDC runs out.
+        first_tID = int(tdc_it.trainIDs_tdc[0])
+        with h5.File(h5_paths[-1], "r") as f:
+            last_tID = int(np.max(f[_GMD_INDEX][...]))
+    if first_tid is not None:
+        first_tID = max(first_tID, int(first_tid))
+    if last_tid is not None:
+        last_tID = min(last_tID, int(last_tid))
+    if last_tID < first_tID:
+        raise ValueError(f"Empty train range: {first_tID} .. {last_tID}.")
     print(f"Measurement spans train IDs {first_tID} .. {last_tID} ({last_tID - first_tID + 1} trains).")
 
     # --- Find the first raw H5 file whose train range overlaps ---------
@@ -1523,9 +1628,8 @@ def main(config_no, measurement_name, run_no, output_path=None,
     print(f"chunk_size    : {chunk_size}")
 
     # --- Iterators -----------------------------------------------------
-    sdu_it     = SDUIterator(sdu_fpaths)
-    tdc_it     = TDCIterator(tdc_fpaths, config=config_no) if has_tdc else None
-    gmd_it     = h5Iterator(h5_paths[first_h5_idx:], [_GMD_INDEX, _GMD_VALUE])
+    sdu_it     = SDUIterator(sdu_fpaths) if use_sdu else None
+    gmd_it    = h5Iterator(h5_paths[first_h5_idx:], [_GMD_INDEX, _GMD_VALUE])
     mpe_it     = h5Iterator(h5_paths[first_h5_idx:], [_MPE_INDEX, _MPE_VALUE])
     hor_pos_it = h5Iterator(h5_paths[first_h5_idx:], [_HOR_INDEX, _HOR_VALUE])
     ver_pos_it = h5Iterator(h5_paths[first_h5_idx:], [_VER_INDEX, _VER_VALUE])
@@ -1562,15 +1666,23 @@ def main(config_no, measurement_name, run_no, output_path=None,
         next_tID_shutter = last_tID + 1
         next_shutter = None
 
-    next_tID_z, next_z, next_z_std = sdu_it.__next__()
+    if use_sdu:
+        next_tID_z, next_z, next_z_std = sdu_it.__next__()
+        while next_tID_z < first_tID:          # only with first_tid
+            next_tID_z, next_z, next_z_std = sdu_it.__next__()
     if has_tdc:
-        if config_no == 1:
-            (next_tID_tdc,
-             next_eventcounts_e, next_tofs_e,
-             next_eventcounts_i, next_tofs_i) = tdc_it.__next__()
-        else:
-            (next_tID_tdc,
-             next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
+        # Also skips TDC trains before first_tID (first_tid, or a TDC that
+        # started before the SDU).
+        while True:
+            if config_no == 1:
+                (next_tID_tdc,
+                 next_eventcounts_e, next_tofs_e,
+                 next_eventcounts_i, next_tofs_i) = tdc_it.__next__()
+            else:
+                (next_tID_tdc,
+                 next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
+            if next_tID_tdc >= first_tID:
+                break
 
     # --- Output H5 layout (schema + legacy extras) ---------------------
     # One row per train in [first_tID, last_tID]; trimmed after the loop
@@ -1655,6 +1767,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
         bunch_edges = np.arange(train_length + 1, dtype=np.float64) * folding_parameter
 
         # --- Main alignment loop --------------------------------------
+        stop_after_row = False
         for tID in range(first_tID, last_tID + 1):
 
             # ---- gmd (per-bunch) -----------------------------------
@@ -1773,7 +1886,12 @@ def main(config_no, measurement_name, run_no, output_path=None,
             # z / z_std are scalar per train; expand to a (train_length,)
             # array and NaN-fill the bunch slots beyond _data_n so VLS-
             # padded schemas don't carry stale broadcasts in those slots.
-            if tID < next_tID_z:
+            # Without SDU: z NaN; is_data is set from the TDC below.
+            if not use_sdu:
+                z = np.full(train_length, np.nan, dtype=np.float32)
+                z_std = np.full(train_length, np.nan, dtype=np.float32)
+                is_data = None
+            elif tID < next_tID_z:
                 z = np.full(train_length, np.nan, dtype=np.float32)
                 z_std = np.full(train_length, np.nan, dtype=np.float32)
                 is_data = False
@@ -1805,7 +1923,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
                     tofs_e = None
                     tofs_i = None
                     between_tdc_files = tdc_it.is_between_files()
+                    is_data = False if is_data is None else is_data
                 elif tID == next_tID_tdc:
+                    is_data = True if is_data is None else is_data
                     tofs_e_raw = next_tofs_e
                     tofs_i_raw = next_tofs_i
                     # Sorted within a sweep -> bunch boundaries via two
@@ -1824,7 +1944,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
                          next_eventcounts_i, next_tofs_i) = tdc_it.__next__()
                     except StopIteration:
                         print(f"Stopped by TDC on tID {next_tID_tdc}")
-                        break
+                        if use_sdu:
+                            break
+                        stop_after_row = True   # TDC defines the trains: keep this last one
                 else:
                     raise ValueError(f"TDC overshot: tID={tID}, next={next_tID_tdc}")
 
@@ -1849,7 +1971,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
                 elif tID < next_tID_tdc:
                     liq_tofs_e = None
                     between_tdc_files = tdc_it.is_between_files()
+                    is_data = False if is_data is None else is_data
                 elif tID == next_tID_tdc:
+                    is_data = True if is_data is None else is_data
                     liq_raw = next_tofs_le
                     liq_tofs_e = _fold_into_bunches(
                         liq_raw, train_length, folding_parameter, bunch_edges,
@@ -1860,7 +1984,9 @@ def main(config_no, measurement_name, run_no, output_path=None,
                          next_eventcounts_le, next_tofs_le) = tdc_it.__next__()
                     except StopIteration:
                         print(f"Stopped by TDC on tID {next_tID_tdc}")
-                        break
+                        if use_sdu:
+                            break
+                        stop_after_row = True
                 else:
                     raise ValueError(f"TDC overshot: tID={tID}, next={next_tID_tdc}")
 
@@ -1874,6 +2000,8 @@ def main(config_no, measurement_name, run_no, output_path=None,
 
             if tID % 1000 == 0:
                 print(f"  tID {tID}  ({tID - first_tID}/{last_tID - first_tID})")
+            if stop_after_row:
+                break
 
         if config_no == 1:
             chunk.finish(
@@ -1891,6 +2019,20 @@ def main(config_no, measurement_name, run_no, output_path=None,
         for dset in f_out.values():
             dset.resize(n_rows, axis=0)
 
+        # Nominal photon energy per train from the undulator set wavelength.
+        # Records from every file of the run (also those before the
+        # measurement starts, which hold the setting in force at its start).
+        nominal_energy, n_records = data_loading.read_nominal_energy(h5_paths, tID_dset[...])
+        ne_dset = f_out.create_dataset("nominal_energy", data=nominal_energy, maxshape=(None,))
+        ne_dset.attrs.update(data_loading.NOMINAL_ENERGY_ATTRS)
+        if n_records:
+            steps = np.unique(nominal_energy[np.isfinite(nominal_energy)].round(3))
+            print(f"nominal_energy : {n_records} set-wavelength records; "
+                  f"{len(steps)} values, {steps.min() if len(steps) else np.nan:.2f}-"
+                  f"{steps.max() if len(steps) else np.nan:.2f} eV")
+        else:
+            print("nominal_energy : no set-wavelength records in raw H5; NaN.")
+
     # --- Completion summary ----------------------------------------
     print(f"\n=== {output_path.name} written successfully ===")
     n_skipped_total = sum(n_skipped_overlap.values())
@@ -1903,6 +2045,10 @@ def main(config_no, measurement_name, run_no, output_path=None,
         n_bunches = f_out["gmd"].shape[1]
         print(f"Trains written  : {n_trains}")
         print(f"Bunches/train   : {n_bunches}")
+        if n_trains:
+            t = f_out["tID"][[0, -1]]
+            print(f"Train IDs       : {int(t[0])} .. {int(t[1])} "
+                  f"({(t[1] - t[0]) / 10 / 60:.1f} min at 10 Hz)")
         print("Datasets:")
         for k in sorted(f_out.keys()):
             d = f_out[k]
@@ -1924,6 +2070,10 @@ if __name__ == "__main__":
             "  python write_h5.py 'energy_scan*' 1 60513 -o energy_scans.h5\n"
             "    (quote the pattern to stop the shell expanding it; matches\n"
             "     energy_scan1, energy_scan2, ... in both SDU and TDC dirs)\n"
+            "  python write_h5.py Ethanol_undulator_scan_2808016357 1 60560 --live \\\n"
+            "      --first-tid 2808060000 -o run60560_part.h5\n"
+            "    (run still acquiring: read-only .lst snapshot, no SDU .txt needed,\n"
+            "     only trains from 2808060000 on)\n"
         ),
     )
     parser.add_argument("measurement_name", type=str,
@@ -1963,6 +2113,19 @@ if __name__ == "__main__":
                         help="Width of the Gotthard VLS pixel axis.")
     parser.add_argument("--folding-parameter", type=float, default=39876.9,
                         help="TOF range (100 ps) used to split sweep events into per-bunch lists.")
+    parser.add_argument("--no-sdu", action="store_true",
+                        help="Ignore the SDU .txt (no delay scan): trains from the TDC, z NaN. "
+                             "Also used automatically when there is no .txt.")
+    parser.add_argument("--live", action="store_true",
+                        help="Measurement still running: decode read-only snapshots of the .lst "
+                             "files, drop the last --live-margin TDC trains, skip raw H5 files "
+                             "modified in the last 2 minutes.")
+    parser.add_argument("--live-margin", type=int, default=50,
+                        help="Trains dropped from the end of the TDC data with --live (default 50).")
+    parser.add_argument("--first-tid", type=int, default=None,
+                        help="First train ID written (default: start of the measurement).")
+    parser.add_argument("--last-tid", type=int, default=None,
+                        help="Last train ID written (default: end of the data).")
     args = parser.parse_args()
     out_path = Path(args.output) if args.output else None
     main(
@@ -1979,4 +2142,9 @@ if __name__ == "__main__":
         data_bunches=args.data_bunches,
         vls=args.vls,
         vls_offset=args.vls_offset,
+        no_sdu=args.no_sdu,
+        live=args.live,
+        live_margin=args.live_margin,
+        first_tid=args.first_tid,
+        last_tid=args.last_tid,
     )

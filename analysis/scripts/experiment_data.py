@@ -81,6 +81,10 @@ class ExperimentData:
         to a scalar via nanmean by ``write_h5.py``), shape (n,).
         ``None`` for combined H5 files written before shutter was added
         to the schema.
+    nominal_energy : np.ndarray, optional
+        Per-train nominal photon energy (eV) from the undulator set
+        wavelength, shape (n,). NaN where no recent record exists;
+        ``None`` for combined H5 files written before it was added.
     vls_pixel_ax : np.ndarray, optional
         Source-pixel indices for the VLS pixel axis. ``None`` means no
         cropping has been applied (use ``np.arange(vls.shape[-1])``).
@@ -122,6 +126,7 @@ class ExperimentData:
     liq_tofs_e: Optional[np.ndarray] = field(default=None)
     vls: Optional[np.ndarray] = field(default=None)
     shutter: Optional[np.ndarray] = field(default=None)
+    nominal_energy: Optional[np.ndarray] = field(default=None)
     vls_pixel_ax: Optional[np.ndarray] = field(default=None)
     vls_sums: Optional[np.ndarray] = field(default=None)
     vls_coms: Optional[np.ndarray] = field(default=None)
@@ -493,6 +498,7 @@ class ExperimentData:
             tID=self.tID[sl],
             mpe=self.mpe[sl],
             shutter=_1d(self.shutter),
+            nominal_energy=_1d(self.nominal_energy),
             between_tdc_files=self.between_tdc_files[sl],
             gmd=self.gmd[sl, :],
             z=self.z[sl, :],
@@ -701,6 +707,7 @@ class ExperimentData:
             tID=self.tID[keep],
             mpe=self.mpe[keep],
             shutter=_1d(self.shutter),
+            nominal_energy=_1d(self.nominal_energy),
             between_tdc_files=self.between_tdc_files[keep],
             gmd=self.gmd[keep, :],
             z=self.z[keep, :],

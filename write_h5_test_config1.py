@@ -145,7 +145,7 @@ def main() -> None:
 
     # --- Iterators ------------------------------------------------------
     sdu_it = SDUIterator(sdu_fpaths)
-    tdc_it = TDCIterator(tdc_fpaths)
+    tdc_it = TDCIterator(tdc_fpaths, channel_e=1, channel_i=2)   # 11022188 cabling (this beamtime: 2 / 1)
 
     # Each h5Iterator pulls (index, value) pairs row-by-row from the raw H5.
     # The 8-channel axis on "Pulse resolved energy" is *not* 8 detector
