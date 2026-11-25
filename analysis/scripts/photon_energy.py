@@ -34,7 +34,7 @@ raw route serves combined files written without VLS (``--no-vls``, e.g.
 live writes of a long run) and gives the same numbers.
 
 CLI:
-    python photon_energy.py COMBINED.h5 [--raw-run N] [--overwrite] [--roi LO HI] ...
+    python photon_energy.py COMBINED.h5 [--raw-run N] [--workers N] [--overwrite] [--roi LO HI] ...
 """
 
 from __future__ import annotations
@@ -119,11 +119,64 @@ def _iter_vls(f, tid, m, block, raw_paths, vls_offset, rows=None):
                 yield r_hit[i:i + block], frames
 
 
-def measure_photon_energy(h5_path, *, block=100, verbose=True, raw_run=None, vls_offset=None,
+def _pe_dark(task):
+    """Worker: sum and finite count of the dark-slot frames of ``task["rows"]`` (pedestal pass)."""
+    tot = cnt = None
+    with h5py.File(task["h5_path"], "r") as f:
+        for _, x in _iter_vls(f, task["tid"], task["m"], task["block"], task["raw_paths"], task["vls_offset"],
+                              rows=task["rows"]):
+            d = x[:, task["dark_slot"], :].astype(np.float64)
+            if tot is None:
+                tot, cnt = np.zeros(d.shape[1]), np.zeros(d.shape[1])
+            tot += np.nansum(d, axis=0)
+            cnt += np.isfinite(d).sum(axis=0)
+    return tot, cnt
+
+
+def _pe_part(task):
+    """
+    Worker: per-shot peak centres and window sums, and per-step sums of the
+    spectra, for the rows ``task["rows"]`` (ascending) of the combined file.
+    """
+    rows, m, px, bg, ped = task["rows"], task["m"], task["px"], task["bg"], task["ped"]
+    centre = np.full((len(rows), m), np.nan, np.float32)
+    win = np.full((len(rows), m), np.nan, np.float32)
+    spec_sum = np.zeros((task["n_steps"], len(px)))
+    spec_n = np.zeros(task["n_steps"])
+    with h5py.File(task["h5_path"], "r") as f:
+        for r, x in _iter_vls(f, task["tid"], m, task["block"], task["raw_paths"], task["vls_offset"], rows=rows):
+            loc = np.searchsorted(rows, r)
+            frame = np.isfinite(x[:, :, px[0]])
+            cm = np.median(x[:, :, bg] - ped[bg], axis=-1, keepdims=True)
+            x = x[:, :, px] - ped[px] - cm
+            c, sm = _centre(x, px, task["smooth"], task["half_width"])
+            centre[loc] = np.where(frame, c, np.nan)
+            win[loc] = np.where(frame, sm, np.nan)
+            lit = frame & np.isfinite(task["gmd"][loc])
+            st = task["step_of"][loc]
+            for k in np.unique(st):
+                if k < 0:
+                    continue
+                mk = lit & (st == k)[:, None]
+                spec_sum[k] += x[mk].sum(axis=0)
+                spec_n[k] += mk.sum()
+    return dict(rows=rows, centre=centre, win=win, spec_sum=spec_sum, spec_n=spec_n)
+
+
+def _map(fn, tasks, workers, log):
+    """Results of fn over tasks: in-process for one worker, else spawned processes (compute_aggregates._pool_map)."""
+    if workers <= 1 or len(tasks) == 1:
+        return [fn(t) for t in tasks]
+    from compute_aggregates import _pool_map
+    return list(_pool_map(fn, tasks, log))
+
+
+def measure_photon_energy(h5_path, *, block=100, verbose=True, raw_run=None, vls_offset=None, workers=1,
                           **params) -> dict:
     """
     Stream the VLS of a combined H5 (or, with ``raw_run``, of that run's raw
     files) and return per-shot centres, energies and the calibration.
+    ``workers`` > 1 splits the trains over that many processes.
     """
     p = {**DEFAULTS, **params}
     log = print if verbose else (lambda *a, **k: None)
@@ -160,33 +213,29 @@ def measure_photon_energy(h5_path, *, block=100, verbose=True, raw_run=None, vls
         step_of = np.full(n, -1)
         step_of[settled] = np.searchsorted(steps, E_nom[settled])
 
-        ped_rows = np.arange(0, n, 10)
-        dark_frames = None
-        for r, x in _iter_vls(f, tid, m, block, raw_paths, vls_offset, rows=ped_rows):
-            if dark_frames is None:
-                dark_frames = np.full((len(ped_rows), x.shape[2]), np.nan, np.float32)
-            dark_frames[np.searchsorted(ped_rows, r)] = x[:, p["dark_slot"], :]
-        ped = np.nanmean(dark_frames, axis=0)
-        centre = np.full((n, m), np.nan, np.float32)
-        win = np.full((n, m), np.nan, np.float32)
-        spec_sum = np.zeros((len(steps), len(px)))
-        spec_n = np.zeros(len(steps))
-        log(f"{Path(h5_path).name}: {n} trains x {m} slots, {len(steps)} nominal steps; "
-            f"streaming the VLS from {source}...")
-        for rows, x in _iter_vls(f, tid, m, block, raw_paths, vls_offset):
-            frame = np.isfinite(x[:, :, px[0]])
-            cm = np.median(x[:, :, bg] - ped[bg], axis=-1, keepdims=True)
-            x = x[:, :, px] - ped[px] - cm
-            c, s = _centre(x, px, p["smooth"], p["half_width"])
-            centre[rows] = np.where(frame, c, np.nan)
-            win[rows] = np.where(frame, s, np.nan)
-            lit = frame & np.isfinite(gmd[rows])
-            for k in np.unique(step_of[rows]):
-                if k < 0:
-                    continue
-                mk = lit & (step_of[rows] == k)[:, None]
-                spec_sum[k] += x[mk].sum(axis=0)
-                spec_n[k] += mk.sum()
+    # Pedestal (dark slot, every 10th train), then the per-shot pass; each split over the workers
+    workers = max(1, int(workers))
+    common = dict(h5_path=str(h5_path), tid=tid, m=m, block=block, raw_paths=raw_paths, vls_offset=vls_offset)
+    ped_rows = np.arange(0, n, 10)
+    parts = _map(_pe_dark, [dict(common, rows=r, dark_slot=p["dark_slot"])
+                            for r in np.array_split(ped_rows, workers) if len(r)], workers, log)
+    tot = sum(t for t, _ in parts if t is not None)
+    cnt = sum(c for _, c in parts if c is not None)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        ped = np.where(cnt > 0, tot / cnt, np.nan)
+    log(f"{Path(h5_path).name}: {n} trains x {m} slots, {len(steps)} nominal steps; "
+        f"streaming the VLS from {source}" + (f" with {workers} workers" if workers > 1 else "") + "...")
+    tasks = [dict(common, rows=r, px=px, bg=bg, ped=ped, smooth=p["smooth"], half_width=p["half_width"],
+                  gmd=gmd[r], step_of=step_of[r], n_steps=len(steps))
+             for r in np.array_split(np.arange(n), workers) if len(r)]
+    centre = np.full((n, m), np.nan, np.float32)
+    win = np.full((n, m), np.nan, np.float32)
+    spec_sum = np.zeros((len(steps), len(px)))
+    spec_n = np.zeros(len(steps))
+    for res in _map(_pe_part, tasks, workers, log):
+        centre[res["rows"]], win[res["rows"]] = res["centre"], res["win"]
+        spec_sum += res["spec_sum"]
+        spec_n += res["spec_n"]
 
     dark = win[:, p["dark_slot"]][np.isfinite(win[:, p["dark_slot"]])].astype(np.float64)
     dark_med = float(np.median(dark))
@@ -254,10 +303,12 @@ def main(argv=None):
     ap.add_argument("--min-snr", type=float, default=DEFAULTS["min_snr"])
     ap.add_argument("--settle-trains", type=int, default=DEFAULTS["settle_trains"])
     ap.add_argument("--cal-order", type=int, default=DEFAULTS["cal_order"])
+    ap.add_argument("--workers", type=int, default=1, help="worker processes (default 1)")
     a = ap.parse_args(argv)
     res = measure_photon_energy(a.combined_h5, roi=tuple(a.roi), bg_pixels=tuple(a.bg_pixels),
                                 dark_slot=a.dark_slot, min_snr=a.min_snr, settle_trains=a.settle_trains,
-                                cal_order=a.cal_order, raw_run=a.raw_run, vls_offset=a.vls_offset)
+                                cal_order=a.cal_order, raw_run=a.raw_run, vls_offset=a.vls_offset,
+                                workers=a.workers)
     save_photon_energy(a.combined_h5, res, overwrite=a.overwrite)
     print(f"wrote {GROUP}/ into {a.combined_h5}")
 

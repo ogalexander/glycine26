@@ -32,6 +32,16 @@ A Python module exposing the module-level names below. Example file:
                   (equal shot counts per GMD bin overall)
     GMD_MIN     : float, optional - with GMD_PERCENTILE_BINS, shots below
                   this GMD (noise floor, negative readings) are left out
+    VLS_CROP_ROI : (lo, hi), config 1 - also aggregate the VLS (A, AtA,
+                  AtD, AtC, AtG) over this half-open pixel range. Per shot:
+                  minus the background (VLS_BACKGROUND, default the mean of
+                  the dark bunch slot 100 = {"type": "auto", "roi": (100, 101)},
+                  over every VLS_BG_STRIDE-th kept train), minus the median
+                  over VLS_CM_PIXELS (common mode, optional), VLS_BAD_PIXELS
+                  set to 0, then cropped. Shots without a frame are skipped.
+                  VLS_RAW_RUN = N reads the frames from run N's raw files
+                  (combined files written without VLS; VLS_OFFSET as in
+                  write_h5.py, default config.VLS_OFFSET).
     MODE        : "spectral" (default) | "time_resolved" (Z_EDGES) |
                   "energy" (config 1: bins on a per-shot photon energy,
                   ENERGY_EDGES, read from ENERGY_KEY in the input H5,
@@ -45,6 +55,7 @@ A Python module exposing the module-level names below. Example file:
     MAX_HITS_I  : same for ion hits (config 1; optional)
     TRIM_START  : trains trimmed from the start (optional, 0)
     TRIM_END    : trains trimmed from the end   (optional, 0)
+    WORKERS     : config 1, worker processes (optional, 1; --workers on the CLI overrides)
     OUTPUT_SUFFIX : str appended to the default output filename
                     (optional, default ""). Inserted before ".h5", so
                     a value of "_v2" turns the default
@@ -122,6 +133,9 @@ class AggregatesData:
         DtC  (N_GMD[, N_Z], n_tof, n_tof_i)
         DtG  (N_GMD[, N_Z], n_tof)
         CtG  (N_GMD[, N_Z], n_tof_i)
+      plus, with VLS_CROP_ROI, the VLS (A = cropped, background-subtracted
+      Gotthard spectrum): A, AtA, AtD, AtC (n_pixels, n_tof_i), AtG,
+      vls_pixels, background.
 
     Both configs always populate the GMD aggregates and bookkeeping:
         G          (per-bin mean GMD, scalar per bin)
@@ -165,6 +179,7 @@ class AggregatesData:
     AtA: Optional[np.ndarray] = None
     AtD: Optional[np.ndarray] = None
     AtG: Optional[np.ndarray] = None
+    AtC: Optional[np.ndarray] = None          # config 1 with VLS
     vls_pixels: Optional[np.ndarray] = None
     background: Optional[np.ndarray] = None
     # Config 1 only.
@@ -303,6 +318,7 @@ def load_aggregates(path: Union[str, Path]) -> AggregatesData:
             AtA=_opt("AtA"),
             AtD=_opt("AtD"),
             AtG=_opt("AtG"),
+            AtC=_opt("AtC"),
             vls_pixels=_opt("vls_pixels"),
             background=_opt("background"),
             # config 1
@@ -450,6 +466,282 @@ def _verify_h5_for_config(f: h5py.File, config: int) -> None:
               f"{sorted(wrong)}; ignoring those datasets.")
 
 
+# ----------------------------------------------------------------------
+# Config 1: sparse accumulation (hit lists), optionally in worker processes
+# ----------------------------------------------------------------------
+
+def _hit_list(tofs, edges):
+    """
+    Shot index (row-major over the first two axes) and bin of every hit of a
+    zero-padded ``(n, m, max_hits)`` TOF block that falls inside ``edges``,
+    with the bin rules of ``np.histogram2d`` (``[e_i, e_i+1)``, last bin
+    closed). Shot indices come out ascending.
+    """
+    m = tofs.shape[1]
+    nz = np.nonzero(tofs)
+    t = tofs[nz].astype(np.float64)
+    j = np.searchsorted(edges, t, side="right") - 1
+    j[t == edges[-1]] = len(edges) - 2
+    inside = (j >= 0) & (j < len(edges) - 1)
+    return (nz[0] * m + nz[1])[inside], j[inside]
+
+
+def _pairs_within_shot(qa, qb):
+    """
+    Indices (ia, ib) of every pair of an a-hit and a b-hit in the same shot
+    (``qa``, ``qb`` ascending shot indices; self-pairs included when a and b
+    are the same list).
+    """
+    if len(qa) == 0 or len(qb) == 0:
+        return np.zeros(0, np.int64), np.zeros(0, np.int64)
+    uq, b_start, b_cnt = np.unique(qb, return_index=True, return_counts=True)
+    pos = np.searchsorted(uq, qa)
+    pos_c = np.minimum(pos, len(uq) - 1)
+    a_idx = np.flatnonzero((pos < len(uq)) & (uq[pos_c] == qa))
+    cnt = b_cnt[pos_c[a_idx]]
+    ia = np.repeat(a_idx, cnt)
+    offs = np.arange(cnt.sum()) - np.repeat(np.cumsum(cnt) - cnt, cnt)
+    ib = np.repeat(b_start[pos_c[a_idx]], cnt) + offs
+    return ia, ib
+
+
+def _group_sum(keys, rows):
+    """Sum the rows of ``rows`` per distinct key: (unique keys, (n_keys, ...) sums)."""
+    o = np.argsort(keys, kind="stable")
+    uk, st = np.unique(keys[o], return_index=True)
+    return uk, np.add.reduceat(rows[o], st, axis=0)
+
+
+def _vls_preprocess_block(x, b0, b1, roi_min, roi_max, ped, cm_px, bad_in_roi):
+    """(n, m, n_px) raw frames -> (n, b1-b0, n_roi) float64 spectra and frame flags (as in compute_aggregates)."""
+    x = x[:, b0:b1]
+    ok = np.isfinite(x[:, :, roi_min])
+    a = x[:, :, roi_min:roi_max].astype(np.float64) - ped[roi_min:roi_max]
+    if cm_px is not None:
+        a -= np.median(x[:, :, cm_px] - ped[cm_px], axis=-1, keepdims=True)
+    a[..., bad_in_roi] = 0.0
+    a[~ok] = 0.0
+    return a, ok
+
+
+def _accumulate_cfg1(task):
+    """
+    Worker: config-1 sums over the chunks ``task["chunks"]`` of
+    ``task["input_h5"]``. D / C enter as hit lists, so every hit product is a
+    scatter-add of the hits (pairs) actually present; only the VLS products
+    ``AtA`` stay dense. Returns the sums (not means) and the skip counters.
+    """
+    import h5py as _h5py
+    p = task
+    n_cells, n_tof, n_tof_i = p["n_cells"], p["n_tof"], p["n_tof_i"]
+    vls_on, n_px = p["vls_on"], p["n_pixels"]
+    out = {"n": np.zeros(n_cells, np.int64), "G": np.zeros(n_cells), "GtG": np.zeros(n_cells),
+           "D": np.zeros(n_cells * n_tof), "DtG": np.zeros(n_cells * n_tof),
+           "DtD": np.zeros(n_cells * n_tof * n_tof),
+           "C": np.zeros(n_cells * n_tof_i), "CtG": np.zeros(n_cells * n_tof_i),
+           "CtC": np.zeros(n_cells * n_tof_i * n_tof_i), "DtC": np.zeros(n_cells * n_tof * n_tof_i)}
+    if vls_on:
+        out.update(A=np.zeros((n_cells, n_px)), AtG=np.zeros((n_cells, n_px)),
+                   AtA=np.zeros((n_cells, n_px, n_px)), AtD=np.zeros((n_cells, n_px, n_tof)),
+                   AtC=np.zeros((n_cells, n_px, n_tof_i)))
+    cnt = dict.fromkeys(("gmd_nan", "gmd_oor", "max_hits", "z_nan", "z_oor", "e_nan", "e_oor", "vls"), 0)
+    b0, b1 = p["b0"], p["b1"]
+    mode, n_gmd = p["mode"], p["n_gmd"]
+    keep_mask = p["keep_mask"]
+    reader = None
+    with _h5py.File(p["input_h5"], "r") as f:
+        if vls_on and p["vls_raw_run"] is not None:
+            import data_loading
+            reader = data_loading.RawVLSReader(p["vls_raw_run"], f["tID"][...], f["gmd"].shape[1],
+                                               vls_offset=p["vls_offset"])
+        for s, e in p["chunks"]:
+            sub = keep_mask[s:e]
+            if not sub.any():
+                continue
+            gmd_block = f["gmd"][s:e, b0:b1][sub]
+            te = f["tofs_e"][s:e, b0:b1][sub]
+            ti = f["tofs_i"][s:e, b0:b1][sub]
+            if mode == "time_resolved":
+                z_block = f["z"][s:e, b0:b1][sub]
+            if mode == "energy":
+                e_block = f[p["energy_key"]][s:e, b0:b1][sub]
+            if vls_on:
+                rows = np.arange(s, e)[sub]
+                if reader is not None:
+                    frames = reader.read(rows)
+                elif rows[-1] - rows[0] + 1 == len(rows):
+                    frames = f["vls"][rows[0]:rows[-1] + 1]
+                else:
+                    frames = f["vls"][rows]
+                A_block, vls_ok = _vls_preprocess_block(frames, b0, b1, p["roi_min"], p["roi_max"],
+                                                        p["vls_ped"], p["cm_px"], p["bad_in_roi"])
+                del frames
+
+            # per-shot cell and validity (same rules as the dense loop)
+            g = gmd_block.ravel()
+            gbin = np.digitize(g, p["gmd_edges"]) - 1
+            gnan = ~np.isfinite(g)
+            goor = ~gnan & ((gbin < 0) | (gbin >= n_gmd))
+            valid = ~gnan & ~goor
+            cnt["gmd_nan"] += int(gnan.sum())
+            cnt["gmd_oor"] += int(goor.sum())
+            too_many = np.zeros_like(valid)
+            if p["max_hits_e"] is not None:
+                too_many |= (te != 0).sum(axis=-1).ravel() > int(p["max_hits_e"])
+            if p["max_hits_i"] is not None:
+                too_many |= (ti != 0).sum(axis=-1).ravel() > int(p["max_hits_i"])
+            cnt["max_hits"] += int((too_many & valid).sum())
+            valid &= ~too_many
+            if vls_on:
+                cnt["vls"] += int((valid & ~vls_ok.ravel()).sum())
+                valid &= vls_ok.ravel()
+            if mode == "spectral":
+                cell = gbin
+            elif mode == "energy":
+                ev = e_block.ravel()
+                ebin = np.digitize(ev, p["e_edges"]) - 1
+                enan = ~np.isfinite(ev)
+                eoor = ~enan & ((ebin < 0) | (ebin >= p["n_e"]))
+                cnt["e_nan"] += int((enan & valid).sum())
+                cnt["e_oor"] += int((eoor & valid).sum())
+                valid &= ~enan & ~eoor
+                cell = ebin * n_gmd + gbin
+            else:
+                zv = z_block.ravel()
+                zbin = np.digitize(zv, p["z_edges"]) - 1
+                znan = ~np.isfinite(zv)
+                zoor = ~znan & ((zbin < 0) | (zbin >= p["n_z"]))
+                cnt["z_nan"] += int(znan.sum())
+                cnt["z_oor"] += int(zoor.sum())
+                valid &= ~znan & ~zoor
+                cell = gbin * p["n_z"] + zbin
+
+            # shots
+            vq = np.flatnonzero(valid)
+            cv, gv = cell[vq], g[vq]
+            np.add.at(out["n"], cv, 1)
+            np.add.at(out["G"], cv, gv)
+            np.add.at(out["GtG"], cv, gv * gv)
+
+            # hits of valid shots
+            qe, je = _hit_list(te, p["tof_edges"])
+            qi, ji = _hit_list(ti, p["ion_tof_edges"])
+            ke, ki = valid[qe], valid[qi]
+            qe, je, qi, ji = qe[ke], je[ke], qi[ki], ji[ki]
+            ce, ci = cell[qe], cell[qi]
+            np.add.at(out["D"], ce * n_tof + je, 1.0)
+            np.add.at(out["DtG"], ce * n_tof + je, g[qe])
+            np.add.at(out["C"], ci * n_tof_i + ji, 1.0)
+            np.add.at(out["CtG"], ci * n_tof_i + ji, g[qi])
+            a, b = _pairs_within_shot(qe, qe)
+            np.add.at(out["DtD"], (ce[a] * n_tof + je[a]) * n_tof + je[b], 1.0)
+            a, b = _pairs_within_shot(qi, qi)
+            np.add.at(out["CtC"], (ci[a] * n_tof_i + ji[a]) * n_tof_i + ji[b], 1.0)
+            a, b = _pairs_within_shot(qe, qi)
+            np.add.at(out["DtC"], (ce[a] * n_tof + je[a]) * n_tof_i + ji[b], 1.0)
+
+            if vls_on:
+                A_flat = A_block.reshape(-1, n_px)
+                o = vq[np.argsort(cv, kind="stable")]
+                cells_p, st = np.unique(cell[o], return_index=True)
+                en = np.r_[st[1:], len(o)]
+                A_s = A_flat[o]
+                out["A"][cells_p] += np.add.reduceat(A_s, st, axis=0)
+                out["AtG"][cells_p] += np.add.reduceat(A_s * g[o][:, None], st, axis=0)
+                for c_, a0, a1 in zip(cells_p, st, en):
+                    blk = A_s[a0:a1]
+                    out["AtA"][c_] += blk.T @ blk
+                if len(qe):
+                    uk, R = _group_sum(ce * n_tof + je, A_flat[qe])
+                    out["AtD"][uk // n_tof, :, uk % n_tof] += R
+                if len(qi):
+                    uk, R = _group_sum(ci * n_tof_i + ji, A_flat[qi])
+                    out["AtC"][uk // n_tof_i, :, uk % n_tof_i] += R
+    if reader is not None:
+        reader.close()
+    out["counters"] = cnt
+    return out
+
+
+def _pedestal_part(task):
+    """Worker: sum and finite count over bunch slots [bg0, bg1) of the VLS frames of ``task["rows"]``."""
+    import h5py as _h5py
+    rows, bg0, bg1, chunk = task["rows"], task["bg0"], task["bg1"], task["chunk"]
+    with _h5py.File(task["input_h5"], "r") as f:
+        reader = None
+        if task["vls_raw_run"] is not None:
+            import data_loading
+            reader = data_loading.RawVLSReader(task["vls_raw_run"], f["tID"][...], f["gmd"].shape[1],
+                                               vls_offset=task["vls_offset"])
+        tot = cnt = None
+        for i in range(0, len(rows), chunk):
+            r = rows[i:i + chunk]
+            x = reader.read(r) if reader is not None else f["vls"][r]
+            x = x[:, bg0:bg1].reshape(-1, x.shape[-1])
+            if tot is None:
+                tot, cnt = np.zeros(x.shape[-1]), np.zeros(x.shape[-1])
+            tot += np.nansum(x, axis=0)
+            cnt += np.isfinite(x).sum(axis=0)
+        if reader is not None:
+            reader.close()
+    return tot, cnt
+
+
+def _pool_map(fn, tasks, log):
+    """
+    Run fn over tasks in spawned processes, BLAS threads split between them;
+    yields results as they finish. A worker that dies (e.g. one that cannot
+    import the caller's main module: run scripts from a file with an
+    ``if __name__ == "__main__":`` guard, not from stdin) raises
+    ``BrokenProcessPool`` instead of being respawned forever.
+    """
+    import os
+    import multiprocessing as mp
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    try:
+        n_cpu = len(os.sched_getaffinity(0))
+    except AttributeError:
+        n_cpu = os.cpu_count() or 1
+    threads = str(max(1, n_cpu // len(tasks)))
+    saved = {k: os.environ.get(k) for k in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS")}
+    for k in saved:
+        os.environ[k] = threads
+    log(f"workers            : {len(tasks)} processes x {threads} BLAS threads ({n_cpu} CPUs) - {fn.__name__}")
+    try:
+        with ProcessPoolExecutor(len(tasks), mp_context=mp.get_context("spawn")) as ex:
+            for fut in as_completed([ex.submit(fn, t) for t in tasks]):
+                yield fut.result()
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def _run_cfg1(task, chunks, workers, log):
+    """Split ``chunks`` over ``workers`` processes (spawn), run _accumulate_cfg1 and add the results."""
+    import os
+    workers = max(1, int(workers))
+    if workers == 1:
+        return _accumulate_cfg1(dict(task, chunks=chunks))
+    groups = [g for g in np.array_split(np.arange(len(chunks)), workers) if len(g)]
+    tasks = [dict(task, chunks=[chunks[i] for i in g]) for g in groups]
+    total = None
+    for k_done, res in enumerate(_pool_map(_accumulate_cfg1, tasks, log), 1):
+        if total is None:
+            total = res
+        else:
+            for k, v in res.items():
+                if k == "counters":
+                    for kk, vv in v.items():
+                        total["counters"][kk] += vv
+                else:
+                    total[k] += v
+        log(f"  worker {k_done}/{len(tasks)} done")
+    return total
+
+
 def compute_aggregates(
     input_h5: Union[str, Path],
     output_h5: Union[str, Path],
@@ -467,6 +759,14 @@ def compute_aggregates(
     energy_key: str = "photon_energy/measured",
     gmd_percentile_bins: Optional[int] = None,
     gmd_min: Optional[float] = None,
+    vls_crop_roi: Optional[Tuple[int, int]] = None,
+    vls_background: Optional[dict] = None,
+    vls_cm_pixels: Optional[Tuple[int, int]] = None,
+    vls_bad_pixels=None,
+    vls_raw_run: Optional[int] = None,
+    vls_offset: Optional[int] = None,
+    vls_bg_stride: int = 10,
+    workers: int = 1,
     chunk_size: int = 200,
     trim_start: int = 0,
     trim_end: int = 0,
@@ -532,6 +832,28 @@ def compute_aggregates(
         Required for ``mode = "energy"``: photon-energy bin edges (eV).
     energy_key : str
         Dataset holding the per-shot photon energy (energy mode).
+    vls_crop_roi : (int, int), optional
+        Config 1: also aggregate the VLS over this half-open pixel range
+        (``A``, ``AtA``, ``AtD``, ``AtC``, ``AtG``). Shots without a VLS
+        frame are then skipped for every aggregate.
+    vls_background : dict, optional
+        ``{"type": "auto", "roi": (s, e)}`` (mean over bunch slots
+        ``[s, e)`` of every ``vls_bg_stride``-th kept train, full pixel
+        width; default ``(100, 101)``, the dark slot) or
+        ``{"type": "none"}``.
+    vls_cm_pixels : (int, int), optional
+        Pixels whose per-shot median (after the background) is subtracted.
+    vls_bad_pixels : sequence of int, optional
+        Set to 0 after the subtraction.
+    vls_raw_run, vls_offset : int, optional
+        Read the frames from the raw files of this run instead of the
+        file's ``vls`` dataset (``data_loading.RawVLSReader``).
+    workers : int
+        Config 1: split the trains over this many processes (each reads its
+        own share of the frames and accumulates partial sums, which are
+        then added). Config 1 always accumulates from hit lists: every
+        product involving D or C is a scatter-add over the hits (pairs)
+        present, so only the VLS ``AtA`` needs dense products.
     config : int  (1 or 2)
     mode : {"spectral", "time_resolved"}
     tof_edges : array-like
@@ -583,6 +905,17 @@ def compute_aggregates(
         n_tof_i = len(ion_tof_edges) - 1
         n_pixels = None
         e_tof_key = "tofs_e"
+        if vls_crop_roi is not None:
+            roi_min, roi_max = int(vls_crop_roi[0]), int(vls_crop_roi[1])
+            n_pixels = roi_max - roi_min
+            bad = sorted({int(q) for q in (vls_bad_pixels or ())})
+            bad_in_roi = np.array([q - roi_min for q in bad if roi_min <= q < roi_max], dtype=int)
+            cm_px = (None if vls_cm_pixels is None else
+                     np.array([q for q in range(int(vls_cm_pixels[0]), int(vls_cm_pixels[1])) if q not in bad]))
+            if vls_background is None:
+                vls_background = {"type": "auto", "roi": (100, 101)}
+            elif isinstance(vls_background, (tuple, list)):
+                vls_background = {"type": "auto", "roi": tuple(vls_background)}
     elif config == 2:
         if tof_edges is None and mode == "spectral":
             raise ValueError("mode='spectral' (config=2) requires tof_edges")
@@ -625,6 +958,7 @@ def compute_aggregates(
         n_e = None
 
     log = print if verbose else (lambda *a, **k: None)
+    cfg1_vls = config == 1 and vls_crop_roi is not None
 
     with h5py.File(input_h5, "r") as f:
         _verify_h5_for_config(f, config)
@@ -672,6 +1006,67 @@ def compute_aggregates(
             log(f"energy bins        : {n_e} ({e_edges_arr[0]:.2f} .. {e_edges_arr[-1]:.2f} eV) from {energy_key}")
         if gmd_percentile_bins:
             log(f"GMD edges          : {int(gmd_percentile_bins)} percentile bins")
+
+        # --- config 1 VLS: frame source, background, preprocessing -------
+        vls_reader = None
+        if cfg1_vls:
+            if vls_raw_run is not None:
+                import data_loading
+                vls_reader = data_loading.RawVLSReader(vls_raw_run, f["tID"][...], m, vls_offset=vls_offset)
+                vls_source = (f"raw files of run {vls_raw_run} ({len(vls_reader.paths)}), "
+                              f"line b+{vls_reader.vls_offset} -> bunch b")
+                n_px_full = vls_reader.n_pixels
+            elif "vls" in f:
+                vls_source = "combined vls"
+                n_px_full = f["vls"].shape[2]
+            else:
+                raise RuntimeError("VLS_CROP_ROI is set but the file has no vls: set VLS_RAW_RUN")
+
+            def read_vls(rows):
+                rows = np.asarray(rows)
+                if vls_reader is not None:
+                    return vls_reader.read(rows)
+                if rows[-1] - rows[0] + 1 == len(rows):
+                    return f["vls"][rows[0]:rows[-1] + 1]
+                return f["vls"][rows]
+
+            if vls_background["type"] == "auto":
+                bg0, bg1 = (int(q) for q in vls_background["roi"])
+                ped_rows = np.flatnonzero(keep_mask)[::int(vls_bg_stride)]
+                ped_sum = np.zeros(n_px_full)
+                ped_n = np.zeros(n_px_full)
+                if workers > 1 and len(ped_rows) > workers:
+                    ptasks = [dict(input_h5=str(input_h5), rows=r, bg0=bg0, bg1=bg1, chunk=chunk_size,
+                                   vls_raw_run=vls_raw_run, vls_offset=vls_offset)
+                              for r in np.array_split(ped_rows, workers) if len(r)]
+                    for ps, pn in _pool_map(_pedestal_part, ptasks, log):
+                        ped_sum += ps
+                        ped_n += pn
+                else:
+                    for i in range(0, len(ped_rows), chunk_size):
+                        xb = read_vls(ped_rows[i:i + chunk_size])[:, bg0:bg1].reshape(-1, n_px_full)
+                        ped_sum += np.nansum(xb, axis=0)
+                        ped_n += np.isfinite(xb).sum(axis=0)
+                vls_ped = ped_sum / np.maximum(ped_n, 1)
+            elif vls_background["type"] == "none":
+                vls_ped = np.zeros(n_px_full)
+            else:
+                raise ValueError(f"config 1 VLS background must be 'auto' or 'none', got {vls_background!r}")
+
+            def vls_preprocess(x):
+                # (n, m, n_px_full) raw frames -> (n, b1-b0, n_pixels) float64 and frame flags
+                x = x[:, b0:b1]
+                ok = np.isfinite(x[:, :, roi_min])
+                a = x[:, :, roi_min:roi_max].astype(np.float64) - vls_ped[roi_min:roi_max]
+                if cm_px is not None:
+                    a -= np.median(x[:, :, cm_px] - vls_ped[cm_px], axis=-1, keepdims=True)
+                a[..., bad_in_roi] = 0.0
+                a[~ok] = 0.0
+                return a, ok
+
+            log(f"VLS                : {vls_source}; crop [{roi_min}, {roi_max}) = {n_pixels} pixels, "
+                f"background {vls_background}, common mode {vls_cm_pixels}, {len(bad_in_roi)} bad pixels in the crop"
+                + (f"; frames for {vls_reader.coverage:.1%} of the trains" if vls_reader is not None else ""))
 
         # --- resolve background (config 2 only) ------------------------
         background = None
@@ -733,6 +1128,12 @@ def compute_aggregates(
             CtC_sum = np.zeros(agg_prefix + (n_tof_i, n_tof_i),   dtype=np.float64)
             DtC_sum = np.zeros(agg_prefix + (n_tof, n_tof_i),     dtype=np.float64)
             CtG_sum = np.zeros(agg_prefix + (n_tof_i,),           dtype=np.float64)
+            if cfg1_vls:
+                A_sum   = np.zeros(agg_prefix + (n_pixels,),          dtype=np.float64)
+                AtA_sum = np.zeros(agg_prefix + (n_pixels, n_pixels), dtype=np.float64)
+                AtD_sum = np.zeros(agg_prefix + (n_pixels, n_tof),    dtype=np.float64)
+                AtC_sum = np.zeros(agg_prefix + (n_pixels, n_tof_i),  dtype=np.float64)
+                AtG_sum = np.zeros(agg_prefix + (n_pixels,),          dtype=np.float64)
 
         n_skipped_gmd_oor = 0
         n_skipped_gmd_nan = 0
@@ -741,9 +1142,50 @@ def compute_aggregates(
         n_skipped_z_nan   = 0
         n_skipped_e_oor   = 0
         n_skipped_e_nan   = 0
+        n_skipped_vls     = 0
 
-        log("accumulating...")
-        for s, e in _iter_chunks(n_total, chunk_size):
+        if config == 1:
+            log("accumulating (hit lists" + (", VLS" if cfg1_vls else "") + ")...")
+            task = dict(
+                input_h5=str(input_h5), keep_mask=keep_mask, b0=b0, b1=b1, mode=mode, n_gmd=n_gmd,
+                gmd_edges=gmd_edges, e_edges=e_edges_arr, n_e=n_e, z_edges=z_edges_arr, n_z=n_z,
+                energy_key=energy_key, n_cells=n_bins_total, n_tof=n_tof, n_tof_i=n_tof_i,
+                tof_edges=np.asarray(tof_edges, np.float64), ion_tof_edges=np.asarray(ion_tof_edges, np.float64),
+                max_hits_e=max_hits_e, max_hits_i=max_hits_i, vls_on=cfg1_vls, n_pixels=n_pixels,
+                vls_raw_run=vls_raw_run, vls_offset=vls_offset,
+                roi_min=roi_min if cfg1_vls else None, roi_max=roi_max if cfg1_vls else None,
+                vls_ped=vls_ped if cfg1_vls else None, cm_px=cm_px if cfg1_vls else None,
+                bad_in_roi=bad_in_roi if cfg1_vls else None,
+            )
+            chunks = [(cs, ce) for cs, ce in _iter_chunks(n_total, chunk_size) if keep_mask[cs:ce].any()]
+            res = _run_cfg1(task, chunks, workers, log)
+            shp = agg_prefix
+            n_per_bin[...] = res["n"].reshape(shp)
+            G_sum[...], GtG_sum[...] = res["G"].reshape(shp), res["GtG"].reshape(shp)
+            D_sum[...], DtG_sum[...] = res["D"].reshape(shp + (n_tof,)), res["DtG"].reshape(shp + (n_tof,))
+            DtD_sum[...] = res["DtD"].reshape(shp + (n_tof, n_tof))
+            C_sum[...], CtG_sum[...] = res["C"].reshape(shp + (n_tof_i,)), res["CtG"].reshape(shp + (n_tof_i,))
+            CtC_sum[...] = res["CtC"].reshape(shp + (n_tof_i, n_tof_i))
+            DtC_sum[...] = res["DtC"].reshape(shp + (n_tof, n_tof_i))
+            if cfg1_vls:
+                A_sum[...], AtG_sum[...] = res["A"].reshape(shp + (n_pixels,)), res["AtG"].reshape(shp + (n_pixels,))
+                AtA_sum[...] = res["AtA"].reshape(shp + (n_pixels, n_pixels))
+                AtD_sum[...] = res["AtD"].reshape(shp + (n_pixels, n_tof))
+                AtC_sum[...] = res["AtC"].reshape(shp + (n_pixels, n_tof_i))
+            cn = res["counters"]
+            n_skipped_gmd_nan += cn["gmd_nan"]
+            n_skipped_gmd_oor += cn["gmd_oor"]
+            n_skipped_max_hits += cn["max_hits"]
+            n_skipped_z_nan += cn["z_nan"]
+            n_skipped_z_oor += cn["z_oor"]
+            n_skipped_e_nan += cn["e_nan"]
+            n_skipped_e_oor += cn["e_oor"]
+            n_skipped_vls += cn["vls"]
+            del res
+        else:
+            log("accumulating...")
+        # Config 2: dense loop over chunks (config 1 is done above)
+        for s, e in (_iter_chunks(n_total, chunk_size) if config == 2 else ()):
             sub_mask = keep_mask[s:e]
             if not sub_mask.any():
                 continue
@@ -756,6 +1198,8 @@ def compute_aggregates(
             else:
                 ion_tof_block = f["tofs_i"][s:e, b0:b1][sub_mask]          # (n_keep, m, max_hits_i)
                 C_block = _histogram_tof_chunk(ion_tof_block, ion_tof_edges)
+                if cfg1_vls:
+                    A_block, vls_ok = vls_preprocess(read_vls(np.arange(s, e)[sub_mask]))
             if mode == "time_resolved":
                 z_block = f["z"][s:e, b0:b1][sub_mask]
             if mode == "energy":
@@ -790,6 +1234,9 @@ def compute_aggregates(
                 too_many |= (ion_tof_block != 0).sum(axis=-1).ravel() > int(max_hits_i)
             n_skipped_max_hits += int((too_many & valid).sum())
             valid = valid & ~too_many
+            if cfg1_vls:
+                n_skipped_vls += int((valid & ~vls_ok.ravel()).sum())
+                valid = valid & vls_ok.ravel()
 
             if mode == "spectral":
                 bin_id = gmd_bin
@@ -817,9 +1264,26 @@ def compute_aggregates(
                 A_flat = A_block.reshape(-1, n_pixels)
             else:
                 C_flat = C_block.reshape(-1, n_tof_i)
+                if cfg1_vls:
+                    A_flat = A_block.reshape(-1, n_pixels)
 
-            for b in np.unique(bin_id[valid]):
-                mask = (bin_id == b) & valid
+            # Shots of the chunk grouped by bin (stable sort keeps their order
+            # within a bin), so each bin is a contiguous slice: one gather per
+            # chunk instead of a boolean mask over the chunk per bin.
+            order = np.flatnonzero(valid)
+            order = order[np.argsort(bin_id[order], kind="stable")]
+            bins_sorted, starts = np.unique(bin_id[order], return_index=True)
+            ends = np.r_[starts[1:], len(order)]
+            gmd_flat, D_flat = gmd_flat[order], D_flat[order]
+            if config == 2:
+                A_flat = A_flat[order]
+            else:
+                C_flat = C_flat[order]
+                if cfg1_vls:
+                    A_flat = A_flat[order]
+
+            for b, a0, a1 in zip(bins_sorted, starts, ends):
+                mask = slice(a0, a1)
                 if mode == "spectral":
                     idx = (int(b),)
                 elif mode == "energy":
@@ -850,9 +1314,19 @@ def compute_aggregates(
                     CtC_sum[idx] += C_b.T @ C_b
                     DtC_sum[idx] += D_b.T @ C_b
                     CtG_sum[idx] += C_b.T @ G_b
+                    if cfg1_vls:
+                        A_b = A_flat[mask]
+                        A_sum[idx]   += A_b.sum(axis=0)
+                        AtA_sum[idx] += A_b.T @ A_b
+                        AtD_sum[idx] += A_b.T @ D_b
+                        AtC_sum[idx] += A_b.T @ C_b
+                        AtG_sum[idx] += A_b.T @ G_b
 
             log(f"  [{s:>6d}..{e:>6d})  trains={n_keep:>4d}  "
                 f"binned={int(valid.sum()):>5d}")
+
+        if vls_reader is not None:
+            vls_reader.close()
 
     # --- means ---------------------------------------------------------
     safe_n = np.where(n_per_bin > 0, n_per_bin, 1).astype(np.float64)
@@ -894,6 +1368,14 @@ def compute_aggregates(
             "DtC": _norm_mat(DtC_sum),
             "CtG": _norm_vec(CtG_sum),
         })
+        if cfg1_vls:
+            means.update({
+                "A":   _norm_vec(A_sum),
+                "AtA": _norm_mat(AtA_sum),
+                "AtD": _norm_mat(AtD_sum),
+                "AtC": _norm_mat(AtC_sum),
+                "AtG": _norm_vec(AtG_sum),
+            })
 
     # --- save ----------------------------------------------------------
     output_h5.parent.mkdir(parents=True, exist_ok=True)
@@ -909,6 +1391,19 @@ def compute_aggregates(
             fout.create_dataset("background", data=background)
         else:
             fout.create_dataset("ion_tof_edges", data=ion_tof_edges)
+            if cfg1_vls:
+                fout.create_dataset("vls_pixels", data=np.arange(roi_min, roi_max, dtype=np.int64))
+                fout.create_dataset("background", data=vls_ped[roi_min:roi_max])
+                fout.attrs["vls_crop_roi"] = np.asarray([roi_min, roi_max], dtype=np.int64)
+                fout.attrs["vls_source"] = vls_source
+                fout.attrs["vls_background_type"] = vls_background["type"]
+                if vls_background["type"] == "auto":
+                    fout.attrs["background_roi"] = np.asarray(vls_background["roi"], dtype=np.int64)
+                    fout.attrs["vls_bg_stride"] = int(vls_bg_stride)
+                if vls_cm_pixels is not None:
+                    fout.attrs["vls_cm_pixels"] = np.asarray(vls_cm_pixels, dtype=np.int64)
+                fout.attrs["vls_bad_pixels"] = np.asarray(bad, dtype=np.int64)
+                fout.attrs["n_skipped_no_vls"] = int(n_skipped_vls)
         if mode == "time_resolved":
             fout.create_dataset("z_edges", data=z_edges_arr)
         if mode == "energy":
@@ -967,6 +1462,8 @@ def compute_aggregates(
         summary += (f"; skipped {n_skipped_gmd_oor} GMD-oor, "
                     f"{n_skipped_gmd_nan} nan")
     summary += f", {n_skipped_max_hits} over max hits"
+    if cfg1_vls:
+        summary += f", {n_skipped_vls} without a VLS frame"
     log(summary)
 
 
@@ -991,6 +1488,10 @@ def main(argv=None) -> None:
     parser.add_argument(
         "-o", "--output", type=Path, default=None,
         help="output H5 (default: <input>_aggregates.h5 next to the input)",
+    )
+    parser.add_argument(
+        "--workers", type=int, default=None,
+        help="config 1: worker processes (default: WORKERS in the config, else 1)",
     )
     args = parser.parse_args(argv)
 
@@ -1039,12 +1540,23 @@ def main(argv=None) -> None:
         if mode == "energy":
             kwargs["energy_edges"] = np.asarray(cfg.ENERGY_EDGES, dtype=float)
             kwargs["energy_key"] = getattr(cfg, "ENERGY_KEY", "photon_energy/measured")
+        if getattr(cfg, "VLS_CROP_ROI", None) is not None:
+            kwargs.update(
+                vls_crop_roi=tuple(cfg.VLS_CROP_ROI),
+                vls_background=getattr(cfg, "VLS_BACKGROUND", None),
+                vls_cm_pixels=getattr(cfg, "VLS_CM_PIXELS", None),
+                vls_bad_pixels=getattr(cfg, "VLS_BAD_PIXELS", None),
+                vls_raw_run=getattr(cfg, "VLS_RAW_RUN", None),
+                vls_offset=getattr(cfg, "VLS_OFFSET", None),
+                vls_bg_stride=int(getattr(cfg, "VLS_BG_STRIDE", 10)),
+            )
     else:
         if mode == "spectral":
             kwargs["tof_edges"] = np.asarray(cfg.TOF_EDGES, dtype=float)
         else:
             kwargs["z_edges"] = np.asarray(cfg.Z_EDGES, dtype=float)
             kwargs["tof_roi"] = tuple(cfg.TOF_ROI)
+    kwargs["workers"] = args.workers if args.workers is not None else int(getattr(cfg, "WORKERS", 1))
 
     compute_aggregates(**kwargs)
 

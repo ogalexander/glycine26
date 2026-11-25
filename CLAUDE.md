@@ -158,9 +158,14 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   Energy × GMD aggregates `run60559_..._aggregates_energy.h5`
   (`aggregates_run60559_energy.py`; 39 bins of 0.5 eV 264–283 eV × 5 GMD
   percentile bins, edges 0.020 / 0.056 / 0.098 / 0.169 / 0.301 / 3.29 µJ;
-  730 053 shots); `undulator_scan_aggregates.ipynb` opens it. The upper
+  730 053 shots; with VLS `A`… over pixels 250–630, 385 MB, 6.4 min);
+  `undulator_scan_aggregates.ipynb` opens it. The upper
   steps (≥ 278 eV) had lower pulse energies, so their top GMD bins hold
   few shots (e.g. 3 at 282.5 eV).
+  **Residual argon** in the ethanol runs: with the calibration a slow
+  electron line moves with hν at a constant E_B = 248.9–249.6 eV (Ar 2p,
+  hν 265–277 eV), the ~100 ns bump is the Ar L₂,₃MM Auger, and an ion
+  peak sits at m/q 19.8 (Ar²⁺ 19.98).
 - **Run 60560** (ethanol undulator scan, `Ethanol_undulator_scan_2808016357`,
   started 00:33 Nov 25, running for hours; one growing `.lst`, no `.txt`
   until it ends). Written while running with `--live`:
@@ -189,6 +194,17 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   Live commands:
   `python write_h5.py Ethanol_undulator_scan_2808016357 1 60560 --live
   [--no-vls | --first-tid T] --max-ecounts 120 --max-icounts 50 -o …`.
+  **Final (run complete, 42 raw files, ended 05:47):**
+  `run60560_Ethanol_undulator_scan_2808016357.h5` (no VLS, written
+  `--live --live-margin 0` for the read-only `.lst` snapshot; 187 322
+  trains 2808016360–2808203681, 312 min; 31 nominal steps 265–280 eV;
+  stopped by the SDU `.txt` written at the end) with `photon_energy/`
+  from the raw files (82.7 % of pulsed shots; E = 298.987 −
+  0.0590512·px, rms 0.075 eV over the 31 steps) and
+  `run60560_..._aggregates_energy.h5` (14.7 M shots; GMD edges 0.020 /
+  0.057 / 0.100 / 0.168 / 0.290 / 4.85 µJ). Commands in
+  `aggregates_run60560_energy.py`; job `~/slurm_60560_final.sh` (5.5 min
+  on a upex node). The `*_live*` files are superseded partial writes.
 - Other pulse-resolved raw channels worth knowing: `/Timing/bunch
   pattern`, `/Timing/set number of bunches flash2`, bunch charge and
   toroids (`/FL1/Electron Diagnostic/...`, `/uncategorised/FLASH.DIAG/
@@ -316,6 +332,10 @@ beamtime's channels (`TDCIterator(..., channel_e=1, channel_i=2)`);
   (blockwise), so whole runs fit in memory. Duplicate trains at file
   boundaries are dropped.
 - `save_vls_moments(data, filepath, overwrite=False)`.
+- `RawVLSReader(run_no, tID, train_length, vls_offset=None)` —
+  `.read(rows)` gives the Gotthard frames of those combined-file rows
+  from the raw files (by train ID, line `b + vls_offset` → bunch `b`,
+  NaN where missing; files < 2 min old skipped); `.coverage`, `.close()`.
 - `read_nominal_energy(h5_paths, tID, max_age=300) → (energy, n_records)`
   — hc / `set wavelength 1` of the latest record at or before each
   train; NaN before the first record or when it is > `max_age` trains
@@ -353,9 +373,36 @@ Streams a combined H5 and writes per-GMD-bin means of the matrix
 aggregates needed for covariance (`G`, `GtG`, `D`, `DtD`, `DtG`, and per
 config `C`/`CtC`/`DtC`/`CtG` or `A`/`AtA`/`AtD`/`AtG`), so full per-shot
 matrices never sit in memory.
-- `config=1`: D = electron TOF, C = ion TOF. A `vls` dataset in the file
-  is accepted but **not yet aggregated** (VLS aggregates for config 1 are
-  a TODO).
+- `config=1`: D = electron TOF, C = ion TOF; with `VLS_CROP_ROI` also
+  the VLS: `A`, `AtA`, `AtD`, `AtC` (n_px × n_tof_i), `AtG`, plus
+  `vls_pixels` and `background`. Per shot: minus `VLS_BACKGROUND`
+  (default `{"type": "auto", "roi": (100, 101)}`: mean of the dark
+  slot over every `VLS_BG_STRIDE`-th (10) kept train), minus the median
+  over `VLS_CM_PIXELS`, `VLS_BAD_PIXELS` → 0, then cropped. Shots
+  without a frame are skipped for every aggregate (`n_skipped_no_vls`).
+  `VLS_RAW_RUN = N` reads the frames from run N's raw files through
+  `data_loading.RawVLSReader` (for `--no-vls` live files); identical
+  aggregates to the combined-file route (checked on 60559).
+- Config 1 accumulates from **hit lists** (`_accumulate_cfg1`): D, C,
+  their G terms and every hit product (DtD, CtC, DtC) are scatter-adds
+  over the hits / hit pairs within a shot (`np.histogram2d` bin rules),
+  AtD / AtC sum the VLS rows per (cell, bin) of the hits; only AtA is a
+  dense product per cell. Identical D / C / pair sums to the old dense
+  loop, VLS terms ≤ 1e-9 relative (60559, 60538); G / GtG now summed in
+  float64 (the old loop summed the float32 GMD in float32, ~1e-8).
+  `WORKERS = N` (config) or `--workers N` splits the trains over N
+  spawned processes (BLAS threads divided between them; the VLS pedestal
+  pass is parallel too) and adds their sums. On a 3160-train slice of
+  60560 (raw VLS): 206 s → 90 s single process; the remaining cost is
+  reading the gzip Gotthard frames (~12 ms / train), which the workers
+  share. Long runs: submit to a `upex` node with `sbatch` and
+  `--workers` ≈ `nproc` (capped at 48); job scripts in the home
+  directory, not the repo: `~/slurm_agg.sh` (aggregates only),
+  `~/slurm_60560_final.sh` (write → photon energy → aggregates). The
+  account has `upex` / `upex-beamtime`, mostly idle nodes with 40+ cores,
+  206+ GB; on a 128-core node (48 workers) the 60560 aggregation took
+  85 s (the old code was still running after 34 min on the shared
+  display node; estimated > 2 h).
 - `config=2`: A = VLS, D = liquid eTOF; `mode="time_resolved"` bins by
   GMD × z.
 - `load_aggregates(path) → AggregatesData` (per-bin means, NaN for empty
@@ -382,6 +429,20 @@ matrices never sit in memory.
   `_b0-20.py` are the first ones for this beamtime;
   `aggregates_run60559_energy.py` the first energy-mode one).
 
+### `calibration.py`
+TOF calibrations (ns), both from argon run 60538: electrons
+`ke_of_tof` / `tof_of_ke`, KE = (a/(t − t0))² + E0 with `ETOF` (t0 14.75 ns,
+a 1224.7 ns√eV, E0 −0.64 eV; `etof_calibration_argon.ipynb`, all 8
+lines); ions `mq_of_tof` / `tof_of_mq`, m/q = ((t − t0)/k)² with `ITOF`
+(t0 −18.42 ns, k 481.37 ns; `inspect_itof_argon.ipynb`).
+`per_unit(arr, *widths)` divides the trailing axes by bin widths — the
+Jacobian for TOF-binned spectra (`dke = |diff(ke_of_tof(tof_edges))|`)
+and, with both axes' widths, for second moments / covariances. To bin
+directly in energy, histogram on `tof_of_ke(ke_edges)[::-1]` (rising
+TOF = falling energy) and reverse; use bins of constant relative width
+(≥ several 0.1 ns TDC steps at high energy) to avoid aliasing. Update
+`ETOF` / `ITOF` here when the calibrations are redone.
+
 ### `photon_energy.py`
 Per-shot photon energy from the VLS for undulator scans, stored in the
 combined H5 as a `photon_energy/` group (`measured` (n, m) eV, NaN = no
@@ -395,8 +456,11 @@ pixels incl. 291–292; calibration = linear fit of each settled nominal
 step's mean-spectrum centre against its nominal energy (measured values
 are on the undulator scale). `measure_photon_energy(path, **params)`,
 `save_photon_energy(path, res, overwrite)`, `load_photon_energy(path)`;
-CLI `python photon_energy.py COMBINED.h5 [--raw-run N] [--overwrite]
-[--roi LO HI] …`. With `--raw-run` the frames are read from that run's
+CLI `python photon_energy.py COMBINED.h5 [--raw-run N] [--workers N]
+[--overwrite] [--roi LO HI] …`. `workers=N` / `--workers N` splits the
+trains over N spawned processes for both passes (dark-slot pedestal,
+per-shot centres + per-step spectra) and merges them; the pedestal is
+now averaged in float64 (was float32 `nanmean`). With `--raw-run` the frames are read from that run's
 raw files (matched by train ID, line `b + VLS_OFFSET` → bunch `b`,
 files < 2 min old skipped), so a combined file written `--no-vls` (live
 writes of long runs) can be used; on run 60559 it reproduces the
@@ -466,18 +530,73 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   train profile, which lines the combined file keeps for
   `config.VLS_OFFSET` / `TRAIN_LENGTH`, and (optional combined file)
   the stored VLS and both TOFs on the bunch axis.
+- `analysis/notebooks/etof_calibration_argon.ipynb` — electron TOF →
+  KE from run 60538 (hν nominal 275.52 eV): `ASSIGNMENTS` (TOF, line,
+  reading uncertainty), weighted least squares of t = t0 + a/√(KE − E0),
+  fit plot with residuals, spectrum on the KE axis with the lines.
+  Lines and energies follow D. Schwickert's thesis (Hamburg 2022, p. 48,
+  ediss 9628; same spectrometer): E_B from its Table 4 (2p 248.4 /
+  250.6, 3s 29.3, 3p 15.7 / 15.9), Auger energies at the local peaks of
+  its Fig. 35b line sum (L₂,₃M₂,₃M₂,₃ 204.7, L₂,₃M₁M₁ measured 179.1 and
+  calculated 147.1 eV; L₂,₃M₁M₂,₃ is only a shoulder, 190.2 eV =
+  intensity-weighted centre of its lines 187.5–193.2), read from the
+  vector data of the PDF. TOFs measured in the run 60538 spectrum
+  (maxima of the 0.1 ns, σ 0.2 ns smoothed histogram; shoulders = minima
+  of its second derivative): 3p 90.35, "3s" 93.65 (small max), M₂,₃M₂,₃
+  100.15, M₁M₂,₃ 103.05 (shoulder), M₁M₁ 106.35, M₁M₁ calc. ~114.25
+  (very weak shoulder), 2p₃/₂ 247.25, 2p₁/₂ 256.75 (shoulder). The fast
+  lines alone cannot separate t0 from E0 (E0 ±58 eV); the 2p lines fix
+  it. All lines: t0 = 14.8 ± 2.3 ns, L = 0.726 ± 0.022 m,
+  E0 = −0.6 ± 1.1 eV, χ² 7.5 / 5, 3s +0.95 ns (−6 eV); without 3s:
+  χ² 3.1 / 4, t0 = 13.1 ± 2.5 ns, L = 0.741 ± 0.023 m,
+  E0 = −1.4 ± 1.2 eV, residuals ≤ 0.35 ns (≤ 1.5 eV) except the
+  calculated M₁M₁ (−1.4 ns). (Thesis, its own setup: L = 0.750 ±
+  0.014 m, E0 = 9 ± 6 eV at U_ret = −10 V.) TOFs obtained by converting
+  approximate energies with an earlier calibration are not
+  measurements — use the spectrum. The ~90 ns peak in the ethanol runs is their fastest
+  photoelectrons (it moves between runs), not a photon peak; the ~100 ns
+  bump in those runs sits on the Ar Auger.
 - `analysis/notebooks/undulator_scan_aggregates.ipynb` — opens
   energy-mode aggregates (default run 60559) as plain arrays (`D`, `C`,
   `DtD`, `CtC`, `DtC`, `G`, `GtG`, `DtG`, `CtG`, `n`; axes `E`,
   `gmd_edges`, `tof_e` / `tof_i` in ns), prints the photon-energy
   calibration and maps the shots per cell. Starting point for
-  covariance vs photon energy.
+  covariance vs photon energy. Section *Two-photon resonance* (cells
+  `undagg-2ph-*`): looks for a core → valence-hole resonance opened by
+  a first (valence-ionising) photon — fast-electron partial-yield XAS
+  (`HIGH_KE` 210–285 eV, per µJ per GMD bin and relative to `REF_KE`
+  10–40 eV), per-photon-energy fit ⟨N⟩ = a₁⟨G⟩ + a₂⟨G²⟩ (only where
+  all GMD bins have ≥ `MIN_SHOTS`), high/low-GMD ratio (top two / bottom
+  two bins pooled), KE-resolved ratio map normalised to its median over
+  photon energy, partial (on GMD, within cells) e–e pair covariance in
+  `HIGH_KE` with pairs < `DEAD_TIME_NS` (3 ns) apart left out, fast
+  electrons × ion m/q covariance map, e–e maps at `COMPARE_E` (280 vs
+  268 eV). Run 60559: yields per µJ fall ~2× across the GMD bins at all
+  photon energies (a₂ < 0 everywhere); a₂/a₁ ≈ −0.3…−0.65 up to 277 eV,
+  ≈ −0.9 above 277.5 eV (where the steps had weaker pulses); the pooled
+  reference-normalised high/low ratio is 0.95 ± ~0.1 and flat within
+  errors; pair covariance ≈ 0 ± 0.1 ⟨N⟩² at high GMD without
+  photon-energy structure; fast electrons covary with m/q 1, 13–15,
+  27–31, 45–46 at all photon energies. Uses only numpy (the user's
+  kernel is xfel 202301, Python 3.9).
 - `analysis/notebooks/undulator_scan.ipynb` — undulator-gap scans from a
   combined file with VLS + `nominal_energy`: steps (settling trains
   dropped), streamed VLS (pedestal from dark slot 100, per-shot peak
   centre, dark-noise threshold), pixel → eV fit against the nominal
   energies, scan trace, electron TOF vs nominal and vs measured photon
   energy, average-train maps (slot × e TOF / ion TOF / VLS) per step.
+  Now on calibrated axes (`calibration.py`): electron energy (bins of
+  constant relative width `KE_REL_BIN` 2 %, `KE_RANGE` 1–290 eV ≈ 970–87
+  ns, per eV) and, in the train maps, ion m/q (per u/e). The
+  aggregates notebook adds `D_E`, `DtD_E`, `DtG_E`, `C_mq`, `CtC_mq`,
+  `CtG_mq`, `DtC_Emq`, `AtD_E`, `AtC_mq` (TOF order kept; `ke`, `mq`,
+  `dke`, `dmq`) next to the TOF arrays. The energy-mode configs
+  (`aggregates_run6055x_energy.py`) now bin the electrons in energy:
+  `TOF_EDGES` = images of 1 eV bins from 140 to 290 eV and 5 % bins
+  from 1 to 140 eV, snapped to half TDC ticks (252 bins, 87–970 ns;
+  0.8–1.4 eV wide at 150–280 eV, 1–3 ticks each; the Jacobian uses the
+  snapped widths). With the old 5 ns bins the energy bins were 22–32 eV
+  wide above ~190 eV. Ions keep 10 ns (0.04–0.28 u/e).
 - `analysis/notebooks/camera_shutter_difference.ipynb` — this
   beamtime: YAG camera (`/zraw/FLASH.FEL/MULTIPLX1.CAM/YAG/dGroup`)
   shutter-open minus closed, with optional filtering / downbinning.

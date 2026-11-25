@@ -22,9 +22,9 @@ below 5 sigma of the dark-line noise have no energy and are not binned
 (about a third of the shots, mostly low GMD).
 
 TOF units are TDC units of 100 ps (10 units = 1 ns).
-    electrons 500-10000 (50-1000 ns), 5 ns bins: prompt peak ~90 ns,
-                        photoline ~230-330 ns; later hits include ion-TOF
-                        crosstalk, so the window stops at 1000 ns.
+    electrons: bins in kinetic energy (1 eV at 140-290 eV, 5 % below),
+                        1-290 eV = ~970-87 ns; later hits include ion-TOF
+                        crosstalk.
     ions      2000-34000 (200-3400 ns), 10 ns bins: H+ ~460 ns ... the
                         parent m/q 46 ~3250 ns (run 60538 calibration).
                         10 ns keeps CtC at 320 x 320 per bin.
@@ -35,7 +35,14 @@ import numpy as np
 CONFIG = 1
 MODE   = "energy"
 
-TOF_EDGES     = np.arange(500, 10000 + 1, 50)     # 190 bins of 5 ns
+import calibration   # analysis/scripts, on the path when run through compute_aggregates.py
+
+# Electron bins defined in kinetic energy (calibration.py): 1 eV from 140 to 290 eV, 5 % of the energy from 1 to
+# 140 eV. The TOF edges (TDC units, rising = falling energy) are their images snapped to half TDC ticks, so every bin
+# holds a whole number of 0.1 ns steps (1-2 near 290 eV, where 1 eV is ~0.13 ns) and the energy width used for the
+# Jacobian is that of the snapped bin.
+_KE_EDGES = np.r_[np.geomspace(1, 140, int(np.ceil(np.log(140) / np.log(1.05))) + 1)[:-1], np.arange(140, 290.5, 1.0)]
+TOF_EDGES = np.unique(np.floor(10 * calibration.tof_of_ke(_KE_EDGES)[::-1]) + 0.5)
 ION_TOF_EDGES = np.arange(2000, 34000 + 1, 100)   # 320 bins of 10 ns
 
 # Measured photon energy (eV): 0.5 eV bins centred on the integer and
@@ -51,6 +58,15 @@ GMD_PERCENTILE_BINS = 5
 GMD_MIN             = 0.02
 
 BUNCH_RANGE = (0, 100)      # all FEL pulses; slot 100 holds no pulse
+
+# VLS aggregates (A, AtA, AtD, AtC, AtG): per shot, minus the mean of the dark
+# slot 100 (Gotthard line 102, every 10th train) and the median of pixels
+# 650-800 (common mode), bad pixels zeroed, cropped to 250-630 (the 265-282 eV
+# peak sits at pixels ~295-580; ~0.06 eV per pixel).
+VLS_CROP_ROI   = (250, 630)
+VLS_BACKGROUND = {"type": "auto", "roi": (100, 101)}
+VLS_CM_PIXELS  = (650, 800)
+VLS_BAD_PIXELS = [0, 1, 291, 292, 679, 680, 681, *range(832, 864)]
 
 # Max 60 e / 27 i hits per shot in this run; same caps as run 60538.
 MAX_HITS_E = 60

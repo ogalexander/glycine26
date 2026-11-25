@@ -15,7 +15,7 @@ import numpy as np
 from experiment_data import ExperimentData
 
 __all__ = ["ExperimentData", "load_data", "load_raw_h5", "save_vls_moments",
-           "read_nominal_energy"]
+           "read_nominal_energy", "RawVLSReader"]
 
 _VLS_MOMENTS_GROUP = "vls_moments"
 
@@ -439,6 +439,86 @@ def load_raw_h5(
         shutter=shutter,
         nominal_energy=nominal_energy,
     )
+
+
+def _raw_file_number(path_str: str):
+    """Sort key: the numeric index in ..._fileNN_... (fallback to name)."""
+    name = Path(path_str).name
+    tail = name.split("_file", 1)[1] if "_file" in name else ""
+    num = tail.split("_", 1)[0]
+    return (0, int(num), name) if num.isdigit() else (1, 0, name)
+
+
+class RawVLSReader:
+    """
+    Gotthard frames of one run's raw files, read by train ID and lined up with
+    the bunch axis as ``write_h5.py`` stores them (line ``b + vls_offset`` ->
+    bunch ``b``, cropped / NaN-padded to ``train_length``, float32).
+
+    For combined files written without VLS (``--no-vls``, e.g. live writes of
+    long runs). ``tID`` is the combined file's train axis; ``read(rows)``
+    returns the frames of those rows (NaN where no raw file has the train).
+    Raw files modified in the last ``min_age`` seconds are not used; a train
+    in two files is taken from the first.
+    """
+
+    def __init__(self, run_no, tID, train_length, vls_offset=None, raw_dir=None, min_age=120):
+        import os
+        import time
+        import config as path_config
+        raw_dir = Path(raw_dir) if raw_dir is not None else Path(path_config.RAW_H5_DIR)
+        paths = [p for p in glob.glob(str(raw_dir / f"*run{run_no}_*.h5"))
+                 if time.time() - os.path.getmtime(p) >= min_age]
+        self.paths = sorted(paths, key=_raw_file_number)
+        if not self.paths:
+            raise FileNotFoundError(f"no raw files for run {run_no} in {raw_dir}")
+        self.vls_offset = path_config.VLS_OFFSET if vls_offset is None else int(vls_offset)
+        self.train_length = int(train_length)
+        tID = np.asarray(tID).astype(np.int64)
+        self.file_of = np.full(len(tID), -1, np.int64)
+        self.pos_of = np.full(len(tID), -1, np.int64)
+        self.n_pixels = None
+        for k, p in enumerate(self.paths):
+            with h5py.File(p, "r") as f:
+                if _VLS_VALUE not in f:
+                    continue
+                idx = f[_VLS_INDEX][...].astype(np.int64)
+                self.n_pixels = self.n_pixels or int(f[_VLS_VALUE].shape[2])
+            order = np.argsort(idx, kind="stable")
+            pos = np.clip(np.searchsorted(idx[order], tID), 0, len(idx) - 1)
+            hit = (idx[order][pos] == tID) & (self.file_of < 0)
+            self.file_of[hit] = k
+            self.pos_of[hit] = order[pos[hit]]
+        if self.n_pixels is None:
+            raise RuntimeError(f"no Gotthard data in the raw files of run {run_no}")
+        self._open = {}
+
+    @property
+    def coverage(self) -> float:
+        """Fraction of the trains that have a raw frame."""
+        return float((self.file_of >= 0).mean())
+
+    def read(self, rows) -> np.ndarray:
+        rows = np.asarray(rows, dtype=np.int64)
+        out = np.full((len(rows), self.train_length, self.n_pixels), np.nan, np.float32)
+        fk = self.file_of[rows]
+        present = np.unique(fk[fk >= 0])
+        for k in [k for k in self._open if present.size and k < present.min()]:
+            self._open.pop(k).close()               # rows come in ascending order
+        for k in present:
+            sel = np.flatnonzero(fk == k)
+            pos = self.pos_of[rows[sel]]
+            o = np.argsort(pos)                     # h5py needs increasing indices
+            if k not in self._open:
+                self._open[k] = h5py.File(self.paths[k], "r")
+            dset = self._open[k][_VLS_VALUE]
+            out[sel[o]] = _crop_vls_block(dset[pos[o]], self.train_length, self.n_pixels, self.vls_offset)
+        return out
+
+    def close(self):
+        for f in self._open.values():
+            f.close()
+        self._open = {}
 
 
 def _crop_vls_block(raw_vls, train_length, n_vls_pixels, vls_offset=0):
