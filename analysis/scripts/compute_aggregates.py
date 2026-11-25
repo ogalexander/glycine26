@@ -25,7 +25,17 @@ A Python module exposing the module-level names below. Example file:
         {"type": "none"}
     TOF_EDGES   : 1D array-like of TOF bin edges (100 ps)
     GMD_EDGES   : 1D array-like of GMD bin edges (µJ); shots outside
-                  the first/last edges are dropped
+                  the first/last edges are dropped. May be None when
+                  GMD_PERCENTILE_BINS is given.
+    GMD_PERCENTILE_BINS : int, optional - GMD edges at equally spaced
+                  percentiles (0-100) of the shots that are binned
+                  (equal shot counts per GMD bin overall)
+    GMD_MIN     : float, optional - with GMD_PERCENTILE_BINS, shots below
+                  this GMD (noise floor, negative readings) are left out
+    MODE        : "spectral" (default) | "time_resolved" (Z_EDGES) |
+                  "energy" (config 1: bins on a per-shot photon energy,
+                  ENERGY_EDGES, read from ENERGY_KEY in the input H5,
+                  default "photon_energy/measured" from photon_energy.py)
     CONFIG      : 1 or 2  (H5 layout — picks tofs_e vs liq_tofs_e)
     CHUNK_SIZE  : trains per chunk         (optional, default 200)
     BUNCH_RANGE : (bunch_start, bunch_end) half-open bunch slice that is
@@ -122,6 +132,11 @@ class AggregatesData:
     Time-resolved mode: an extra ``N_Z`` axis is inserted before the
     per-shot dimensions and ``z_edges`` is populated.
 
+    Energy mode (config 1): bins are ``(N_E, N_GMD)`` on a per-shot photon
+    energy (e.g. the VLS-measured one, ``photon_energy/measured``) and
+    GMD; every aggregate has these two leading axes and ``energy_edges``
+    is populated.
+
     * Config 2: ``tof_edges`` collapses to ``[tof_roi_min, tof_roi_max]``
       (``n_tof = 1``) — the eTOF is reduced per shot to a scalar count.
     * Config 1: ``tof_edges`` and ``ion_tof_edges`` keep their full
@@ -162,6 +177,8 @@ class AggregatesData:
     z_edges: Optional[np.ndarray] = None
     # XAS-scan mode (config 2).
     nominal_energies: Optional[np.ndarray] = None
+    # Energy mode (config 1): per-shot photon-energy bin edges (eV).
+    energy_edges: Optional[np.ndarray] = None
     metadata: dict = field(default_factory=dict)
 
     @property
@@ -170,6 +187,8 @@ class AggregatesData:
 
     @property
     def mode(self) -> str:
+        if self.energy_edges is not None:
+            return "energy"
         if self.nominal_energies is not None:
             return "xas_scan"
         if self.z_edges is not None:
@@ -186,7 +205,15 @@ class AggregatesData:
 
     @property
     def n_energy_bins(self) -> Optional[int]:
+        if self.energy_edges is not None:
+            return int(self.energy_edges.shape[0]) - 1
         return None if self.nominal_energies is None else int(self.nominal_energies.shape[0])
+
+    @property
+    def energy_centres(self) -> Optional[np.ndarray]:
+        if self.energy_edges is None:
+            return None
+        return 0.5 * (self.energy_edges[:-1] + self.energy_edges[1:])
 
     @property
     def n_pixels(self) -> Optional[int]:
@@ -288,6 +315,8 @@ def load_aggregates(path: Union[str, Path]) -> AggregatesData:
             z_edges=_opt("z_edges"),
             # XAS-scan mode
             nominal_energies=_opt("nominal_energies"),
+            # Energy mode
+            energy_edges=_opt("energy_edges"),
             metadata=meta,
         )
 
@@ -434,6 +463,10 @@ def compute_aggregates(
     background_spec: Optional[dict] = None,
     z_edges: Optional[np.ndarray] = None,
     tof_roi: Optional[Tuple[float, float]] = None,
+    energy_edges: Optional[np.ndarray] = None,
+    energy_key: str = "photon_energy/measured",
+    gmd_percentile_bins: Optional[int] = None,
+    gmd_min: Optional[float] = None,
     chunk_size: int = 200,
     trim_start: int = 0,
     trim_end: int = 0,
@@ -477,12 +510,28 @@ def compute_aggregates(
         * ``config = 2``: the eTOF is reduced per shot to a scalar count
           inside ``tof_roi`` (``n_tof`` collapses to 1). VLS keeps its
           full ``n_pixels`` axis.
+    ``mode = "energy"`` (config 1)
+        Bin by photon energy x GMD, leading axes ``(N_E, N_GMD)``. The
+        per-shot energy is read from ``energy_key`` (an ``(n, m)``
+        dataset of the input H5; NaN shots are skipped).
 
     Parameters
     ----------
     input_h5, output_h5 : str or Path
-    gmd_edges : array-like
+    gmd_edges : array-like or None
         GMD bin edges. Shots outside the first / last edge are dropped.
+        None together with ``gmd_percentile_bins``.
+    gmd_percentile_bins : int, optional
+        Put the GMD edges at equally spaced percentiles of the GMD of the
+        shots that will be binned (kept trains, ``bunch_range``, finite
+        GMD and, in energy mode, an energy inside ``energy_edges``).
+    gmd_min : float, optional
+        With ``gmd_percentile_bins``: leave out shots below this GMD (the
+        lowest edge is then at or above it, so they fall outside the bins).
+    energy_edges : array-like
+        Required for ``mode = "energy"``: photon-energy bin edges (eV).
+    energy_key : str
+        Dataset holding the per-shot photon energy (energy mode).
     config : int  (1 or 2)
     mode : {"spectral", "time_resolved"}
     tof_edges : array-like
@@ -517,13 +566,15 @@ def compute_aggregates(
     input_h5 = Path(input_h5)
     output_h5 = Path(output_h5)
     config = int(config)
-    gmd_edges = np.asarray(gmd_edges, dtype=np.float64)
-    n_gmd = len(gmd_edges) - 1
+    if gmd_edges is None and not gmd_percentile_bins:
+        raise ValueError("give gmd_edges or gmd_percentile_bins")
 
     # ----- per-config validation + key resolution ------------------------
     if config == 1:
-        if mode not in ("spectral", "time_resolved"):
+        if mode not in ("spectral", "time_resolved", "energy"):
             raise ValueError(f"unknown mode {mode!r}")
+        if mode == "energy" and energy_edges is None:
+            raise ValueError("mode='energy' requires energy_edges")
         if tof_edges is None or ion_tof_edges is None:
             raise ValueError("config=1 requires tof_edges and ion_tof_edges")
         tof_edges     = np.asarray(tof_edges, dtype=np.float64)
@@ -566,6 +617,12 @@ def compute_aggregates(
     else:
         z_edges_arr = None
         n_z = None
+    if mode == "energy":
+        e_edges_arr = np.asarray(energy_edges, dtype=np.float64)
+        n_e = len(e_edges_arr) - 1
+    else:
+        e_edges_arr = None
+        n_e = None
 
     log = print if verbose else (lambda *a, **k: None)
 
@@ -577,6 +634,20 @@ def compute_aggregates(
         b0, b1 = (0, m) if bunch_range is None else (int(bunch_range[0]), int(bunch_range[1]))
         if not 0 <= b0 < b1 <= m:
             raise ValueError(f"bunch_range {bunch_range} outside [0, {m}]")
+
+        if gmd_percentile_bins:
+            # Edges at percentiles of the GMD of the shots that will be binned
+            g_all = f["gmd"][:, b0:b1][keep_mask]
+            sel = np.isfinite(g_all)
+            if gmd_min is not None:
+                sel &= g_all >= gmd_min
+            if mode == "energy":
+                e_all = f[energy_key][:, b0:b1][keep_mask]
+                sel &= (e_all >= e_edges_arr[0]) & (e_all < e_edges_arr[-1])
+            gmd_edges = np.percentile(g_all[sel], np.linspace(0, 100, int(gmd_percentile_bins) + 1))
+            gmd_edges[-1] = np.nextafter(gmd_edges[-1], np.inf)   # keep the largest shot in the last bin
+        gmd_edges = np.asarray(gmd_edges, dtype=np.float64)
+        n_gmd = len(gmd_edges) - 1
 
         log(f"input              : {input_h5}")
         log(f"config             : {config}")
@@ -597,6 +668,10 @@ def compute_aggregates(
             log(f"TOF ROI            : [{tof_edges[0]:.1f}, {tof_edges[-1]:.1f}) 100ps (scalar D)")
         if mode == "time_resolved":
             log(f"Z bins             : {n_z}  edges {z_edges_arr}")
+        if mode == "energy":
+            log(f"energy bins        : {n_e} ({e_edges_arr[0]:.2f} .. {e_edges_arr[-1]:.2f} eV) from {energy_key}")
+        if gmd_percentile_bins:
+            log(f"GMD edges          : {int(gmd_percentile_bins)} percentile bins")
 
         # --- resolve background (config 2 only) ------------------------
         background = None
@@ -632,6 +707,9 @@ def compute_aggregates(
         if mode == "spectral":
             agg_prefix = (n_gmd,)
             n_bins_total = n_gmd
+        elif mode == "energy":
+            agg_prefix = (n_e, n_gmd)
+            n_bins_total = n_e * n_gmd
         else:
             agg_prefix = (n_gmd, n_z)
             n_bins_total = n_gmd * n_z
@@ -661,6 +739,8 @@ def compute_aggregates(
         n_skipped_max_hits = 0
         n_skipped_z_oor   = 0
         n_skipped_z_nan   = 0
+        n_skipped_e_oor   = 0
+        n_skipped_e_nan   = 0
 
         log("accumulating...")
         for s, e in _iter_chunks(n_total, chunk_size):
@@ -678,6 +758,8 @@ def compute_aggregates(
                 C_block = _histogram_tof_chunk(ion_tof_block, ion_tof_edges)
             if mode == "time_resolved":
                 z_block = f["z"][s:e, b0:b1][sub_mask]
+            if mode == "energy":
+                e_block = f[energy_key][s:e, b0:b1][sub_mask]
 
             n_keep = gmd_block.shape[0]
 
@@ -711,6 +793,15 @@ def compute_aggregates(
 
             if mode == "spectral":
                 bin_id = gmd_bin
+            elif mode == "energy":
+                e_flat = e_block.ravel()
+                e_bin  = np.digitize(e_flat, e_edges_arr) - 1
+                e_nan  = ~np.isfinite(e_flat)
+                e_oor  = ~e_nan & ((e_bin < 0) | (e_bin >= n_e))
+                n_skipped_e_nan += int((e_nan & valid).sum())
+                n_skipped_e_oor += int((e_oor & valid).sum())
+                valid = valid & ~e_nan & ~e_oor
+                bin_id = e_bin * n_gmd + gmd_bin
             else:
                 z_flat = z_block.ravel()
                 z_bin  = np.digitize(z_flat, z_edges_arr) - 1
@@ -731,6 +822,8 @@ def compute_aggregates(
                 mask = (bin_id == b) & valid
                 if mode == "spectral":
                     idx = (int(b),)
+                elif mode == "energy":
+                    idx = (int(b) // n_gmd, int(b) % n_gmd)
                 else:
                     idx = (int(b) // n_z, int(b) % n_z)
 
@@ -818,6 +911,15 @@ def compute_aggregates(
             fout.create_dataset("ion_tof_edges", data=ion_tof_edges)
         if mode == "time_resolved":
             fout.create_dataset("z_edges", data=z_edges_arr)
+        if mode == "energy":
+            fout.create_dataset("energy_edges", data=e_edges_arr)
+            fout.attrs["energy_key"] = energy_key
+            fout.attrs["n_skipped_energy_nan"] = int(n_skipped_e_nan)
+            fout.attrs["n_skipped_energy_oor"] = int(n_skipped_e_oor)
+        if gmd_percentile_bins:
+            fout.attrs["gmd_percentile_bins"] = int(gmd_percentile_bins)
+            if gmd_min is not None:
+                fout.attrs["gmd_min"] = float(gmd_min)
 
         fout.attrs["input_h5"] = str(input_h5)
         if config_path is not None:
@@ -854,6 +956,9 @@ def compute_aggregates(
 
     summary = (f"done: {int(n_per_bin.sum())} shots aggregated "
                f"across {n_bins_total} bins (config={config}, mode={mode})")
+    if mode == "energy":
+        summary += (f"; skipped {n_skipped_e_nan} without a photon energy, "
+                    f"{n_skipped_e_oor} outside the energy edges")
     if mode == "time_resolved":
         summary += (f"; skipped {n_skipped_gmd_oor} GMD-oor, "
                     f"{n_skipped_z_oor} z-oor, "
@@ -893,7 +998,7 @@ def main(argv=None) -> None:
 
     cfg_n = int(cfg.CONFIG)
     mode = getattr(cfg, "MODE", "spectral")
-    base = "_aggregates_tr" if mode == "time_resolved" else "_aggregates"
+    base = {"time_resolved": "_aggregates_tr", "energy": "_aggregates_energy"}.get(mode, "_aggregates")
     user_suffix = getattr(cfg, "OUTPUT_SUFFIX", "") or ""
     out = args.output or args.input_h5.with_name(
         args.input_h5.stem + base + user_suffix + ".h5"
@@ -902,7 +1007,10 @@ def main(argv=None) -> None:
     kwargs = dict(
         input_h5=args.input_h5,
         output_h5=out,
-        gmd_edges=np.asarray(cfg.GMD_EDGES, dtype=float),
+        gmd_edges=(None if getattr(cfg, "GMD_EDGES", None) is None
+                   else np.asarray(cfg.GMD_EDGES, dtype=float)),
+        gmd_percentile_bins=getattr(cfg, "GMD_PERCENTILE_BINS", None),
+        gmd_min=getattr(cfg, "GMD_MIN", None),
         config=cfg_n,
         mode=mode,
         chunk_size=int(getattr(cfg, "CHUNK_SIZE", 200)),
@@ -928,6 +1036,9 @@ def main(argv=None) -> None:
         kwargs["ion_tof_edges"] = np.asarray(cfg.ION_TOF_EDGES, dtype=float)
         if mode == "time_resolved":
             kwargs["z_edges"] = np.asarray(cfg.Z_EDGES, dtype=float)
+        if mode == "energy":
+            kwargs["energy_edges"] = np.asarray(cfg.ENERGY_EDGES, dtype=float)
+            kwargs["energy_key"] = getattr(cfg, "ENERGY_KEY", "photon_energy/measured")
     else:
         if mode == "spectral":
             kwargs["tof_edges"] = np.asarray(cfg.TOF_EDGES, dtype=float)

@@ -153,6 +153,14 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   300–640 cuts the top steps, use 200–650. Single-shot centre: σ ≈ 0.32
   eV about nominal for the 67 % of shots whose VLS signal clears 5σ of
   the dark line. ~0.1–0.4 electron and ~0.15 ion hits per shot.
+  `photon_energy/` group written into the combined file (67.1 % of
+  pulsed shots measured; E = 299.532 − 0.0596952·px, rms 0.080 eV).
+  Energy × GMD aggregates `run60559_..._aggregates_energy.h5`
+  (`aggregates_run60559_energy.py`; 39 bins of 0.5 eV 264–283 eV × 5 GMD
+  percentile bins, edges 0.020 / 0.056 / 0.098 / 0.169 / 0.301 / 3.29 µJ;
+  730 053 shots); `undulator_scan_aggregates.ipynb` opens it. The upper
+  steps (≥ 278 eV) had lower pulse energies, so their top GMD bins hold
+  few shots (e.g. 3 at 282.5 eV).
 - **Run 60560** (ethanol undulator scan, `Ethanol_undulator_scan_2808016357`,
   started 00:33 Nov 25, running for hours; one growing `.lst`, no `.txt`
   until it ends). Written while running with `--live`:
@@ -165,7 +173,20 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   per shot. VLS offset +2 and 100 lit lines confirmed; within a step the
   VLS centre wanders by ~±0.2 eV over minutes, and 268.5 / 269.0 eV sit
   at pixels 515.8 / 506.9, ~3–4 px below run 60559's positions for the
-  same nominal energies. Live commands:
+  same nominal energies. `run60560_..._live_wrap2.h5` (02:04–02:42, no
+  VLS) spans the second 16-bit train-ID wrap (2808086528) and the first
+  sweep-counter wrap: every train has TDC data and the alignment holds
+  (r 0.48 at zero shift vs 0.09 at ±1), which the old unwrap would have
+  broken. `run60560_..._live.h5` (whole run to 02:48, 80 766 trains,
+  no VLS) carries `photon_energy/` measured from the raw files (88.7 %
+  of pulsed shots; E = 297.953 − 0.0570834·px, rms 0.026 eV over the 14
+  steps 265–271.5 eV — a different slope from 60559's −0.0597, so each
+  run's measured energies sit on its own nominal scale) and the
+  aggregates `run60560_..._live_aggregates_energy.h5`
+  (`aggregates_run60560_energy.py`, same bins as 60559; GMD percentile
+  edges 0.020 / 0.070 / 0.128 / 0.205 / 0.350 / 4.85 µJ — per run, so
+  not the same as 60559's; 6.94 M shots, 264–272.5 eV populated).
+  Live commands:
   `python write_h5.py Ethanol_undulator_scan_2808016357 1 60560 --live
   [--no-vls | --first-tid T] --max-ecounts 120 --max-icounts 50 -o …`.
 - Other pulse-resolved raw channels worth knowing: `/Timing/bunch
@@ -344,10 +365,43 @@ matrices never sit in memory.
   with more hits over the full TOF range, e.g. burst / cap-clipped
   shots, which otherwise dominate the second moments). Both are recorded
   in the output attrs (`bunch_range`, `max_hits_*`, `n_skipped_max_hits`).
+- `MODE = "energy"` (config 1): bins on a per-shot photon energy ×
+  GMD, every aggregate with leading axes `(N_E, N_GMD)`; config keys
+  `ENERGY_EDGES` and `ENERGY_KEY` (dataset in the input file, default
+  `photon_energy/measured`); shots without an energy are skipped
+  (`n_skipped_energy_nan`). Output `<input>_aggregates_energy.h5` with
+  `energy_edges`; `AggregatesData.mode == "energy"`,
+  `.energy_centres`, `.n_energy_bins`.
+- GMD edges can be percentiles instead of fixed values:
+  `GMD_EDGES = None`, `GMD_PERCENTILE_BINS = k` (edges at 0, 100/k, …,
+  100 % of the shots that will be binned, so equal counts overall —
+  not per energy bin), optional `GMD_MIN` (noise floor left out).
 - CLI: `python compute_aggregates.py CONFIG.py INPUT.h5 [-o OUT.h5]`;
   config modules in `analysis/configs/` (`aggregates_example_cfg1.py`
   is the config-1 template; `aggregates_run60538_argon.py` and
-  `_b0-20.py` are the first ones for this beamtime).
+  `_b0-20.py` are the first ones for this beamtime;
+  `aggregates_run60559_energy.py` the first energy-mode one).
+
+### `photon_energy.py`
+Per-shot photon energy from the VLS for undulator scans, stored in the
+combined H5 as a `photon_energy/` group (`measured` (n, m) eV, NaN = no
+pulse or VLS signal < `min_snr`·σ of the dark line; `vls_centre`,
+`vls_window_sum`; calibration `cal_coef` (np.polyval, E(pixel)),
+`cal_energies`, `cal_centres`, `cal_residuals`, `step_spectra`,
+`pixels`; parameters as attrs). Same estimator as `undulator_scan.ipynb`:
+pedestal from the dark slot 100, common mode over 650–800, peak of the
+9-px-smoothed spectrum, centre of mass within ±30 px, ROI 200–650, bad
+pixels incl. 291–292; calibration = linear fit of each settled nominal
+step's mean-spectrum centre against its nominal energy (measured values
+are on the undulator scale). `measure_photon_energy(path, **params)`,
+`save_photon_energy(path, res, overwrite)`, `load_photon_energy(path)`;
+CLI `python photon_energy.py COMBINED.h5 [--raw-run N] [--overwrite]
+[--roi LO HI] …`. With `--raw-run` the frames are read from that run's
+raw files (matched by train ID, line `b + VLS_OFFSET` → bunch `b`,
+files < 2 min old skipped), so a combined file written `--no-vls` (live
+writes of long runs) can be used; on run 60559 it reproduces the
+combined-VLS result (same centres and selection; energies within
+3·10⁻⁵ eV from summation order).
 
 ### Static-XAS scripts (shutter-gated photon-energy scans)
 Each **open** shutter section = one nominal photon energy (assigned by
@@ -412,6 +466,12 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   train profile, which lines the combined file keeps for
   `config.VLS_OFFSET` / `TRAIN_LENGTH`, and (optional combined file)
   the stored VLS and both TOFs on the bunch axis.
+- `analysis/notebooks/undulator_scan_aggregates.ipynb` — opens
+  energy-mode aggregates (default run 60559) as plain arrays (`D`, `C`,
+  `DtD`, `CtC`, `DtC`, `G`, `GtG`, `DtG`, `CtG`, `n`; axes `E`,
+  `gmd_edges`, `tof_e` / `tof_i` in ns), prints the photon-energy
+  calibration and maps the shots per cell. Starting point for
+  covariance vs photon energy.
 - `analysis/notebooks/undulator_scan.ipynb` — undulator-gap scans from a
   combined file with VLS + `nominal_energy`: steps (settling trains
   dropped), streamed VLS (pedestal from dark slot 100, per-shot peak
@@ -468,6 +528,9 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
       with VLS and `nominal_energy`, 3.2 GB) via `write_h5.py
       Ethanol_undulator_scan_2807989445 1 60559 --max-ecounts 120
       --max-icounts 50`; `undulator_scan.ipynb` runs on it.
+- [x] Per-shot VLS photon energy (`photon_energy.py`) and energy × GMD
+      aggregates (`compute_aggregates` `MODE = "energy"`) for 60559;
+      `undulator_scan_aggregates.ipynb`.
 - [x] VLS line offset 2 and 101 slots confirmed for 100-pulse runs
       (`vls_alignment.ipynb`); `config.VLS_OFFSET` = 2.
 - [x] `nominal_energy` (undulator set wavelength) in the combined H5,
