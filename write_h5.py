@@ -1380,7 +1380,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
          max_ecounts=50, max_icounts=120, n_vls_pixels=1280,
          folding_parameter=39876.9, data_bunches=None,
          vls=None, vls_offset=None, no_sdu=False, live=False,
-         live_margin=50, live_min_age=120, first_tid=None, last_tid=None):
+         live_margin=50, live_min_age=120, first_tid=None, last_tid=None, lst_name=None):
     """
     Decode and align the local-DAQ + raw-H5 streams for one measurement.
 
@@ -1503,6 +1503,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
     print(f"train_length  : {train_length}")
     print(f"data_bunches  : {data_bunches}  "
           f"({'all bunches' if data_bunches is None else f'fills first {_data_n}; rest NaN'})")
+    print(f"Using {lst_name if lst_name is not None else measurement_name} to find .lst file")
     print()
 
     if not Path(h5_folder).is_dir():
@@ -1528,7 +1529,7 @@ def main(config_no, measurement_name, run_no, output_path=None,
     # combined H5 containing the SDU + raw-H5 streams. The TOF datasets
     # (tofs_e/tofs_i in cfg 1, liq_tofs_e in cfg 2) are simply omitted
     # from the output schema and `between_tdc_files` is all False.
-    tdc_fpaths, tdc_dir = _find_local_daq_files(Path(config.TDC_DIR), measurement_name, "lst")
+    tdc_fpaths, tdc_dir = _find_local_daq_files(Path(config.TDC_DIR), lst_name if lst_name is not None else measurement_name, "lst")
     has_tdc = bool(tdc_fpaths)
     if has_tdc:
         print(f"Found {len(tdc_fpaths)} TDC .lst files in {tdc_dir}.")
@@ -2126,6 +2127,7 @@ if __name__ == "__main__":
                         help="First train ID written (default: start of the measurement).")
     parser.add_argument("--last-tid", type=int, default=None,
                         help="Last train ID written (default: end of the data).")
+    parser.add_argument("--lst-name", type=str, default=None, help="Measurement name for .lst file (uses measurement name as fallback if not provided)")
     args = parser.parse_args()
     out_path = Path(args.output) if args.output else None
     main(
@@ -2147,4 +2149,5 @@ if __name__ == "__main__":
         live_margin=args.live_margin,
         first_tid=args.first_tid,
         last_tid=args.last_tid,
+        lst_name=args.lst_name
     )
