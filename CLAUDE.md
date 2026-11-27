@@ -10,7 +10,7 @@ This branch (`gas-vls`) is forked from `main` of
 beamtime (11022188, glycine), which had a liquid-jet arm and a gas arm.
 The liquid-arm code (config 2) is kept but dormant here.
 
-`HANDOVER.md` (25 Nov 2026) is the orientation document for colleagues
+`HANDOVER.md` (25 Nov 2026, updated 27 Nov) is the orientation document for colleagues
 and their assistants: rules, data model, pipeline with Slurm template,
 runs, results so far and open issues. Keep it in step with this file
 when the state changes substantially.
@@ -210,6 +210,37 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
   0.057 / 0.100 / 0.168 / 0.290 / 4.85 µJ). Commands in
   `aggregates_run60560_energy.py`; job `~/slurm_60560_final.sh` (5.5 min
   on a upex node). The `*_live*` files are superseded partial writes.
+- **Runs 60586, 60591** (ethanol undulator scans 265–272 eV; 60586 0.5 eV
+  steps of ~10 min, written `--no-vls`, `photon_energy/` from the raw
+  files, E = 297.441 − 0.0560721·px; 60591 quick scan, 1 eV steps of
+  ~5 min, with VLS, E = 298.639 − 0.0577877·px). Configs
+  `aggregates_run60586_energy.py`, `aggregates_run60591_energy.py`.
+- **Runs 60611 + 60612** (acetaldehyde, AcH, undulator scan 265 → 280 eV
+  in two acquisitions, `AcH_undulator_scan_265-280eV_2809702542` and
+  `AcH_undulator_scan_part2_265-280eV_2809782740`, 26 Nov 23:24 to 27 Nov
+  05:07; 0.5 eV steps of ~10 min; with VLS). 60611: 76 668 trains,
+  265–271 eV, E = 299.331 − 0.0591219·px (rms 0.032 eV); 60612:
+  125 649 trains, 270.5–280 eV (20 steps), E = 299.885 −
+  0.0600692·px (rms 0.053 eV); aggregates 10.16 M shots. Joined file:
+  202 317 trains, 57.1 GB; aggregates 17.07 M shots, GMD edges 0.020 /
+  0.089 / 0.183 / 0.333 / 0.615 / 5.49 µJ. The same nominal energy sits 1.5 px (0.09 eV) apart in the two
+  parts at 270.5 eV. Both final files were written with
+  `~/slurm_undscan.sh RUN MEASUREMENT CONFIG final` (write → photon
+  energy → aggregates → ready counts), and joined into
+  `run60611-60612_AcH_undulator_scan_265-280eV.h5` by
+  `concat_combined_h5.py`, which keeps each part's calibration
+  (`aggregates_run60611_60612_energy.py`, `~/slurm_concat.sh`).
+- **OPIS** (`mean photon energy`, event records ~every 10 trains when
+  live): live in 60509–60514, 60539–60544, 60569–60587, 60597–60607; 0
+  in 60545–60568, 60588–60596, 60608–60609; stuck at 273.375 eV from
+  60610. Where live it reads +0.3…+1.8 eV above nominal at 265–272 eV
+  (jump at 271 eV in scan 60586) and −6.4 eV at 177–181 eV (scan 60513).
+  After each nominal change in 60586 it holds its old value for ~1250
+  trains. The VLS step sizes of 60586 follow nominal (rms 0.06 eV), not
+  OPIS (0.32 eV) (`opis_vs_nominal_photon_energy.ipynb`, uncommitted).
+- **Photon energy along the train** (60586): pulses 0–20 read ~0.15 eV
+  above the 100-pulse mean; the measured energy falls by ~0.4 eV from
+  the first to the last pulse.
 - Other pulse-resolved raw channels worth knowing: `/Timing/bunch
   pattern`, `/Timing/set number of bunches flash2`, bunch charge and
   toroids (`/FL1/Electron Diagnostic/...`, `/uncategorised/FLASH.DIAG/
@@ -434,6 +465,45 @@ matrices never sit in memory.
   `_b0-20.py` are the first ones for this beamtime;
   `aggregates_run60559_energy.py` the first energy-mode one).
 
+### `compute_ready_counts.py`
+Dead-time-corrected electron means for an existing aggregates file,
+written to a companion `<aggregates stem>_ready.h5`; the aggregates are
+not changed. It reads the aggregates' attrs, goes back to the combined
+file and puts every shot into the same cell (`_build_keep_mask`,
+`_iter_chunks`, same bunch range, GMD / energy / z bins, hit caps, VLS
+frame check). Per cell and TDC tick it counts ready shots R (no recorded
+hit in the preceding τ) and hits H in ready shots; `D_live` = Σ_ticks
+−ln(1 − H/R) per TOF bin (Coates). R, H are counted in `gmd_sub` (4)
+GMD-quantile sub-bins per GMD bin and combined weighted by shots;
+ticks with < `MIN_READY` (5) ready shots in a sub-bin fall back to the
+whole cell. Also `p0` / `mu0 = −ln p0` per KE window (dead-time free).
+Datasets `taus_ns`, `n_per_bin`, `D`, `D_live (n_tau, cells, n_tof)`,
+`ready_frac`, `p0_windows_ke`, `p0`, `mu0`, `tof_edges`; attrs include
+`check_n_equal`, `check_D_max_abs_diff` (n and D reproduce the
+aggregates exactly on 60591 / 60611). `load_ready_counts(path)`. CLI
+`python compute_ready_counts.py AGG.h5 [--taus …] [--windows 210:285
+10:40] [--gmd-sub 4] [--workers N] [-o OUT] [--no-vls-check]`; refuses
+to overwrite. Run 60611: the fast-window total reaches its plateau at
+τ = 6 ns and equals μ₀ to 0.1 % in every GMD bin (×1.56 on the
+recorded hits in the top bin); no hit pairs < 1.5 ns. Only means are
+corrected (second moments stay recorded).
+
+### `concat_combined_h5.py`
+`concat_combined(out, inputs, check=5)` / CLI `python
+concat_combined_h5.py OUT.h5 IN1.h5 IN2.h5 … [--check N]`: joins
+combined files along the train axis in train order (same datasets,
+trailing shapes, dtypes and dataset attrs required; no train overlap).
+One-train-per-chunk datasets (VLS) are copied with
+`read_direct_chunk` / `write_direct_chunk`, the rest in blocks; same
+chunking and filters as the first input. `photon_energy/` is carried
+over with each input's calibration: per-shot datasets concatenated,
+step datasets concatenated with `cal_source`, `cal_coef` as
+`(n_inputs, order + 1)`, differing attrs (`dark_median`, `dark_sigma`,
+`threshold`) one value per input. Root attrs `sources`,
+`source_first_index`, `source_n_trains`. Writes `OUT.partial`, renames
+when done, never overwrites; spot-checks random trains of every input.
+Tested on mini copies of 60611 / 60612 (all datasets identical).
+
 ### `calibration.py`
 TOF calibrations (ns), both from argon run 60538: electrons
 `ke_of_tof` / `tof_of_ke`, KE = (a/(t − t0))² + E0 with `ETOF` (t0 14.75 ns,
@@ -562,8 +632,8 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   photoelectrons (it moves between runs), not a photon peak; the ~100 ns
   bump in those runs sits on the Ar Auger.
 - `analysis/notebooks/undulator_scan_aggregates.ipynb` — opens
-  energy-mode aggregates (`AGG_H5`, now the final run 60560 file) as
-  plain arrays (`D`, `C`,
+  energy-mode aggregates (`AGG_H5`, now the joined AcH 60611 + 60612
+  file; earlier runs as comments) as plain arrays (`D`, `C`,
   `DtD`, `CtC`, `DtC`, `G`, `GtG`, `DtG`, `CtG`, `n`; axes `E`,
   `gmd_edges`, `tof_e` / `tof_i` in ns), prints the photon-energy
   calibration and maps the shots per cell. Starting point for
@@ -587,8 +657,25 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   reference-normalised high/low ratio is 0.95 ± ~0.1 and flat within
   errors; pair covariance ≈ 0 ± 0.1 ⟨N⟩² at high GMD without
   photon-energy structure; fast electrons covary with m/q 1, 13–15,
-  27–31, 45–46 at all photon energies. Uses only numpy (the user's
-  kernel is xfel 202301, Python 3.9).
+  27–31, 45–46 at all photon energies. Since 27 Nov: dead-time
+  correction from the ready file (`READY_H5 = 'auto'`, `TAU_NS = 6`;
+  `Dm` = corrected means, τ-check plot of window totals vs −ln P0) and a
+  normalisation monitor `MONITOR` = `'vls'` (VLS line sum ΣA in 10⁴
+  ADU, default), `'gmd'` or `'ar'` (Ar 2p photoline of the residual
+  argon, binding-energy window `AR_BE` 246.8–251.8 eV with linear
+  sidebands `AR_SIDE` 2 eV; its second moment removes the Poisson
+  self-pair term); XAS maps (`XAS_NORM = "monitor"`) and the two-photon
+  fit (⟨N⟩ = a₁M + a₂M², on dead-time-corrected means) use it. The
+  user's kernel is now "Python 3 (ipykernel)" (mamba 3.13 + `~/.local`,
+  seaborn there).
+- `analysis/notebooks/yield_per_uj_vs_gmd.ipynb` — why the per-µJ
+  yield rises at low GMD (run 60611 single shots): hits = a·G + b fits
+  (fast e b/a 0.22 µJ, slow 0.026, ions 0.009); hall-GMD noise vs the
+  tunnel GMD from raw (0.03–0.05 µJ rms; hall < 0.01 µJ pulses carry
+  0.036 µJ), dead time (hit spacing, multiplicity vs Poisson, mean vs
+  −ln P0, fast-peak ratio), VLS line sum as monitor, the selection on
+  a measured photon energy, train position, and the per-µJ curve step
+  by step; a ~1.4× common fall-off remains in every channel.
 - `analysis/notebooks/undulator_scan.ipynb` — undulator-gap scans from a
   combined file with VLS + `nominal_energy`: steps (settling trains
   dropped), streamed VLS (pedestal from dark slot 100, per-shot peak
@@ -676,10 +763,18 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
       energy per GMD bin in `undulator_scan_aggregates.ipynb`.
 - [x] Two-photon resonance section run on 60559 and 60560 (results not
       yet interpreted; see `HANDOVER.md` §7).
-- [x] `HANDOVER.md` for colleagues.
-- [ ] Delay scans at 268 eV (`Ethanol_delay_scan_short*_268eV`, raw runs
-      from 60561): not written yet; config-1 `time_resolved` hit-list
-      path unverified.
+- [x] `HANDOVER.md` for colleagues (updated 27 Nov).
+- [x] Runs 60586, 60591, 60611, 60612 processed (combined + photon
+      energy + aggregates; ready counts for 60591, 60611, 60612).
+- [x] Dead-time ready counts (`compute_ready_counts.py`) and monitor
+      choice (VLS / GMD / Ar 2p) in `undulator_scan_aggregates.ipynb`.
+- [x] Runs 60611 + 60612 joined (`concat_combined_h5.py`) with
+      aggregates and ready counts.
+- [ ] Ready counts for 60559, 60560, 60586; dead time in second
+      moments, ions and the delay-scan notebooks.
+- [ ] Delay scans: written by colleagues (combined files, time-delay
+      aggregates); config-1 `time_resolved` hit-list path verification
+      not known here.
 
 ## Open questions
 - Gotthard line ↔ pulse offset for runs with other bunch patterns
@@ -701,5 +796,12 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   (0–40000), so its electron spectra include the crosstalk after
   1000 ns.
 - VLS pixel → eV: only relative to the undulator set values so far
-  (run 60559 fit); no independent absolute reference. `z` units / sign
+  (each run's own fit); no independent absolute reference (OPIS
+  disagrees with both the undulator and the VLS). `z` units / sign
   (→ fs) for time-resolved runs.
+- The ~1.4× fall-off of the per-µJ yield across the GMD range left in
+  every channel after the GMD-noise, dead-time and selection effects
+  (`yield_per_uj_vs_gmd.ipynb`); possible VLS saturation in the top GMD
+  bins (not checked).
+- Pair covariance in `undulator_scan_aggregates.ipynb` drops pairs
+  < `DEAD_TIME_NS` = 1.0 ns, below the ~6 ns dead-time range.
