@@ -241,6 +241,19 @@ Raw files: `FLASH2_USER1_main_run<N>_file<k>_<timestamp>.1.h5` in
 - **Photon energy along the train** (60586): pulses 0–20 read ~0.15 eV
   above the 100-pulse mean; the measured energy falls by ~0.4 eV from
   the first to the last pulse.
+- **AcH delay scans** (`AcH_{short,long}_delay_scan_<k>_<E>eV_<tID>`,
+  one raw run each): 268.2 / 269.7 eV processed by a colleague; 271.2,
+  272.7, 274.2 eV (27/28 Nov, raw runs 60632–60648) with
+  `~/slurm_delayscan.sh RUN MEASUREMENT CONFIG [WAIT_MIN]` — `write_h5.py
+  --live --live-margin 0 --max-ecounts 120 --max-icounts 50 -o
+  <measurement>.h5` (with VLS), `compute_aggregates.py` time-resolved
+  with `aggregates_ethanol_delay.py` (short: 31 bins of 0.99 fs, ±15.4
+  fs) or `aggregates_ethanol_delay_longscans.py` (long: 32 bins of 2.0
+  fs, −4.9 to 59.3 fs), then `compute_ready_counts.py`. Delay (fs) =
+  z · 0.349 / 1000. A long scan is ~25 100 trains (41.8 min) and sweeps
+  the delay once at constant speed. For a scan still acquiring, wait
+  until the newest raw file reaches the last train of the SDU `.txt`
+  (CRLF line endings): the last raw file is completed after the scan.
 - Other pulse-resolved raw channels worth knowing: `/Timing/bunch
   pattern`, `/Timing/set number of bunches flash2`, bunch charge and
   toroids (`/FL1/Electron Diagnostic/...`, `/uncategorised/FLASH.DIAG/
@@ -590,7 +603,38 @@ ADMM spectral-domain ghost-imaging solver (`solve_admm(M, B, ...)` with
   subtracted yields (`YIELD_WINDOWS`) with power-law order, Ar
   charge-state shares and mean charge vs GMD, Ar^q+ search up to
   `Q_MAX` (σ_q = σ₁/q, overlaps flagged), and the same per bunch-slot
-  group.
+  group. Section 5a: each Ar charge state over all Ar ions and over
+  Ar²⁺ per GMD bin, divided by the pooled value, with slope p (ratio ∝
+  G^p) and χ²/dof against a constant; run 60538: all within a few % over
+  0.03–0.49 µJ, only Ar³⁺/Ar²⁺ rises (p = +0.013 ± 0.005, +2.4 % in the
+  top bin).
+- `analysis/notebooks/undulator_scan_ion_fractions.ipynb` — ion m/q
+  ranges (`MQ_RANGES`, a 10 ns TOF bin counts when its centre is inside)
+  from energy-mode aggregates; errors exact from `CtC` (covariance of a
+  range with the total included). Section 1, one photon energy: spectrum
+  on m/q and TOF axes, shape per GMD bin, yields vs monitor with
+  Y ∝ X^p, fraction of all ions (`TOTAL_MQ`) and ratio to `REF_RANGE`;
+  section 2: fractions, ratios and p (yield, fraction, ratio) vs photon
+  energy (`MIN_SHOTS_E` per energy bin). Joined AcH 60611 + 60612: p of
+  the yields 0.87–0.98 (≈ 0.8 at 279.5–280.5 eV, weaker top GMD bin),
+  p of every fraction ≈ 0; the fractions change smoothly by 15–30 %
+  across the scan (20–22, 28–31, 32–36 up; 45–49, 1, 2, 12–16, 17–19
+  down), but photon energy and time go together in that scan. With the
+  argon calibration the heavy AcH peak sits at m/q ≈ 46.5 (`MQ_CAL`
+  overrides).
+- `analysis/notebooks/delay_scan_ion_yields.ipynb` — time-resolved
+  aggregates of delay scans (`SCANS` glob, same delay bins): ion yield
+  per `MONITOR` and fractions vs delay (pooled; per scan, with χ²/dof of
+  the scans against the pooled curve), p vs delay, ions in coincidence
+  with fast electrons (`E_WINDOWS`: "BE" windows move with the photon
+  energy from the file name; partial covariance on GMD within cells per
+  detected electron, errors = spread between scans), and all photon
+  energies (`ENERGY_SCANS`); stacked plots (`STACK`). AcH long scans,
+  27/28 Nov: fractions flat in delay and reproducible; the total yield
+  per VLS wanders ±5–10 % differently in each scan (drift: each scan
+  sweeps the delay once, so delay ∝ acquisition time); p 0.89–0.93
+  constant in delay; valence-coincident ions are heavy fragments,
+  Auger-coincident ions H⁺ and small fragments.
 - `analysis/notebooks/covariance_ee_ei.ipynb` — goal 5, from config-1
   aggregates: pools GMD bins and merges TOF bins (exact on aggregates).
   It builds three estimates (`EST`): total, within GMD bins, and partial on
