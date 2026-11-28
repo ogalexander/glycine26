@@ -1,12 +1,20 @@
 # Handover — `gas-vls` analysis, FLASH2 beamtime 11024642 (Nov 2026)
 
-Written 25 Nov 2026 and updated 27 Nov 2026 for a colleague and the AI
-assistant they work with (e.g. ChatGPT). It is a snapshot: it tells you
-where things are, what has been done, what was found and what is open.
-What changed on 27 Nov is listed in §0a. For the details of every
-function, dataset and run, read **`CLAUDE.md`** at the repo root. It is
-the maintained project log and is updated with the code. Where the two
-disagree, the code is right, then `CLAUDE.md`, then this file.
+Written 25 Nov 2026 and updated 27 and 28 Nov 2026 for a colleague and
+the AI assistant they work with (e.g. ChatGPT). It is a snapshot: it
+tells you where things are, what has been done, what was found and what
+is open. What changed on 27 Nov is listed in §0a, on 28 Nov in §0b. For
+the details of every function, dataset and run, read **`CLAUDE.md`** at
+the repo root. It is the maintained project log and is updated with the
+code. Where the two disagree, the code is right, then `CLAUDE.md`, then
+this file.
+
+A colleague's separate handover, **`HANDOVER_NIGHTSHIFT.md`** (27 Nov
+evening), covers their AcH delay-scan notebooks
+(`inspect_delay_scan_acet_updated.ipynb`,
+`inspect_delay_scan_argon_reference.ipynb`, `acet_vs_ethanol.ipynb`).
+The restart issues listed in its §6 were checked against the committed
+notebooks (commit `ab4a15a`) and are real.
 
 Repository: `github.com/ogalexander/glycine26`, branch **`gas-vls`**. The
 `main` branch is the previous beamtime (11022188, glycine, liquid jet +
@@ -79,6 +87,34 @@ branch as reference material (see §8).
   aggregates, `write_h5.py --lst-name`, new notebooks) is in the git log
   and the notebooks' own header cells; this file does not cover it.
 
+## 0b. What changed since the 27 Nov version (28 Nov)
+
+- **AcH delay scans of the night 27/28 Nov processed** (§5.7, §6.1):
+  - 271.2, 272.7 and 274.2 eV, raw runs 60632–60648: 6 short and 11
+    long scans;
+  - with a colleague's 268.2 and 269.7 eV scans, there are now
+    time-resolved aggregates and ready counts for 11 short and 19 long
+    AcH delay scans;
+  - acquired later and **not processed**: 274.2 eV long scan 4 (run
+    60649) and the 266.7 eV series (runs 60650 onwards).
+- **Ion analysis** (§6.3, §7):
+  - `delay_scan_ion_yields.ipynb`: ion yields and fractions against
+    pump–probe delay, power-law p against delay, ions in coincidence
+    with fast valence or Auger electrons, and all photon energies, with
+    stacked plots;
+  - `undulator_scan_ion_fractions.ipynb`: ion m/q ranges in an undulator
+    scan, as fractions, yields and p against pulse energy at one photon
+    energy, then against photon energy;
+  - `inspect_itof_argon.ipynb` §5a: Ar charge-state ratios against GMD.
+- **Findings** (§7):
+  - the ion fractions do not depend on delay;
+  - the total ion yield per VLS drifts during each scan, and within a
+    scan delay and acquisition time are the same axis;
+  - valence and Auger electrons come with different ions.
+- **VS Code kernel pitfall** (§2).
+- The OPIS notebook (`opis_vs_nominal_photon_energy.ipynb`, §4.4) is
+  still uncommitted, on the Maxwell clone only.
+
 ---
 
 ## 1. The experiment in one page
@@ -106,9 +142,11 @@ branch as reference material (see §8).
   - ethanol delay scans at 266, 268, 270 and 271.5 eV (25–26 Nov;
     combined files written by colleagues, see §6.2);
   - **acetaldehyde (AcH)**: an undulator scan in two runs, 60611 and
-    60612 (26 Nov 23:24 to 27 Nov 05:07), then delay scans at 268.7 and
-    268.2 eV
-    (not processed here).
+    60612 (26 Nov 23:24 to 27 Nov 05:07), then delay scans (§6.1):
+    - single short scans at 268.7 and 268.2 eV;
+    - 2–3 short and 4 long scans each at 268.2, 269.7, 271.2, 272.7 and
+      274.2 eV (27 Nov morning to 28 Nov 05:40);
+    - a 266.7 eV series from 28 Nov 05:40.
 - **Beamtime goals, in priority order** (from `CLAUDE.md`):
   1. Good conditions: no TDC hit-finder or detector saturation; sane GMD,
      photon energy and pointing; correlations between e, i, GMD and VLS.
@@ -156,6 +194,15 @@ branch as reference material (see §8).
     packages in the owner's `~/.local` (seaborn is installed there).
     Earlier they used "xfel (202301; Python 3.9)"; older notebook code
     may still be written for that.
+  - **VS Code pitfall.** A user-level kernel spec named "Python 3
+    (ipykernel)" that just runs `python` (installed with `ipykernel` into
+    `~/.local`) takes precedence over the mamba one of the same name.
+    VS Code Remote-SSH puts `/usr/bin` first on PATH, so that kernel
+    becomes the system Python 3.9 with matplotlib 3.4.3, and
+    `import matplotlib.pyplot` fails (`module 'matplotlib' has no
+    attribute '__version_info__'`). In VS Code, pick
+    `/software/mamba/2026.05/bin/python` as the kernel explicitly. The
+    notebooks need matplotlib ≥ 3.5 anyway.
   - The system `/usr/bin/python3` (3.9) lacks pandas.
 - **Slurm partitions** used so far: `upex` and `upex-beamtime` (check
   `sinfo` for your account). Most nodes are idle and have 40–128 cores
@@ -582,6 +629,39 @@ differ from those of the parts.
 Joining 60611 + 60612 (202 317 trains, 57 GB) took 107 s, its
 aggregates 73 s and the ready counts 39 s.
 
+### 5.7 Delay scans — time-resolved aggregates
+Each AcH delay scan is one local-DAQ acquisition
+(`AcH_{short,long}_delay_scan_<k>_<E>eV_<train ID>`, with an SDU `.txt`
+that fills `z`) and one raw run. Match them by train ID. Per scan (job
+script `~/slurm_delayscan.sh RUN MEASUREMENT CONFIG [WAIT_MIN]` in the
+owner's home):
+
+```bash
+F=11024642/processed/combined/<measurement>.h5
+python write_h5.py <measurement> 1 <run> --live --live-margin 0 --max-ecounts 120 --max-icounts 50 -o $F
+python analysis/scripts/compute_aggregates.py analysis/configs/aggregates_ethanol_delay_longscans.py $F --workers 48
+python analysis/scripts/compute_ready_counts.py ${F%.h5}_aggregates_tr.h5 --workers 16
+```
+
+- **Configs:** `aggregates_ethanol_delay.py` for short scans (31 bins
+  of 0.99 fs, ±15.4 fs) and `aggregates_ethanol_delay_longscans.py` for
+  long scans (32 bins of 2.0 fs, −4.9 to 59.3 fs). Both use 5 GMD
+  percentile bins per scan, include the VLS, and set
+  `MAX_HITS_E/I = 60/30`.
+- **Delay:** delay (fs) = z · 0.349 / 1000. Time zero is not
+  established.
+- **One sweep per scan:** a long scan is ~25 100 trains (41.8 min) and
+  sweeps the delay **once, at constant speed**, so delay and
+  acquisition time are the same axis within a scan.
+- **Run time:** 1.3–4 min per scan on a `upex` node. Products:
+  `<measurement>.h5` (7.0 GB long, 3.4 GB short), `…_aggregates_tr.h5`,
+  `…_aggregates_tr_ready.h5`.
+- **Scan still acquiring:** the SDU `.txt` appears at the end of the
+  scan, but the last raw file is completed about a minute later. Wait
+  until the newest raw file of the run reaches the last train ID in the
+  `.txt`, whose lines end in CRLF. Otherwise the combined file is
+  silently cut short; this happened once and was redone.
+
 ---
 
 ## 6. Runs, files and notebooks
@@ -598,6 +678,27 @@ aggregates 73 s and the ready counts 39 s.
 | 60611 | `AcH_undulator_scan_265-280eV_2809702542` | **AcH** undulator scan part 1, 13 steps 265–271 eV (0.5 eV, ~10 min each) | `run60611_…2809702542.h5` (76 668 trains, **with VLS**, 21.7 GB) + `photon_energy/` (92.2 %) | `…_aggregates_energy.h5`: 6.91 M shots; GMD edges 0.020/0.109/0.217/0.383/0.668/5.01 µJ; `…_ready.h5` |
 | 60612 | `AcH_undulator_scan_part2_265-280eV_2809782740` | **AcH** part 2, 20 steps 270.5–280 eV (0.5 eV, ~10 min each), 209 min | `run60612_…2809782740.h5` (125 649 trains, **with VLS**, 35.4 GB) + `photon_energy/` (83.2 %) | `…_aggregates_energy.h5`: 10.16 M shots; GMD edges 0.020/0.080/0.163/0.297/0.573/5.49 µJ; `…_ready.h5` |
 | 60611 + 60612 | both of the above | **AcH, both parts joined** (`concat_combined_h5.py`), 265–280 eV; 270.5 and 271 eV in both parts | `run60611-60612_AcH_undulator_scan_265-280eV.h5` (202 317 trains, with VLS, 57.1 GB); per-part `photon_energy/` calibrations | `…_aggregates_energy.h5` (`aggregates_run60611_60612_energy.py`): 17.07 M shots; GMD edges 0.020/0.089/0.183/0.333/0.615/5.49 µJ; `…_ready.h5` |
+
+**AcH delay scans** (§5.7). For each scan, `<measurement>.h5`,
+`<measurement>_aggregates_tr.h5` and `…_aggregates_tr_ready.h5` exist in
+`processed/combined/`. Long scans have about 2.45 M aggregated shots
+each.
+
+| Photon energy | Short scans (±15.4 fs) | Long scans (−4.9 to 59.3 fs) | Raw runs | Processed by |
+|---|---|---|---|---|
+| 268.2 eV | 2, 3, 4 | 1–4 | 60616–60623 | colleague, 27 Nov |
+| 269.7 eV | 1, 2 | 1–4 | 60624–60631 | colleague, 27 Nov |
+| 271.2 eV | 1, 2 | 1–4 | 60632–60637 | owner, 28 Nov |
+| 272.7 eV | 1, 2 | 1–4 | 60638–60643 | owner, 28 Nov |
+| 274.2 eV | 1, 2 | 1–3 (4: run 60649, **not processed**) | 60644–60648 | owner, 28 Nov |
+| 266.7 eV | 1, 2 (runs 60650–60651) | 1 (acquiring at 06:30) | 60650– | **not processed** |
+
+Also processed (colleague): the single `AcH_short_delay_scan_268.7eV_2809924372`
+(linearity diagnostic). Not processed:
+`AcH_partial_short_delay_scan_268.7eV_2809917510` and
+`AcH_short_delay_scan_268.2eV_2809940480`. Check the raw-run column
+against the train IDs before reusing it; it was matched by train ID
+only for the owner's scans.
 
 `_live` files are partial writes made while a run was acquiring. These
 are **superseded** but still on disk; they can be deleted once the owner
@@ -617,8 +718,8 @@ The run-60611 live files were deleted on 27 Nov.
   and 271.5 eV, raw runs from 60561) and the time-delay aggregates
   (commit "time delay aggregates", `inspect_delay_scan.ipynb`,
   `delay_scan_covariance.ipynb`). Ask them for the details.
-- The AcH delay scans (`AcH_*delay_scan_268.7eV*`, `…_268.2eV…`, raw
-  runs from 60613) are not processed.
+- AcH delay scans not processed yet: see the table in §6.1 (274.2 eV
+  long scan 4, the 266.7 eV series and two early single scans).
 - Raw runs 60493–60550 (apart from 60538) have no combined files. Many
   are setup and alignment runs (pulses per train and VLS presence vary;
   table in `CLAUDE.md`). Run 60545 was used for the VLS line-offset check.
@@ -629,12 +730,16 @@ The run-60611 live files were deleted on 27 Nov.
 | `conditions_check.ipynb` | goal 1: stability, bunch pattern, GMD, VLS pedestal / saturation / offset, TDC caps and dead time, TOF maps, linearity, correlations | a run or a combined file |
 | `vls_alignment.ipynb` | Gotthard line ↔ pulse offset, lit lines, crop check | raw files (+ combined) |
 | `inspect_vls.ipynb`, `inspect_tofs.ipynb`, `inspect_vls_plus_energy_scan.ipynb` | quick per-shot inspection (`inspect_tofs` still in TDC units) | combined / raw |
-| `inspect_itof_argon.ipynb` | ion m/q calibration, charge-state shares, yields vs GMD | 60538 |
+| `inspect_itof_argon.ipynb` | ion m/q calibration, charge-state shares, yields vs GMD; §5a each Ar charge state over all Ar ions and over Ar²⁺ against GMD (normalised, slope p, χ²) | 60538 |
 | `etof_calibration_argon.ipynb` | electron TOF → KE fit (§4.1) | 60538 |
 | `covariance_ee_ei.ipynb` | e–e and e–i covariance (total / within-cell / partial), crosstalk check, rank test | config-1 GMD aggregates (60538) |
 | `undulator_scan.ipynb` | per-step VLS centres, pixel → eV fit, eTOF vs nominal and measured photon energy, average-train maps per step; calibrated axes | combined file with VLS (60559) |
 | `undulator_scan_aggregates.ipynb` | **main analysis notebook**. Opens energy-mode aggregates as plain arrays with calibrated axes (`D_E`, `C_mq`, …). Dead-time correction from the ready file (`READY_H5 = 'auto'`, `TAU_NS = 6`; `Dm` = corrected means, with a τ check plot). Normalisation monitor `MONITOR` = `'vls'` (VLS line sum, default), `'gmd'` or `'ar'` (Ar 2p photoline, `AR_BE` 246.8–251.8 eV binding energy with linear sidebands of `AR_SIDE` = 2 eV). Sections: **XAS maps** (photon energy × KE per GMD bin) and the **two-photon resonance** fit of fast electrons against the monitor | `AGG_H5` (now the joined 60611 + 60612; earlier runs listed as comments) |
 | `yield_per_uj_vs_gmd.ipynb` | why the per-µJ yield rises at low GMD: GMD noise (hall vs tunnel), dead time (hit spacing, Poisson, −ln P0), VLS as monitor, selection on a measured photon energy, train position | a combined file with `photon_energy/` + the raw run (tunnel GMD); 60611 |
+| `undulator_scan_ion_fractions.ipynb` | ion m/q ranges (`MQ_RANGES`): at one photon energy the spectrum (m/q and TOF axes), shape per GMD bin, yields against the monitor with Y ∝ X^p, fraction of all ions and ratio to `REF_RANGE`; then fractions, ratios and p against photon energy. Errors exact from `CtC` | energy-mode aggregates (joined AcH 60611 + 60612) |
+| `delay_scan_ion_yields.ipynb` | ion yield per monitor and fractions against delay (pooled; per scan, with χ² of the scans against the pooled curve), p against delay, ions in coincidence with fast electrons (`E_WINDOWS`, partial covariance on GMD per detected electron), all photon energies (`ENERGY_SCANS`); stacked plots (`STACK`) | time-resolved aggregates (`SCANS` glob; default the four 271.2 eV long scans) |
+| `inspect_delay_scan_acet_updated.ipynb`, `inspect_delay_scan_argon_reference.ipynb`, `acet_vs_ethanol.ipynb` | a colleague's AcH delay-scan, argon-control and AcH-vs-ethanol notebooks | see `HANDOVER_NIGHTSHIFT.md` |
+| `opis_vs_nominal_photon_energy.ipynb` (uncommitted, Maxwell clone) | OPIS against the undulator setting and the VLS (§4.4) | raw files; combined 60586 |
 | `camera_shutter_difference.ipynb` | YAG camera, shutter open − closed | raw |
 
 Notebook conventions:
@@ -756,6 +861,65 @@ correction.
   Photolines run diagonally, Auger lines vertically. They are now
   divided by the chosen monitor instead (`XAS_NORM = "monitor"`).
 
+**Ions (28 Nov; detected ions, not dead-time corrected).** The m/q
+ranges are named by m/q, not by fragment. The ion calibration comes from
+argon run 60538 (§4.2), and with it the heavy AcH peak sits at
+m/q ≈ 46.5, above the AcH parent ion (44). So check the calibration
+before naming fragments (`MQ_CAL` in the notebooks).
+
+*Argon 60538* (`inspect_itof_argon.ipynb` §5a):
+- Each charge state over all Ar ions, and over Ar²⁺, stays within a few
+  % over 0.03–0.49 µJ.
+- Only Ar³⁺/Ar²⁺ rises: p = +0.013 ± 0.005, +2.4 % in the top GMD bin.
+
+*AcH undulator scan, joined 60611 + 60612*
+(`undulator_scan_ion_fractions.ipynb`, GMD as x):
+- **Yields:** p = 0.87–0.98, the same for every range. It drops to
+  ≈ 0.8 at 279.5–280.5 eV, where the top GMD bin has fewer and weaker
+  pulses.
+- **Fractions against pulse energy:** p of every fraction is ≈ 0 at all
+  photon energies.
+- **Fractions against photon energy:** they change smoothly by 15–30 %
+  over the scan. 20–22, 28–31 and 32–36 go up; 45–49, 1, 2, 12–16 and
+  17–19 go down.
+- **Caveat:** the scan runs monotonically in photon energy, so a drift
+  of the target gas would look the same. The falling 45–49 band
+  coincides with the heavy peak in the ethanol scans.
+
+*AcH delay scans* (`delay_scan_ion_yields.ipynb`; four 271.2 eV long
+scans, 9.85 M shots, unless stated):
+- **Fractions against delay:** flat. χ²/dof against a constant is
+  0.6–1.4, deviations stay within 1–4 %, and the scans agree with each
+  other (χ²/dof of the scans against the pooled curve 0.9–1.6). The same
+  holds at 268.2, 269.7, 272.7 and 274.2 eV (χ²/dof ≤ 2.4).
+- **Total ion yield per VLS:**
+  - pooled, it moves by ±2 % (χ²/dof 13.5);
+  - each scan wanders by ±5–10 % in a different shape (χ²/dof of the
+    scans against the pooled curve 54);
+  - the pooled shape also differs between photon energies;
+  - since each scan sweeps the delay once, this is drift during the
+    acquisition (gas density, monitor), not a delay dependence.
+- **Power law:** p of the yields is 0.89–0.93 (against GMD) and constant
+  in delay. p of the fractions is ≈ 0, except H⁺ (−0.012 ± 0.002) and
+  m/q 2 (−0.026 ± 0.005).
+- **Ions with fast electrons** (partial covariance on GMD per detected
+  electron; errors from the spread of the 4 scans). Windows: valence =
+  binding energy 8–20 eV (KE 251–263 eV at 271.2 eV); Auger = KE
+  225–241 eV.
+
+  | | Valence | Auger |
+  |---|---|---|
+  | Correlated ions per detected electron | 0.22 | 0.066 |
+  | Heavy fragments (m/q 24–36, 41–49), × singles share | 1.3–1.6 | 0.5–0.9 |
+  | H⁺, × singles share | 0.18 | 3.5 |
+  | m/q 2, × singles share | 0.10 | 4.1 |
+  | m/q 12–16, × singles share | 0.6 | 1.5 |
+  | m/q 20–22, × singles share | 0.16 | 0.46 |
+
+  m/q 20–22 is low in both, and Ar²⁺ from the residual argon sits at
+  m/q 20. No delay structure is seen in the coincidences beyond the
+  scan-to-scan spread, but 4 scans give rough errors.
+
 ---
 
 ## 8. Legacy material on this branch
@@ -803,15 +967,34 @@ Roughly in priority order:
    offsets differ. There is no absolute reference: OPIS disagrees with
    both the undulator and the VLS (§4.4). An atomic line would help; the
    Ar 2p binding energy vs hν is a candidate.
-6. **Merged-sweep trains** (§3.2): make the writer handle them, or cut
+6. **Delay scans: separate delay from drift.**
+   - Each scan sweeps the delay once, so a drift during the scan looks
+     like a delay dependence. The total ion yield per VLS drifts by
+     ±5–10 % per scan.
+   - Options: sweep in alternating directions or interleave delays in
+     acquisition; compare scans (as `delay_scan_ion_yields.ipynb`
+     does); look at the yields against acquisition time.
+   - Also: establish time zero and the delay sign. Process the remaining
+     scans (§6.1). Fix the restart issues of the colleague's notebooks
+     (`HANDOVER_NIGHTSHIFT.md` §6).
+7. **Ions:**
+   - recalibrate m/q for the AcH runs; the heavy peak sits at 46.5 with
+     the argon calibration;
+   - the ion hits are not corrected for dead time;
+   - the coincidence errors need more scans, or resampling by train
+     blocks.
+8. **Merged-sweep trains** (§3.2): make the writer handle them, or cut
    them at write time.
-7. **eTOF calibration:** the 3s outlier, a single retardation setting,
+9. **eTOF calibration:** the 3s outlier, a single retardation setting,
    and t0 / E0 that are only constrained by the 2p lines.
-8. **The ion-efficiency drop along the train** and the **G^0.7 scaling**
+10. **The ion-efficiency drop along the train** and the **G^0.7 scaling**
    (run 60538): understand both before using absolute yields.
-9. Gotthard line offset for bunch patterns other than 100 pulses.
-10. **Housekeeping:**
+11. Gotthard line offset for bunch patterns other than 100 pulses.
+12. **Housekeeping:**
    - delete the superseded `_live` files listed in §6.1 (owner's call);
+   - the job scripts (`~/slurm_undscan.sh`, `~/slurm_concat.sh`,
+     `~/slurm_delayscan.sh`) are in the owner's home directory, not the
+     repo; their commands are in §5.4–§5.7;
    - `inspect_tofs.ipynb` still works in TDC units and integrates past
      1000 ns (crosstalk);
    - `plotting.py` is not updated for config 1 + VLS;
@@ -827,7 +1010,9 @@ Roughly in priority order:
   train (slots 0–99, plus dark slot 100 in the combined files). A
   *shot* is one pulse.
 - **Cell:** one photon-energy bin × one GMD bin in the energy-mode
-  aggregates.
+  aggregates; one GMD bin × one delay bin in the time-resolved ones.
+- **Fraction (of all ions):** the hits in one m/q range over the hits
+  in `TOTAL_MQ`, in the same shots. It needs no intensity monitor.
 - **D / C / A / G:** electron TOF histogram, ion TOF histogram, VLS
   spectrum, GMD pulse energy, per shot. `XtY` is ⟨XYᵀ⟩ per cell.
 - **Nominal vs measured photon energy:** nominal = hc / undulator set
